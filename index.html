@@ -1898,7 +1898,7 @@ function renderDetailInto(panel,l){
     var inMiss = missingTimes.includes(i+'_in');
     var outMiss = missingTimes.includes(i+'_out');
 
-    var summaryLine = '<div style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none" onclick="window[\'scc_'+l.id+'_'+orig_i+'\']=window[\'scc_'+l.id+'_'+orig_i+'\'']===false?true:false;renderDetail()">'
+    var summaryLine = '<div style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;user-select:none" onclick="window[\'scc_'+l.id+'_'+orig_i+'\']=window[\'scc_'+l.id+'_'+orig_i+'\']===false?true:false;renderDetail()">'
       +'<span style="font-size:10px;color:var(--tx3);margin-top:3px;flex-shrink:0">'+(isCollapsed?'▶':'▼')+'</span>'
       +'<div style="flex:1;min-width:0">'
         +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'
@@ -1944,13 +1944,21 @@ function renderDetailInto(panel,l){
         +'<div style="margin-top:8px;background:var(--sur2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 12px">'
           +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Actual Times</div>'
           +'<div class="stimes">'
-            +'<div class="tf"><label>In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'setStopTime('+l.id+','+orig_i+',\'inT\',v)', s.inT?'ok':inMiss?'miss':'')+'</div>'
-            +'<div class="tf"><label>Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'setStopTime('+l.id+','+orig_i+',\'outT\',v)', s.outT?'ok':outMiss?'miss':'')+'</div>'
+            +'<div class="tf"><label>In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'dtCbIn_'+l.id+'_'+orig_i, s.inT?'ok':inMiss?'miss':'')+'</div>'
+            +'<div class="tf"><label>Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'dtCbOut_'+l.id+'_'+orig_i, s.outT?'ok':outMiss?'miss':'')+'</div>'
           +'</div>'
         +'</div>'
       +'</div>'
     +'</div>';
   }).join('');
+
+  // Register named datetime callbacks for in/out times
+  sorted.forEach(function(s) {
+    var orig_i = l.stops.indexOf(s);
+    var lid = l.id;
+    window['dtCbIn_'+lid+'_'+orig_i]  = function(v) { setStopTime(lid, orig_i, 'inT',  v); };
+    window['dtCbOut_'+lid+'_'+orig_i] = function(v) { setStopTime(lid, orig_i, 'outT', v); };
+  });
 
   var ciHTML=(l.callins||[]).slice().reverse().map(function(c, revIdx){
     var realIdx = (l.callins.length - 1) - revIdx;
@@ -2387,34 +2395,40 @@ function dtAdjust5(internal, delta) {
 }
 
 // Build a datetime text input element and return its outer HTML string
-// id: element id, val: internal value, cbStr: JS string to call with new internal value
-function makeDTInput(id, val, cbStr, extraClass) {
+// id: element id, val: internal value, cbName: global function name to call(newVal)
+function makeDTInput(id, val, cbName, extraClass) {
   var disp = dtToDisplay(val);
-  return '<input type="text" id="'+id+'" value="'+esc(disp)+'" placeholder="MM/DD/YYYY HH:MM or T/N/T+1..."'
+  return '<input type="text" id="'+esc(id)+'" value="'+esc(disp)+'" placeholder="MM/DD/YYYY HH:MM or T/N/T+1..."'
     +' class="dtinput'+(extraClass?' '+extraClass:'')+'"'
-    +' onblur="applyDT(this,function(v){'+cbStr+'})"'
-    +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();applyDT(this,function(v){'+cbStr+'})}"'
-    +' onwheel="event.preventDefault();scrollDT(this,event.deltaY<0?1:-1,function(v){'+cbStr+'});"'
+    +' data-cb="'+esc(cbName)+'"'
+    +' onblur="applyDT(this)"'
+    +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();applyDT(this)}"'
+    +' onwheel="event.preventDefault();scrollDT(this,event.deltaY<0?1:-1)"'
     +'>';
 }
 
-function applyDT(el, cb) {
+function applyDT(el) {
   var raw = el.value.trim();
-  if(!raw){cb('');return;}
-  var internal = dtToInternal(raw);
-  if(internal) {
-    el.value = dtToDisplay(internal);
-    cb(internal);
+  var internal = raw ? dtToInternal(raw) : '';
+  if(raw && !internal) return; // unparseable — leave for user to fix
+  if(internal) el.value = dtToDisplay(internal);
+  var cb = el.getAttribute('data-cb');
+  if(cb) {
+    var fn = window[cb];
+    if(typeof fn === 'function') fn(internal);
   }
-  // if unparseable, leave as-is so user can fix it
 }
 
-function scrollDT(el, delta, cb) {
+function scrollDT(el, delta) {
   var raw = el.value.trim();
   var internal = raw ? dtToInternal(raw) : '';
   var adjusted = dtAdjust5(internal, delta);
   el.value = dtToDisplay(adjusted);
-  cb(adjusted);
+  var cb = el.getAttribute('data-cb');
+  if(cb) {
+    var fn = window[cb];
+    if(typeof fn === 'function') fn(adjusted);
+  }
 }
 
 
@@ -2439,8 +2453,8 @@ function addStop(stop) {
         +'</div>'
         +'<button id="slclr-'+idx+'" class="btn xs" style="margin-top:3px;display:'+(s.name?'':'none')+'" onclick="clearStopLoc('+idx+')">Clear Location</button>'
       +'</div>'
-      +'<div class="sl">Appt'+makeDTInput('sappt-'+idx, s.appt, 'stopRows['+idx+'].appt=v')+'</div>'
-      +'<div class="sl">Latest Appt'+makeDTInput('slappt-'+idx, s.latestAppt, 'stopRows['+idx+'].latestAppt=v')+'</div>'
+      +'<div class="sl">Appt'+makeDTInput('sappt-'+idx, s.appt, 'dtCbAppt'+idx)+'</div>'
+      +'<div class="sl">Latest Appt'+makeDTInput('slappt-'+idx, s.latestAppt, 'dtCbLAppt'+idx)+'</div>'
     +'</div>'
     +'<div class="sr2" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
       +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
@@ -2460,6 +2474,11 @@ function addStop(stop) {
       +'<button class="addpobtn" onclick="addPORow('+idx+')">+ Add PO</button>'
     +'</div>';
   document.getElementById('stop-list').appendChild(d);
+  // Register named datetime callbacks for this stop index
+  (function(i, sr) {
+    window['dtCbAppt'+i]  = function(v) { sr[i] && (sr[i].appt = v); };
+    window['dtCbLAppt'+i] = function(v) { sr[i] && (sr[i].latestAppt = v); };
+  })(idx, stopRows);
   s.pos.forEach(function(p,pi){p.ri=pi;addPORow(idx,p);});
 }
 
