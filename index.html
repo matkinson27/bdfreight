@@ -559,8 +559,8 @@ tr.psel td{background:#eef9ee!important}
         <button class="btn g" onclick="createLoadFromSelected()">Create Load from Selected</button>
         <button class="btn d" onclick="delSelDealers()">Delete</button>
       </div>
-      <div class="tw"><table>
-        <thead><tr>
+      <div class="tw" style="overflow-y:auto;max-height:calc(100vh - 220px)"><table>
+        <thead style="position:sticky;top:0;z-index:2"><tr>
           <th class="nc" style="width:28px"></th>
           <th>PO #</th><th>Vendor</th><th>Pieces</th><th>Seats</th><th>Ready Date</th>
           <th>Dealer Name</th><th>Phone</th><th>Address</th><th>City</th><th>State</th><th class="nc">Actions</th>
@@ -2177,7 +2177,7 @@ function saveLoad(){
     // update receiver label while we're here
     var nl=document.getElementById('scr-name-'+i);if(nl&&s.name)nl.textContent=s.name;
   });
-  var fs=stopRows.filter(function(s){return s&&s.name;});
+  var fs=stopRows.filter(function(s){return s&&(s.name||(s.pos&&s.pos.length));});
   fs.forEach(function(s){
     if(s.name&&!locations.find(function(l){return l.name.toLowerCase()===s.name.toLowerCase();}))
       locations.push({id:nLoc++,name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
