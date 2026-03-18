@@ -20,7 +20,7 @@
   --tx:#1a202c;--tx2:#64748b;--tx3:#94a3b8;
   --bd:#e2e8f0;--bd2:#cbd5e1;
   --red:#dc2626;--amber:#d97706;--purple:#7c3aed;
-  --F:"DM Sans",system-ui,sans-serif;--M:"DM Mono",monospace;
+  --F:"DM Sans",system-ui,sans-serif;--M:"Roboto Mono","Courier New",monospace;
   --r:8px;--rxl:14px;
   --sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 16px rgba(0,0,0,.12);
 }
@@ -116,16 +116,16 @@ tr.row.overdue:hover td{background:#fef3c7}
 tr.row.overdue.sel td{background:#fde68a}
 tr.psel td{background:#eef9ee!important}
 .st{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
-.st-schedule{background:#dbeafe;color:#1e40af}
-.st-available{background:#d1fae5;color:#065f46}
-.st-covered{background:#ede9fe;color:#4c1d95}
-.st-assigned{background:#e0e7ff;color:#3730a3}
-.st-dispatched{background:#ffedd5;color:#9a3412}
-.st-arrived{background:#a7f3d0;color:#064e3b}
-.st-departed{background:#fde68a;color:#78350f}
-.st-receiver{background:#fce7f3;color:#831843}
-.st-delivered{background:#bbf7d0;color:#14532d}
-.st-closed{background:#e2e8f0;color:#475569}
+.st-schedule{background:#F9A8D4;color:#831843}
+.st-available{background:#BFDBFE;color:#1E40AF}
+.st-covered{background:#93C5FD;color:#1E3A8A}
+.st-assigned{background:#C4B5FD;color:#4C1D95}
+.st-dispatched{background:#BBF7D0;color:#14532D}
+.st-arrived{background:#86EFAC;color:#14532D}
+.st-departed{background:#2ECC40;color:#fff}
+.st-receiver{background:#5EEAD4;color:#134E4A}
+.st-delivered{background:#0F1C30;color:#fff}
+.st-closed{background:#CBD5E1;color:#334155}
 .st-issue{background:#fee2e2;color:#991b1b;animation:pls 1.8s infinite}
 .st-claim{background:#ffedd5;color:#9a3412}
 @keyframes pls{0%,100%{opacity:1}50%{opacity:.55}}
@@ -1793,7 +1793,7 @@ function buildTimelineBar(l) {
     var isDone = i < frozenIdx;
     var isCur = i === frozenIdx && !isSpecial;
     var isFuture = i > frozenIdx || (isSpecial && i >= frozenIdx);
-    var canRevert = !isCur && !l.archived;
+    var canRevert = isDone && !l.archived;
 
     var nodeBg = isDone ? st.color : isCur ? st.color : 'var(--sur2)';
     var nodeText = isDone ? st.text : isCur ? st.text : 'var(--tx3)';
@@ -1865,33 +1865,18 @@ function revertStatus(lid, toStatus) {
   var l = loads.find(function(x){return x.id===lid;});if(!l)return;
   var from = l.status;
   if(toStatus === from) return;
-  // Closed requires BOL + POD + rate confirmation
-  if(toStatus === 'Closed') {
-    if(!canClose(l)){
-      var issues=[];
-      if(!l.docs||!l.docs.bol) issues.push('BOL not uploaded');
-      if(!l.docs||!l.docs.pod) issues.push('POD not uploaded');
-      if(!l.rateConfirmation) issues.push('Rates not confirmed');
-      var missing=getMissingTimes(l);
-      if(missing.length) issues.push(missing.length+' stop time(s) missing');
-      alert('Cannot move to Closed:\n- '+issues.join('\n- '));
-      return;
-    }
+  // Block forward advancement via timeline — revert only
+  if(LC.indexOf(toStatus) >= LC.indexOf(from)) {
+    alert('Use the Next Status button to advance a load.\nThe timeline can only be used to revert to a previous status.');
+    return;
   }
-  if(!confirm('Move '+l.loadNum+' from '+from+' to '+toStatus+'?\n\nThis will be logged in the call-in history.'))return;
-  l.status = toStatus;
-  l.archived = toStatus === 'Closed';
-  if(from === 'Delivered' && toStatus !== 'Delivered') l.deliveredAt = null;
-  if(toStatus === 'Issue') l.preIssueStatus = from;
-  l.callins.push({
-    status: from+' → '+toStatus,
-    time: nowStr(),
-    note: 'Status changed by '+cap(currentUser),
-    req: false,
-    type: 'note'
-  });
-  saveState();
-  renderBoard();updateBKPIs();renderDetail();
+  // Route through callin modal so a note is captured
+  pendingCallin = {lid:lid, from:from, to:toStatus, isRevert:true};
+  document.getElementById('ci-title').textContent = 'Revert: '+from+' → '+toStatus;
+  document.getElementById('ci-sub').textContent = 'Load '+l.loadNum+' — Note required';
+  document.getElementById('ci-req').style.display = 'block';
+  document.getElementById('ci-note').value = '';
+  openM('m-callin');
 }
 
 function renderDetailInto(panel,l){
@@ -1936,7 +1921,7 @@ function renderDetailInto(panel,l){
     var realIdx = (l.callins.length - 1) - revIdx;
     var cls = c.type==='created'?'created':c.req?'req':c.type==='incident'?'inc':'';
     var badge = c.type==='created'?'<span class="cib cr">Created</span>':c.req&&c.type!=='incident'?'<span class="cib ci">Call-In</span>':c.type==='incident'?'<span class="cib ii">Incident</span>':'';
-    var delBtn = c.type==='note'
+    var delBtn = c.type!=='created'
       ? '<button class="btn xs d" style="margin-left:auto;padding:0 6px;height:18px;font-size:10px" onclick="deleteCallin('+l.id+','+realIdx+')">×</button>'
       : '';
     return '<div class="cie '+cls+'">'
@@ -2140,8 +2125,9 @@ function initiateStatus(lid, to) {
 
 function deleteCallin(lid, idx) {
   var l=loads.find(function(x){return x.id===lid;});if(!l)return;
-  if(!l.callins[idx]||l.callins[idx].type!=='note'){return;}
-  if(!confirm('Delete this note?'))return;
+  var entry=l.callins[idx];
+  if(!entry||entry.type==='created'){return;}
+  if(!confirm('Delete this entry?'))return;
   l.callins.splice(idx,1);
   saveState();
   renderDetail();
@@ -2184,7 +2170,19 @@ function confirmCallin() {
     return;
   }
 
-  if(isReq(from,to)&&!note){alert('A call-in note is required.');return;}
+  if(isReq(from,to)&&!note&&!pendingCallin.isRevert){alert('A call-in note is required.');return;}
+  if(pendingCallin.isRevert&&!note){alert('A note is required when reverting status.');return;}
+
+  // Revert path — apply backwards status change
+  if(pendingCallin.isRevert){
+    l.status=to;
+    l.archived=false;
+    if(from==='Delivered') l.deliveredAt=null;
+    l.callins.push({status:from+' → '+to+' (Reverted)',time:nowStr(),note:note,req:true,type:'callin'});
+    closeM('m-callin');pendingCallin=null;
+    saveState();renderBoard();updateBKPIs();renderDetail();
+    return;
+  }
   // Intercept Delivered — save the callin note and open rate confirmation
   if(to==='Delivered'){
     pendingCallin.callinNote=note;
@@ -3411,6 +3409,79 @@ function renderSCPanel(cid) {
     +'<div style="font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Load History</div>'
     +'<div class="sc-load-row sc-load-hdr"><div>Load #</div><div>Status</div><div>Vendor</div><div>Carrier $</div><div>Cust $</div><div>Margin</div></div>'
     +loadsHTML
+    +buildLaneHistory(cLoads)
+  +'</div>';
+}
+
+var laneSort = {col:'loads', asc:false};
+
+function buildLaneHistory(cLoads) {
+  if(!cLoads.length) return '';
+  var lanes = {};
+  cLoads.forEach(function(l){
+    var s = getStopSum(l);
+    if(!s.fCity && !s.fState) return;
+    var origin = s.fCity ? s.fCity+(s.fState?', '+s.fState:'') : s.fState;
+    var dest = s.lCity ? s.lCity+(s.lState?', '+s.lState:'') : s.lState;
+    if(!origin||!dest) return;
+    var key = origin+' → '+dest;
+    if(!lanes[key]) lanes[key]={origin:origin,dest:dest,loads:[],rates:[],lastAppt:''};
+    lanes[key].loads.push(l);
+    if(l.cr) lanes[key].rates.push(l.cr);
+    var appt = getStopSum(l).fAppt||'';
+    if(appt > lanes[key].lastAppt) lanes[key].lastAppt = appt;
+  });
+  var keys = Object.keys(lanes);
+  if(!keys.length) return '';
+
+  // Sort
+  keys.sort(function(a,b){
+    var la=lanes[a], lb=lanes[b];
+    var av, bv;
+    if(laneSort.col==='lane'){av=a;bv=b;}
+    else if(laneSort.col==='rate'){av=la.rates.length?la.rates.reduce(function(x,y){return x+y;},0)/la.rates.length:0;bv=lb.rates.length?lb.rates.reduce(function(x,y){return x+y;},0)/lb.rates.length:0;}
+    else if(laneSort.col==='loads'){av=la.loads.length;bv=lb.loads.length;}
+    else if(laneSort.col==='last'){av=la.lastAppt;bv=lb.lastAppt;}
+    var r=av>bv?1:av<bv?-1:0;
+    return laneSort.asc?r:-r;
+  });
+
+  function sortArrow(col) {
+    if(laneSort.col!==col) return '<span style="color:var(--tx3);font-size:9px"> ⇅</span>';
+    return '<span style="color:var(--green);font-size:9px"> '+(laneSort.asc?'▲':'▼')+'</span>';
+  }
+  function thStyle(col) {
+    return 'font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;cursor:pointer;user-select:none'+(laneSort.col===col?';color:var(--navy)':'');
+  }
+
+  var rows = keys.map(function(key){
+    var ln = lanes[key];
+    var rates = ln.rates;
+    var minR = rates.length ? Math.min.apply(null,rates) : null;
+    var maxR = rates.length ? Math.max.apply(null,rates) : null;
+    var avgR = rates.length ? Math.round(rates.reduce(function(a,b){return a+b;},0)/rates.length) : null;
+    var lastDate = ln.lastAppt ? ln.lastAppt.substring(0,10) : '—';
+    var rateRange = rates.length
+      ? (minR===maxR ? '$'+minR.toLocaleString() : '$'+minR.toLocaleString()+' – $'+maxR.toLocaleString()+' <span style="color:var(--tx3)">(avg $'+avgR.toLocaleString()+')</span>')
+      : '—';
+    return '<div style="display:grid;grid-template-columns:1fr 160px 80px 90px;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px;align-items:center">'
+      +'<div style="font-weight:600;color:var(--navy)">'+esc(key)+'</div>'
+      +'<div>'+rateRange+'</div>'
+      +'<div style="color:var(--tx2);text-align:center">'+ln.loads.length+' load'+(ln.loads.length!==1?'s':'')+'</div>'
+      +'<div style="color:var(--tx2);font-size:11px">'+esc(lastDate)+'</div>'
+      +'</div>';
+  }).join('');
+
+  var cid = selCarrier;
+  return '<div style="margin-top:16px">'
+    +'<div style="font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Lane History</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 160px 80px 90px;gap:8px;padding:5px 0;border-bottom:2px solid var(--bd);margin-bottom:2px">'
+      +'<div style="'+thStyle('lane')+'" onclick="laneSort.asc=laneSort.col===\'lane\'?!laneSort.asc:false;laneSort.col=\'lane\';renderSCPanel('+cid+')">Lane'+sortArrow('lane')+'</div>'
+      +'<div style="'+thStyle('rate')+'" onclick="laneSort.asc=laneSort.col===\'rate\'?!laneSort.asc:false;laneSort.col=\'rate\';renderSCPanel('+cid+')">Rate Range'+sortArrow('rate')+'</div>'
+      +'<div style="'+thStyle('loads')+';text-align:center" onclick="laneSort.asc=laneSort.col===\'loads\'?!laneSort.asc:false;laneSort.col=\'loads\';renderSCPanel('+cid+')">Loads'+sortArrow('loads')+'</div>'
+      +'<div style="'+thStyle('last')+'" onclick="laneSort.asc=laneSort.col===\'last\'?!laneSort.asc:true;laneSort.col=\'last\';renderSCPanel('+cid+')">Last Run'+sortArrow('last')+'</div>'
+    +'</div>'
+    +rows
   +'</div>';
 }
 
@@ -4331,7 +4402,7 @@ function renderDashboard() {
       var mar = getEffectiveCustR(l) - (l.cr||0);
       var lid = l.id;
       return '<tr style="cursor:pointer" onclick="(function(){selLoad='+lid+';goPage(\'board\',document.getElementById(\'ntab-board\'));setTimeout(function(){renderBoard();renderDetail();},60);})()">'
-        + '<td style="font-weight:700;color:var(--navy);font-family:var(--M)">' + esc(l.loadNum) + '</td>'
+        + '<td style="font-weight:700;color:var(--navy)">' + esc(l.loadNum) + '</td>'
         + '<td><span class="st st-' + l.status.toLowerCase() + '">' + l.status + '</span></td>'
         + '<td style="color:var(--tx2)">' + esc(l.carrier||'\u2014') + '</td>'
         + '<td style="color:var(--tx2)">' + esc(l.dispatcher||'\u2014') + '</td>'
