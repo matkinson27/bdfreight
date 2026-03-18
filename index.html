@@ -605,7 +605,7 @@ tr.psel td{background:#eef9ee!important}
     <div class="split">
       <div class="split-top" id="split-top" style="height:240px">
         <div class="tw"><table>
-          <colgroup><col style="width:28px"><col style="width:90px"><col style="width:100px"><col style="width:96px"><col style="width:105px"><col style="width:90px"><col style="width:80px"><col style="width:50px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:120px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
+          <colgroup><col style="width:28px"><col style="width:90px"><col style="width:100px"><col style="width:96px"><col style="width:105px"><col style="width:90px"><col style="width:50px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:120px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
           <thead><tr>
             <th class="nc" style="width:28px"></th>
             <th onclick="sortBoard('loadNum')" id="sh-loadNum">Load #</th>
@@ -613,7 +613,6 @@ tr.psel td{background:#eef9ee!important}
             <th onclick="sortBoard('status')" id="sh-status">Status</th>
             <th onclick="sortBoard('vendor')" id="sh-vendor">Vendor</th>
             <th onclick="sortBoard('dispatcher')" id="sh-dispatcher">Dispatcher</th>
-            <th class="nc">PU #</th>
             <th class="nc">Stops</th>
             <th onclick="sortBoard('fCity')" id="sh-fCity">PU City</th>
             <th onclick="sortBoard('fState')" id="sh-fState">PU St, ZIP</th>
@@ -1497,9 +1496,18 @@ function getStopSum(l) {
   var pus=l.stops.filter(function(s){return s.type==='pickup';}).sort(function(a,b){return(a.appt||'').localeCompare(b.appt||'');});
   var dls=l.stops.filter(function(s){return s.type==='delivery';}).sort(function(a,b){return(b.appt||'').localeCompare(a.appt||'');});
   var fp=pus[0],ld=dls[0];
+  function resolveZip(s){
+    if(s&&s.zip&&s.zip.trim()) return s.zip.trim();
+    if(s&&s.name){
+      var sname=(s.name||'').trim().toLowerCase();
+      var loc=locations.find(function(l){return (l.name||'').trim().toLowerCase()===sname;});
+      if(loc&&loc.zip&&loc.zip.trim()) return loc.zip.trim();
+    }
+    return '';
+  }
   return {pu:pus.length,dl:dls.length,
-    fCity:fp?fp.city:'',fState:fp?fp.state:'',fZip:fp?fp.zip||'':'',fAppt:fp?fp.appt:'',
-    lCity:ld?ld.city:'',lState:ld?ld.state:'',lZip:ld?ld.zip||'':'',lAppt:ld?ld.appt:''};
+    fCity:fp?fp.city:'',fState:fp?fp.state:'',fZip:resolveZip(fp),fAppt:fp?fp.appt:'',
+    lCity:ld?ld.city:'',lState:ld?ld.state:'',lZip:resolveZip(ld),lAppt:ld?ld.appt:''};
 }
 
 // ============================
@@ -1588,7 +1596,6 @@ function renderBoard() {
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'+overdueLabel+'</td>'
       +'<td>'+esc(l.vendor||'-')+'</td>'
       +'<td style="color:var(--tx2)">'+esc(l.dispatcher||'-')+'</td>'
-      +'<td>'+puNumCell+'</td>'
       +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
       +'<td>'+esc(s.fCity||'-')+'</td>'
       +'<td style="color:var(--tx2)">'+esc(s.fState||'-')+(s.fZip?' '+esc(s.fZip):'')+'</td>'
@@ -1601,7 +1608,7 @@ function renderBoard() {
       +'<td>$'+getEffectiveCustR(l).toLocaleString()+'</td>'
       +'<td class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</td>'
       +'</tr>';
-  }).join('')||'<tr><td colspan="18" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
+  }).join('')||'<tr><td colspan="17" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
   renderDetail();
 }
 function sortBoard(c){bSort.asc=bSort.col===c?!bSort.asc:true;bSort.col=c;renderBoard();}
@@ -1687,11 +1694,11 @@ function renderDetailInto(panel,l){
     var outMiss = missingTimes.includes(i+'_out');
     return '<div class="scard '+(s.type==='pickup'?'pu':'dl')+'">'
       +'<span class="stag '+(s.type==='pickup'?'pu':'dl')+'">'+(s.type==='pickup'?'Pickup':'Delivery')+' - Stop '+(i+1)+'</span>'
-      +'<div class="sname">'+esc(s.name)+'</div>'
-      +'<div class="smeta">'+esc(s.addr)+', '+esc(s.city)+', '+esc(s.state)+(s.zip?' '+esc(s.zip):'')+'</div>'
-      +'<div class="smeta">Sched: <strong>'+(s.appt?dtToDisplay(s.appt):'-')+'</strong>'+(s.latestAppt?' | Latest: <strong>'+dtToDisplay(s.latestAppt)+'</strong>':'')+'</div>'
+      +'<div class="sname" style="font-size:16px">'+esc(s.name)+'</div>'
+      +'<div class="smeta" style="font-size:13px">'+esc(s.addr)+', '+esc(s.city)+', '+esc(s.state)+(s.zip?' '+esc(s.zip):'')+'</div>'
       +(s.notes?'<div class="smeta" style="font-style:italic">'+esc(s.notes)+'</div>':'')
       +posHTML
+      +'<div class="smeta" style="margin-top:6px">Sched: <strong>'+(s.appt?dtToDisplay(s.appt):'-')+'</strong>'+(s.latestAppt?' | Latest: <strong>'+dtToDisplay(s.latestAppt)+'</strong>':'')+'</div>'
       +'<div class="stimes">'
         +'<div class="tf"><label>Actual In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'setStopTime('+l.id+','+orig_i+',\'inT\',v)', s.inT?'ok':inMiss?'miss':'')+'</div>'
         +'<div class="tf"><label>Actual Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'setStopTime('+l.id+','+orig_i+',\'outT\',v)', s.outT?'ok':outMiss?'miss':'')+'</div>'
@@ -2140,18 +2147,27 @@ function addStop(stop) {
   var isDel=s.type==='delivery';
   var d=document.createElement('div');
   d.className='srow '+(isDel?'di':'pi');d.id='sr-'+idx;
+  var locked = s.name ? 'readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"' : '';
+  var lockDisplay = s.name ? '' : 'none';
   d.innerHTML='<button class="rmbtn" onclick="rmStop('+idx+')">x</button>'
     +'<div class="sr1">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
-      +'<div class="sl">Location<div class="acw"><input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"><div class="acl" id="snac-'+idx+'"></div></div></div>'
+      +'<div class="sl">Location'
+        +'<div class="acw">'
+          +'<input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"'+(s.name?' readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"':'')+'>'
+          +'<div class="acl" id="snac-'+idx+'"></div>'
+        +'</div>'
+        +'<button id="slclr-'+idx+'" class="btn xs" style="margin-top:3px;display:'+(s.name?'':'none')+'" onclick="clearStopLoc('+idx+')">Clear Location</button>'
+      +'</div>'
       +'<div class="sl">Appt'+makeDTInput('sappt-'+idx, s.appt, 'stopRows['+idx+'].appt=v')+'</div>'
     +'</div>'
     +'<div class="sr2">'
+      +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
       +'<div class="sl">Latest Appt'+makeDTInput('slappt-'+idx, s.latestAppt, 'stopRows['+idx+'].latestAppt=v')+'</div>'
       +'<div class="sl">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
-      +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" oninput="stopRows['+idx+'].city=this.value"></div>'
-      +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" oninput="stopRows['+idx+'].state=this.value" maxlength="2"></div>'
-      +'<div class="sl">ZIP<input id="sz-'+idx+'" value="'+esc(s.zip)+'" oninput="stopRows['+idx+'].zip=this.value" maxlength="5"></div>'
+      +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" '+locked+' oninput="if(!this.readOnly)stopRows['+idx+'].city=this.value"></div>'
+      +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" '+locked+' maxlength="2" oninput="if(!this.readOnly)stopRows['+idx+'].state=this.value"></div>'
+      +'<div class="sl">ZIP<input id="sz-'+idx+'" value="'+esc(s.zip)+'" '+locked+' maxlength="5" oninput="if(!this.readOnly)stopRows['+idx+'].zip=this.value"></div>'
     +'</div>'
     +'<div id="scr-'+idx+'" style="display:'+(isDel?'flex':'none')+';align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px solid var(--bd)">'
       +'<span style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">Customer Rate ($)</span>'
@@ -2206,21 +2222,55 @@ function stopNameAC(idx,q){
   var m=locations.filter(function(l){return (l.name+' '+l.city).toLowerCase().includes(q.toLowerCase());});
   if(!m.length){list.style.display='none';return;}
   list.innerHTML=m.map(function(loc){
-    return '<div class="aci" onclick="pickStopLoc('+idx+',\''+esc(loc.name)+'\',\''+esc(loc.addr)+'\',\''+esc(loc.city)+'\')">'
-      +'<div>'+esc(loc.name)+'</div><div class="acs">'+esc(loc.addr)+', '+esc(loc.city)+'</div></div>';
+    return '<div class="aci" onclick="pickStopLoc('+idx+','+loc.id+')">'
+      +'<div>'+esc(loc.name)+'</div><div class="acs">'+esc(loc.addr)+', '+esc(loc.city)+(loc.zip?' '+esc(loc.zip):'')+'</div></div>';
   }).join('');
   list.style.display='block';
 }
-function pickStopLoc(idx,name,addr,cityState){
-  stopRows[idx].name=name;stopRows[idx].addr=addr;
-  var p=cityState.split(',');
-  stopRows[idx].city=(p[0]||'').trim();
-  stopRows[idx].state=(p[1]||'').trim();
-  var ni=document.getElementById('sn-'+idx);if(ni)ni.value=name;
-  var ci=document.getElementById('sc-'+idx);if(ci)ci.value=stopRows[idx].city;
-  var si=document.getElementById('ss-'+idx);if(si)si.value=stopRows[idx].state;
-  var nl=document.getElementById('scr-name-'+idx);if(nl)nl.textContent=name||'this receiver';
+function pickStopLoc(idx, locId){
+  var loc=locations.find(function(l){return l.id===locId;});if(!loc)return;
+  var cs=loc.city||'';var pt=cs.split(',');
+  var city=(pt[0]||'').trim();
+  var state=(pt[1]||'').trim();
+  var zip=(loc.zip||'').trim();
+  stopRows[idx].name=loc.name;
+  stopRows[idx].addr=loc.addr||'';
+  stopRows[idx].city=city;
+  stopRows[idx].state=state;
+  stopRows[idx].zip=zip;
+  // Fill and lock name
+  var ni=document.getElementById('sn-'+idx);
+  if(ni){ni.value=loc.name;ni.readOnly=true;ni.style.background='var(--sur2)';ni.style.color='var(--tx2)';ni.style.cursor='not-allowed';}
+  // Show clear button
+  var clr=document.getElementById('slclr-'+idx);if(clr)clr.style.display='';
+  // Fill and show address row
+  var ar=document.getElementById('saddr-row-'+idx);if(ar)ar.style.display='';
+  var ai=document.getElementById('sa-'+idx);if(ai)ai.value=loc.addr||'';
+  // Fill and lock city/state/zip
+  var ci=document.getElementById('sc-'+idx);
+  if(ci){ci.value=city;ci.readOnly=true;ci.style.background='var(--sur2)';ci.style.color='var(--tx2)';ci.style.cursor='not-allowed';}
+  var si=document.getElementById('ss-'+idx);
+  if(si){si.value=state;si.readOnly=true;si.style.background='var(--sur2)';si.style.color='var(--tx2)';si.style.cursor='not-allowed';}
+  var zi=document.getElementById('sz-'+idx);
+  if(zi){zi.value=zip;zi.readOnly=true;zi.style.background='var(--sur2)';zi.style.color='var(--tx2)';zi.style.cursor='not-allowed';}
+  // Update customer rate label
+  var nl=document.getElementById('scr-name-'+idx);if(nl)nl.textContent=loc.name||'this receiver';
   document.getElementById('snac-'+idx).style.display='none';
+}
+function clearStopLoc(idx){
+  stopRows[idx].name='';stopRows[idx].addr='';stopRows[idx].city='';stopRows[idx].state='';stopRows[idx].zip='';
+  var ni=document.getElementById('sn-'+idx);
+  if(ni){ni.value='';ni.readOnly=false;ni.style.background='';ni.style.color='';ni.style.cursor='';}
+  var clr=document.getElementById('slclr-'+idx);if(clr)clr.style.display='none';
+  var ar=document.getElementById('saddr-row-'+idx);if(ar)ar.style.display='none';
+  var ai=document.getElementById('sa-'+idx);if(ai)ai.value='';
+  var ci=document.getElementById('sc-'+idx);
+  if(ci){ci.value='';ci.readOnly=false;ci.style.background='';ci.style.color='';ci.style.cursor='';}
+  var si=document.getElementById('ss-'+idx);
+  if(si){si.value='';si.readOnly=false;si.style.background='';si.style.color='';si.style.cursor='';}
+  var zi=document.getElementById('sz-'+idx);
+  if(zi){zi.value='';zi.readOnly=false;zi.style.background='';zi.style.color='';zi.style.cursor='';}
+  var nl=document.getElementById('scr-name-'+idx);if(nl)nl.textContent='this receiver';
 }
 function vendorAC(q){
   var list=document.getElementById('ac-vendor');
@@ -2291,6 +2341,13 @@ function saveLoad(){
     var nl=document.getElementById('scr-name-'+i);if(nl&&s.name)nl.textContent=s.name;
   });
   var fs=stopRows.filter(function(s){return s&&(s.name||(s.pos&&s.pos.length));});
+  // Backfill zip from location DB for any stop missing it
+  fs.forEach(function(s){
+    if(!s.zip&&s.name){
+      var loc=locations.find(function(l){return (l.name||'').trim().toLowerCase()===(s.name||'').trim().toLowerCase();});
+      if(loc&&loc.zip) s.zip=loc.zip.trim();
+    }
+  });
   fs.forEach(function(s){
     if(s.name&&!locations.find(function(l){return l.name.toLowerCase()===s.name.toLowerCase();}))
       locations.push({id:nLoc++,name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
