@@ -27,6 +27,8 @@
 body{font-family:var(--F);font-size:13px;color:var(--tx);background:var(--bg);min-height:100vh}
 #login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1c30;position:fixed;inset:0;z-index:9000;flex-direction:column}
 @keyframes tire-spin{to{transform:rotate(360deg)}}
+@keyframes tl-spin{to{transform:rotate(360deg)}}
+@keyframes tl-pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.2;transform:scale(1.2)}}
 @keyframes login-fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes cap-pulse{0%,100%{opacity:1}50%{opacity:.75}}
 .ltire-spin{animation:tire-spin 10s linear infinite;transform-box:fill-box;transform-origin:center}
@@ -409,6 +411,7 @@ tr.psel td{background:#eef9ee!important}
       <span class="badge red" id="tb-issue" style="display:none">0 Issues</span>
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
+      <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
       <div class="upill" style="cursor:pointer" onclick="openChangePassword()" title="Change Password"><span class="ugreen"></span><span id="cur-user">-</span></div>
       <button class="tbtn" onclick="logout()">Sign Out</button>
     </div>
@@ -1051,10 +1054,77 @@ tr.psel td{background:#eef9ee!important}
   </div>
 </div>
 
-<script>
-// ============================
-// AUTH
-// ============================
+<!-- Keyboard Shortcuts Modal -->
+<div class="overlay" id="m-shortcuts">
+  <div class="mbox" style="max-width:500px">
+    <div class="mh">Keyboard Shortcuts</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 28px;padding:4px 0 12px">
+
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin-bottom:10px">Shipment Board</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Next status</span>
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">N</kbd>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Flag / remove issue</span>
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">I</kbd>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Navigate loads</span>
+            <div style="display:flex;gap:4px">
+              <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">↑</kbd>
+              <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">↓</kbd>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:18px 0 10px">Customer Orders</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font-size:12px;color:var(--tx2)">Navigate POs</span>
+          <div style="display:flex;gap:4px">
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">↑</kbd>
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">↓</kbd>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin-bottom:10px">Date &amp; Time Fields</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Today at 00:00</span>
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">T</kbd>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Offset days</span>
+            <div style="display:flex;gap:4px">
+              <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">T+1</kbd>
+              <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">T-1</kbd>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Now (snapped 5 min)</span>
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">N</kbd>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Scroll ±5 min</span>
+            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">scroll</kbd>
+          </div>
+        </div>
+
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:18px 0 10px">General</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font-size:12px;color:var(--tx2)">Open this modal</span>
+          <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">/</kbd>
+        </div>
+      </div>
+
+    </div>
+    <div class="mfooter"><button class="btn p" onclick="closeM('m-shortcuts')">Close</button></div>
+  </div>
+</div>
 var currentUser = null;
 var currentUserRole = 'standard';
 
@@ -1345,7 +1415,7 @@ function initApp() {
     loads.forEach(function(l) {
       if(l.status==='Delivered' && l.deliveredAt && !l.archived) {
         if(now - l.deliveredAt >= 72*3600000) {
-          if(l.docs && l.docs.bol && l.docs.pod && l.ratesVerified) {
+          if(l.docs && l.docs.bol && l.docs.pod) {
             l.status = 'Closed'; l.archived = true;
           }
         }
@@ -1668,6 +1738,147 @@ function renderDetail() {
   if(!l){panel.innerHTML='';return;}
   renderDetailInto(panel,l);
 }
+// ============================
+// STATUS TIMELINE BAR
+// ============================
+var TL_STAGES = [
+  {key:'Schedule',  label:'Sched',  color:'#FEF9C3', text:'#854D0E'},
+  {key:'Available', label:'Avail',  color:'#BFDBFE', text:'#1E40AF'},
+  {key:'Covered',   label:'Cov',    color:'#93C5FD', text:'#1E3A8A'},
+  {key:'Assigned',  label:'Assign', color:'#C4B5FD', text:'#4C1D95'},
+  {key:'Dispatched',label:'Disp',   color:'#BBF7D0', text:'#14532D'},
+  {key:'Arrived',   label:'Arrive', color:'#86EFAC', text:'#14532D'},
+  {key:'Departed',  label:'Depart', color:'#2ECC40', text:'#fff',   wheel:true},
+  {key:'Receiver',  label:'Rcvr',   color:'#5EEAD4', text:'#134E4A'},
+  {key:'Delivered', label:'Del',    color:'#0F1C30', text:'#fff'},
+  {key:'Closed',    label:'Closed', color:'#CBD5E1', text:'#334155'}
+];
+
+function buildTimelineBar(l) {
+  var curIdx = LC.indexOf(l.status);
+  var isIssue = l.status === 'Issue';
+  var isClaim = l.status === 'Claim';
+  var isSpecial = isIssue || isClaim;
+  // For issue/claim, use preIssueStatus to know where the bar froze
+  var frozenIdx = isSpecial ? LC.indexOf(l.preIssueStatus || LC[0]) : curIdx;
+
+  // Overdue check
+  var s = getStopSum(l);
+  var nowStr2 = new Date().toISOString().slice(0,16).replace('T',' ');
+  var prePickup = ['Schedule','Available','Covered','Assigned','Dispatched'];
+  var preDel = ['Arrived','Departed'];
+  var isOverdue = (!l.archived) && (
+    (prePickup.includes(l.status) && s.fAppt && s.fAppt < nowStr2) ||
+    (preDel.includes(l.status) && s.lAppt && s.lAppt < nowStr2)
+  );
+
+  // Spinning wheel SVG (for Departed node)
+  var wheelSVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="animation:tl-spin 1.2s linear infinite;display:block">'
+    +'<circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2" fill="none" opacity=".3"/>'
+    +'<circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2" fill="none" stroke-dasharray="16 47" stroke-linecap="round"/>'
+    +'<circle cx="12" cy="12" r="3" fill="#fff"/>'
+    +'<line x1="12" y1="2" x2="12" y2="6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'
+    +'<line x1="12" y1="18" x2="12" y2="22" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'
+    +'<line x1="2" y1="12" x2="6" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'
+    +'<line x1="18" y1="12" x2="22" y2="12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'
+    +'</svg>';
+
+  var nodesHTML = TL_STAGES.map(function(st, i) {
+    var isDone = i < frozenIdx;
+    var isCur = i === frozenIdx && !isSpecial;
+    var isFuture = i > frozenIdx || (isSpecial && i >= frozenIdx);
+    var canRevert = isDone && !l.archived; // clicking completed nodes reverts
+
+    var nodeBg = isDone ? st.color : isCur ? st.color : 'var(--sur2)';
+    var nodeText = isDone ? st.text : isCur ? st.text : 'var(--tx3)';
+    var nodeBorder = isCur ? '3px solid '+st.color : isDone ? '2px solid '+st.color : '2px solid var(--bd2)';
+    var nodeOpacity = isFuture ? '0.45' : '1';
+    var cursor = canRevert ? 'pointer' : 'default';
+    var title = canRevert ? 'Click to revert to '+st.key : st.key;
+    var onclick = canRevert ? 'revertStatus('+l.id+',\''+st.key+'\')' : '';
+
+    // Current node gets a pulsing ring
+    var pulseRing = isCur && !isSpecial
+      ? '<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid '+st.color+';opacity:.5;animation:tl-pulse 1.5s ease-in-out infinite"></div>'
+      : '';
+
+    // Wheel node for Departed
+    var inner = (st.wheel && isCur && l.status === 'Departed')
+      ? wheelSVG
+      : '<span style="font-size:9px;font-weight:700;letter-spacing:.01em;line-height:1;text-align:center">'+st.label+'</span>';
+
+    // Overdue flag on current node
+    var lateFlag = isOverdue && isCur
+      ? '<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;background:#FEF08A;color:#854D0E;border-radius:4px;padding:1px 5px;white-space:nowrap;font-weight:700;border:1px solid #FDE047">⚠ Late</div>'
+      : '';
+
+    // Issue/Claim flag on frozen node
+    var specialFlag = isSpecial && i === frozenIdx
+      ? '<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;background:'+(isIssue?'#FEE2E2':'#FEF3C7')+';color:'+(isIssue?'#991B1B':'#92400E')+';border-radius:4px;padding:1px 5px;white-space:nowrap;font-weight:700;border:1px solid '+(isIssue?'#FCA5A5':'#FCD34D')+'">'+l.status+'</div>'
+      : '';
+
+    return '<div style="display:flex;flex-direction:column;align-items:center;position:relative;flex:1;min-width:0">'
+      + lateFlag + specialFlag
+      +'<div onclick="'+onclick+'" title="'+title+'" style="'
+        +'width:36px;height:36px;border-radius:50%;'
+        +'background:'+nodeBg+';'
+        +'border:'+nodeBorder+';'
+        +'display:flex;align-items:center;justify-content:center;'
+        +'color:'+nodeText+';'
+        +'opacity:'+nodeOpacity+';'
+        +'cursor:'+cursor+';'
+        +'position:relative;'
+        +'transition:transform .15s;'
+        +(canRevert?'box-shadow:0 0 0 0 '+st.color+';':'')+'"'
+        +(canRevert?' onmouseover="this.style.transform=\'scale(1.15)\'" onmouseout="this.style.transform=\'scale(1)\'"':'')
+      +'>'
+        +pulseRing
+        +inner
+      +'</div>'
+      +'<div style="font-size:9px;color:'+(isCur&&!isSpecial?st.color:isDone?'var(--tx2)':'var(--tx3)')+';margin-top:4px;font-weight:'+(isCur?'700':'400')+';white-space:nowrap">'+st.key+'</div>'
+    +'</div>';
+  }).join(
+    // Connector line between nodes
+    '<div style="flex:0 0 auto;height:2px;width:100%;align-self:center;margin-top:-16px;background:var(--bd2);position:relative;top:-8px"></div>'
+  );
+
+  // Special status badge if on Issue/Claim
+  var specialBadge = isSpecial
+    ? '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:center">'
+        +'<span style="font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px;background:'+(isIssue?'#FEE2E2':'#FEF3C7')+';color:'+(isIssue?'#991B1B':'#92400E')+';border:1px solid '+(isIssue?'#FCA5A5':'#FCD34D')+'">'+l.status+' — Paused at '+l.preIssueStatus+'</span>'
+      +'</div>'
+    : '';
+
+  return '<div style="padding:14px 20px 10px;border-bottom:1px solid var(--bd);background:var(--sur)">'
+    +'<div style="display:flex;align-items:center;gap:0;padding:18px 8px 4px">'
+      +nodesHTML
+    +'</div>'
+    +specialBadge
+  +'</div>';
+}
+
+function revertStatus(lid, toStatus) {
+  var l = loads.find(function(x){return x.id===lid;});if(!l)return;
+  var from = l.status;
+  if(LC.indexOf(toStatus) >= LC.indexOf(from)){
+    alert('Can only revert to a previous status.');return;
+  }
+  if(!confirm('Revert '+l.loadNum+' from '+from+' to '+toStatus+'?\n\nThis will be logged in the call-in history.'))return;
+  l.status = toStatus;
+  l.archived = false;
+  // Clear deliveredAt if reverting from Delivered
+  if(from === 'Delivered') l.deliveredAt = null;
+  l.callins.push({
+    status: from+' → '+toStatus+' (Reverted)',
+    time: nowStr(),
+    note: 'Status reverted by '+cap(currentUser),
+    req: false,
+    type: 'note'
+  });
+  saveState();
+  renderBoard();updateBKPIs();renderDetail();
+}
+
 function renderDetailInto(panel,l){
   var sorted=l.stops.slice().sort(function(a,b){
     // Pickups always before deliveries; within same type sort by appt
@@ -1753,8 +1964,6 @@ function renderDetailInto(panel,l){
       +'</div>'
       +'<div class="dacts">'
         +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button class="abtn nx" onclick="initiateStatus('+l.id+',\''+nxt+'\')">Next: '+nxt+'</button>':'')
-        +(l.status==='Delivered'&&!l.ratesVerified?'<button class="abtn" style="background:#dcfce7;color:#14532d;border:1px solid #86efac" onclick="confirmRates('+l.id+')">✓ Confirm Rates</button>':'')
-        +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d;padding:0 8px">✓ Rates Confirmed</span>':'')
         +(l.status==='Issue'
           ?'<button class="abtn" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d" onclick="removeIssue('+l.id+')">Remove Issue</button>'
           :'<button class="abtn iss" onclick="initiateStatus('+l.id+',\'Issue\')">Flag Issue</button>'
@@ -1765,6 +1974,7 @@ function renderDetailInto(panel,l){
         +'<button class="btn sm p" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}))">Edit</button>'
       +'</div>'
     +'</div>'
+    +buildTimelineBar(l)
     +'<div class="dbody">'
       +'<div class="dcol"><div class="dct">Stops ('+sorted.length+') - '+sorted.filter(function(s){return s.type==='pickup';}).length+'PU / '+sorted.filter(function(s){return s.type==='delivery';}).length+'DEL</div>'+stopsHTML+'</div>'
       +'<div class="dcol"><div class="dct">Call-In Log</div>'+ciHTML+'</div>'
@@ -4107,47 +4317,79 @@ function renderDashboard() {
 // BOOT
 // ============================
 document.addEventListener('keydown', function(e) {
-  // Issue 9: arrow key navigation through board loads
-  var boardPage = document.getElementById('page-board');
-  var isBoardActive = boardPage && boardPage.classList.contains('on');
+  var tag = document.activeElement ? document.activeElement.tagName : '';
+  var inInput = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
 
-  if(isBoardActive && (e.key==='ArrowDown'||e.key==='ArrowUp')) {
-    var tag2 = document.activeElement ? document.activeElement.tagName : '';
-    if(tag2!=='INPUT'&&tag2!=='TEXTAREA'&&tag2!=='SELECT') {
-      e.preventDefault();
-      var rows2 = document.querySelectorAll('#board-body tr.row');
-      var ids = [];
-      rows2.forEach(function(tr){
-        var m = tr.getAttribute('onclick')||'';
-        var mm = m.match(/clickLoad\((\d+)\)/);
-        if(mm) ids.push(Number(mm[1]));
-      });
-      if(!ids.length) return;
-      var idx = selLoad ? ids.indexOf(selLoad) : -1;
-      if(e.key==='ArrowDown') idx = Math.min(idx+1, ids.length-1);
-      else idx = Math.max(idx-1, 0);
-      selLoad = ids[idx];
-      renderBoard();
-      // Scroll selected row into view
-      var selRow = document.querySelector('#board-body tr.row.sel');
-      if(selRow) selRow.scrollIntoView({block:'nearest'});
-      return;
-    }
+  // / — open shortcuts modal (anywhere, no input focused)
+  if(e.key==='/' && !inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    openM('m-shortcuts');
+    return;
   }
 
+  var boardPage = document.getElementById('page-board');
+  var isBoardActive = boardPage && boardPage.classList.contains('on');
+  var dealerPage = document.getElementById('page-dealer');
+  var isDealerActive = dealerPage && dealerPage.classList.contains('on');
 
-  if(e.key !== 'n' && e.key !== 'N') return;
-  if(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-  var tag = document.activeElement ? document.activeElement.tagName : '';
-  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-  if(!selLoad) return;
-  if(!isBoardActive) return;
-  var l = loads.find(function(x){return x.id===selLoad;});
-  if(!l) return;
-  var nxt = nextStatus(l.status);
-  if(!nxt || ['Closed','Issue','Claim'].includes(l.status)) return;
-  e.preventDefault();
-  initiateStatus(selLoad, nxt);
+  // Arrow keys — PO navigation on Customer Orders
+  if(isDealerActive && (e.key==='ArrowDown'||e.key==='ArrowUp') && !inInput) {
+    e.preventDefault();
+    var poRows = document.querySelectorAll('#dealer-body tr');
+    if(!poRows.length) return;
+    var cur = parseInt(dealerPage.dataset.arrowIdx||'-1');
+    if(e.key==='ArrowDown') cur = Math.min(cur+1, poRows.length-1);
+    else cur = Math.max(cur-1, 0);
+    dealerPage.dataset.arrowIdx = cur;
+    poRows.forEach(function(r){r.classList.remove('sel');});
+    if(poRows[cur]){poRows[cur].classList.add('sel');poRows[cur].scrollIntoView({block:'nearest'});}
+    return;
+  }
+
+  // Arrow keys — load navigation on Shipment Board
+  if(isBoardActive && (e.key==='ArrowDown'||e.key==='ArrowUp') && !inInput) {
+    e.preventDefault();
+    var boardRows = document.querySelectorAll('#board-body tr.row');
+    var ids = [];
+    boardRows.forEach(function(tr){
+      var mm=(tr.getAttribute('onclick')||'').match(/clickLoad\((\d+)\)/);
+      if(mm) ids.push(Number(mm[1]));
+    });
+    if(!ids.length) return;
+    var idx = selLoad ? ids.indexOf(selLoad) : -1;
+    if(e.key==='ArrowDown') idx = Math.min(idx+1, ids.length-1);
+    else idx = Math.max(idx-1, 0);
+    selLoad = ids[idx];
+    renderBoard();
+    var selRow = document.querySelector('#board-body tr.row.sel');
+    if(selRow) selRow.scrollIntoView({block:'nearest'});
+    return;
+  }
+
+  if(inInput) return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+
+  // I — flag/remove issue on selected load
+  if((e.key==='i'||e.key==='I') && isBoardActive) {
+    if(!selLoad) return;
+    var li = loads.find(function(x){return x.id===selLoad;});
+    if(!li) return;
+    e.preventDefault();
+    if(li.status==='Issue') removeIssue(selLoad);
+    else initiateStatus(selLoad,'Issue');
+    return;
+  }
+
+  // N — advance to next status
+  if((e.key==='n'||e.key==='N') && isBoardActive && !e.shiftKey) {
+    if(!selLoad) return;
+    var ln = loads.find(function(x){return x.id===selLoad;});
+    if(!ln) return;
+    var nxt = nextStatus(ln.status);
+    if(!nxt||['Closed','Issue','Claim'].includes(ln.status)) return;
+    e.preventDefault();
+    initiateStatus(selLoad, nxt);
+  }
 });
 
 if(document.getElementById('app').style.display==='flex') initApp();
