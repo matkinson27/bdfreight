@@ -61,7 +61,7 @@ body{font-family:var(--F);font-size:13px;color:var(--tx);background:var(--bg);mi
 .tbtn:hover{background:rgba(255,255,255,.15)}
 .tbtn.admin{background:rgba(255,193,7,.15);border-color:rgba(255,193,7,.4);color:#fcd34d}
 .nav{background:var(--navyl);display:flex;overflow-x:auto;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.07)}
-.ntab{padding:10px 16px;color:rgba(255,255,255,.45);font-size:12px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;user-select:none}
+.ntab{padding:10px 16px;color:rgba(255,255,255,.45);font-size:14px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;user-select:none}
 .ntab:hover:not(.on){color:rgba(255,255,255,.75)}
 .ntab.on{color:#fff;border-bottom-color:var(--green);background:rgba(255,255,255,.04)}
 .page{display:none;flex-direction:column;flex:1;overflow:hidden}
@@ -275,6 +275,29 @@ tr.psel td{background:#eef9ee!important}
 .psdet{font-size:11px;color:var(--tx2);margin-top:1px}
 .urole{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .urole.admin{background:#fef3c7;color:#92400e}.urole.standard{background:#e2e8f0;color:#475569}
+/* Dashboard */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px}
+.dash-section{background:var(--sur);border-radius:var(--rxl);border:1px solid var(--bd);overflow:hidden}
+.dash-section-hd{padding:12px 16px;border-bottom:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;justify-content:space-between}
+.dash-section-hd .ds-sub{font-size:11px;font-weight:400;color:var(--tx2);text-transform:none;letter-spacing:0}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--bd)}
+.dash-kpi{padding:12px 14px;border-right:1px solid var(--bd)}
+.dash-kpi:last-child{border-right:none}
+.dash-kpi-l{font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.dash-kpi-v{font-size:22px;font-weight:700;color:var(--tx)}.dash-kpi-v.g{color:#15803d}.dash-kpi-v.r{color:var(--red)}
+.dash-kpi-sub{font-size:11px;color:var(--tx2);margin-top:2px}
+.dash-nav-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px}
+.dash-nav-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:16px 10px;background:var(--sur2);border:1px solid var(--bd);border-radius:var(--rxl);cursor:pointer;transition:background .12s,border-color .12s;text-align:center;min-height:80px}
+.dash-nav-btn:hover{background:#e8f0fe;border-color:var(--navy)}
+.dash-nav-ico{width:34px;height:34px;background:var(--navy);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dash-nav-lbl{font-size:12px;font-weight:600;color:var(--tx);line-height:1.3}
+.dash-nav-sub{font-size:10px;color:var(--tx2)}
+.dash-table{width:100%;border-collapse:collapse;font-size:12px}
+.dash-table th{background:var(--sur2);padding:7px 12px;text-align:left;font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--bd)}
+.dash-table td{padding:7px 12px;border-bottom:1px solid var(--bd)}
+.dash-table tr:last-child td{border-bottom:none}
+.dash-welcome{padding:14px 16px;font-size:20px;font-weight:700;color:var(--navy)}
+.dash-welcome span{color:var(--green)}
 /* Score breakdown bar */
 .score-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .score-bar-label{font-size:12px;color:var(--tx);width:180px;flex-shrink:0}
@@ -317,17 +340,133 @@ tr.psel td{background:#eef9ee!important}
     </div>
   </div>
   <div class="nav" id="main-nav">
-    <div class="ntab on" onclick="goPage('dealer',this)">Dealer Orders</div>
-    <div class="ntab" onclick="goPage('board',this)">Shipment Board</div>
-    <div class="ntab" onclick="goPage('archived',this)">Archived</div>
-    <div class="ntab" onclick="goPage('scorecard',this)">Carrier Scorecard</div>
-    <div class="ntab" onclick="goPage('locdb',this)">Location DB</div>
-    <div class="ntab" onclick="goPage('rates',this)">Rate Tracker</div>
-    <div class="ntab" onclick="goPage('accounting',this)">Accounting</div>
+    <div class="ntab on" id="ntab-dashboard" onclick="goPage('dashboard',this)">Dashboard</div>
+    <div class="ntab" id="ntab-dealer" onclick="goPage('dealer',this)">Customer Orders</div>
+    <div class="ntab" id="ntab-board" onclick="goPage('board',this)">Shipment Tracking</div>
+    <div class="ntab" id="ntab-scorecard" onclick="goPage('scorecard',this)">Carrier Database</div>
+    <div class="ntab" id="ntab-locdb" onclick="goPage('locdb',this)">Location Database</div>
+    <div class="ntab" id="ntab-rates" onclick="goPage('rates',this)">Rate Tracker</div>
+    <div class="ntab" id="ntab-accounting" onclick="goPage('accounting',this)">Accounting</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page on" id="page-dashboard">
+    <div style="overflow-y:auto;flex:1;background:var(--bg)">
+      <div class="dash-welcome">Good <span id="dash-greeting">morning</span>, <span id="dash-username" style="color:var(--navy)">—</span></div>
+      <div class="dash-grid">
+
+        <!-- LEFT: Personal Stats + Nav Buttons -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Personal Stats -->
+          <div class="dash-section">
+            <div class="dash-section-hd">My Stats <span class="ds-sub" id="dash-user-label"></span></div>
+            <div class="dash-kpis" id="dash-my-kpis">
+              <div class="dash-kpi"><div class="dash-kpi-l">Loads Built</div><div class="dash-kpi-v" id="dkpi-loads">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Total Revenue</div><div class="dash-kpi-v" id="dkpi-rev">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Total Margin</div><div class="dash-kpi-v" id="dkpi-margin">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Avg Margin/Load</div><div class="dash-kpi-v" id="dkpi-avgmargin">—</div></div>
+            </div>
+            <div style="padding:10px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+              <div style="background:var(--sur2);border-radius:var(--r);padding:8px 12px;border:1px solid var(--bd)">
+                <div style="font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Active Loads</div>
+                <div style="font-size:16px;font-weight:700;color:var(--navy)" id="dkpi-active">—</div>
+              </div>
+              <div style="background:var(--sur2);border-radius:var(--r);padding:8px 12px;border:1px solid var(--bd)">
+                <div style="font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Carrier Rate Paid</div>
+                <div style="font-size:16px;font-weight:700;color:var(--tx)" id="dkpi-cr">—</div>
+              </div>
+              <div style="background:var(--sur2);border-radius:var(--r);padding:8px 12px;border:1px solid var(--bd)">
+                <div style="font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Margin %</div>
+                <div style="font-size:16px;font-weight:700" id="dkpi-marginpct">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nav Buttons -->
+          <div class="dash-section">
+            <div class="dash-section-hd">Quick Navigation</div>
+            <div class="dash-nav-grid">
+              <div class="dash-nav-btn" onclick="goPage('dealer',document.getElementById('ntab-dealer'))">
+                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg></div>
+                <div><div class="dash-nav-lbl">Customer Orders</div><div class="dash-nav-sub" id="dnav-orders">— POs</div></div>
+              </div>
+              <div class="dash-nav-btn" onclick="goPage('board',document.getElementById('ntab-board'))">
+                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="1" y="3" width="22" height="13" rx="2"/><path d="M16 17v1a2 2 0 01-2 2H10a2 2 0 01-2-2v-1"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="12" r="1" fill="#fff" stroke="none"/></svg></div>
+                <div><div class="dash-nav-lbl">Shipment Tracking</div><div class="dash-nav-sub" id="dnav-board">— active</div></div>
+              </div>
+              <div class="dash-nav-btn" onclick="goPage('scorecard',document.getElementById('ntab-scorecard'))">
+                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+                <div><div class="dash-nav-lbl">Carrier Database</div><div class="dash-nav-sub" id="dnav-carriers">— carriers</div></div>
+              </div>
+              <div class="dash-nav-btn" onclick="goPage('locdb',document.getElementById('ntab-locdb'))">
+                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+                <div><div class="dash-nav-lbl">Location Database</div><div class="dash-nav-sub" id="dnav-locs">— locations</div></div>
+              </div>
+              <div class="dash-nav-btn" onclick="goPage('rates',document.getElementById('ntab-rates'))">
+                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+                <div><div class="dash-nav-lbl">Rate Tracker</div><div class="dash-nav-sub" id="dnav-rates">— rates logged</div></div>
+              </div>
+              <div class="dash-nav-btn" onclick="goPage('accounting',document.getElementById('ntab-accounting'))">
+                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                <div><div class="dash-nav-lbl">Accounting</div><div class="dash-nav-sub" id="dnav-acct">— pending</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Company-Wide Carrier Stats -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Company Load Summary -->
+          <div class="dash-section">
+            <div class="dash-section-hd">Company Overview <span class="ds-sub">All Users</span></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid var(--bd)">
+              <div class="dash-kpi"><div class="dash-kpi-l">Active Loads</div><div class="dash-kpi-v g" id="dco-active">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Overdue</div><div class="dash-kpi-v" id="dco-overdue">—</div></div>
+              <div class="dash-kpi" style="border-right:none"><div class="dash-kpi-l">Issues</div><div class="dash-kpi-v" id="dco-issues">—</div></div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
+              <div class="dash-kpi"><div class="dash-kpi-l">Total Revenue</div><div class="dash-kpi-v g" id="dco-rev">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Total Margin</div><div class="dash-kpi-v" id="dco-margin">—</div></div>
+              <div class="dash-kpi" style="border-right:none"><div class="dash-kpi-l">Loads This Month</div><div class="dash-kpi-v" id="dco-month">—</div></div>
+            </div>
+          </div>
+
+          <!-- Carrier Scorecard Summary -->
+          <div class="dash-section">
+            <div class="dash-section-hd">Carrier Scorecard <span class="ds-sub" id="dash-carrier-sub"></span></div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--bd)">
+              <div class="dash-kpi"><div class="dash-kpi-l">Tier A</div><div class="dash-kpi-v g" id="dsc-a">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Tier B</div><div class="dash-kpi-v" id="dsc-b">—</div></div>
+              <div class="dash-kpi"><div class="dash-kpi-l">Tier C</div><div class="dash-kpi-v" id="dsc-c">—</div></div>
+              <div class="dash-kpi" style="border-right:none"><div class="dash-kpi-l">Probation</div><div class="dash-kpi-v r" id="dsc-p">—</div></div>
+            </div>
+            <div style="padding:8px 0 0">
+              <div style="padding:6px 14px;font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em">Top Carriers by Grade</div>
+              <table class="dash-table" id="dash-carrier-table">
+                <thead><tr><th>Carrier</th><th>Tier</th><th>Score</th><th>PU On-Time</th><th>DEL On-Time</th><th>Loads</th></tr></thead>
+                <tbody id="dash-carrier-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="dash-section">
+            <div class="dash-section-hd">Recent Loads <span class="ds-sub">Last 10 active</span></div>
+            <table class="dash-table">
+              <thead><tr><th>Load #</th><th>Status</th><th>Carrier</th><th>Dispatcher</th><th>Margin</th></tr></thead>
+              <tbody id="dash-recent-body"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- DEALER ORDERS -->
-  <div class="page on" id="page-dealer">
+  <div class="page" id="page-dealer">
     <div class="kpis c4" id="kpi-dealer"></div>
     <div class="csvdrop" onclick="document.getElementById('dealer-csv').click()">
       <div class="csvico"><svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg></div>
@@ -419,37 +558,7 @@ tr.psel td{background:#eef9ee!important}
     </div>
   </div>
 
-  <!-- ARCHIVED -->
-  <div class="page" id="page-archived">
-    <div class="tbar">
-      <input type="text" id="arch-search" placeholder="Search archived..." oninput="renderArchived()">
-      <button class="btn" onclick="exportArchived()">Export CSV</button>
-    </div>
-    <div class="split">
-      <div class="split-top" id="arch-split-top" style="height:300px">
-        <div class="tw"><table>
-          <thead><tr>
-            <th class="nc" style="width:28px"></th>
-            <th onclick="sortArch('loadNum')" id="ah-loadNum">Load #</th>
-            <th onclick="sortArch('status')" id="ah-status">Status</th>
-            <th onclick="sortArch('vendor')" id="ah-vendor">Vendor</th>
-            <th onclick="sortArch('carrier')" id="ah-carrier">Carrier</th>
-            <th onclick="sortArch('dispatcher')" id="ah-dispatcher">Dispatcher</th>
-            <th onclick="sortArch('fCity')" id="ah-fCity">Origin</th>
-            <th onclick="sortArch('lCity')" id="ah-lCity">Destination</th>
-            <th onclick="sortArch('cr')" id="ah-cr">Carrier $</th>
-            <th onclick="sortArch('custR')" id="ah-custR">Cust $</th>
-            <th onclick="sortArch('margin')" id="ah-margin">Margin</th>
-          </tr></thead>
-          <tbody id="arch-body"></tbody>
-        </table></div>
-      </div>
-      <div class="split-handle" id="arch-handle"></div>
-      <div class="split-bot"><div id="arch-detail-panel"><div class="dempty">Select an archived load to view details</div></div></div>
-    </div>
-  </div>
-
-  <!-- CARRIER SCORECARD -->
+  <!-- CARRIER SCORECARD (formerly Carrier DB) -->
   <div class="page" id="page-scorecard">
     <div class="kpis c4" id="kpi-sc"></div>
     <div class="tbar">
@@ -528,6 +637,7 @@ tr.psel td{background:#eef9ee!important}
 
   <!-- ACCOUNTING -->
   <div class="page" id="page-accounting">
+    <div id="acct-main-view">
     <div class="kpis c5" id="kpi-acct"></div>
     <div class="tbar">
       <input type="text" id="acct-search" placeholder="Search load #, carrier, dispatcher..." oninput="renderAccounting()">
@@ -539,6 +649,7 @@ tr.psel td{background:#eef9ee!important}
       </select>
       <select id="acct-dispatcher" onchange="renderAccounting()"><option value="">All Dispatchers</option></select>
       <button class="btn" onclick="exportAccounting()">Export CSV</button>
+      <button class="btn a" onclick="openArchivedView()" style="margin-left:auto">&#128196; View Archived</button>
     </div>
     <div class="tw"><table>
       <thead><tr>
@@ -557,8 +668,43 @@ tr.psel td{background:#eef9ee!important}
       </tr></thead>
       <tbody id="acct-body"></tbody>
     </table></div>
+    </div>
+
+    <!-- ARCHIVED SUB-VIEW (hidden by default, shown via View Archived button) -->
+    <div id="acct-archived-view" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div class="tbar">
+        <button class="btn" onclick="closeArchivedView()" style="font-weight:600">&#8592; Back to Accounting</button>
+        <span style="font-size:13px;font-weight:600;color:var(--navy);margin-left:8px">Archived Loads</span>
+        <input type="text" id="arch-search" placeholder="Search archived..." oninput="renderArchived()" style="margin-left:8px">
+        <button class="btn" onclick="exportArchived()">Export CSV</button>
+      </div>
+      <div class="split">
+        <div class="split-top" id="arch-split-top" style="height:300px">
+          <div class="tw"><table>
+            <thead><tr>
+              <th class="nc" style="width:28px"></th>
+              <th onclick="sortArch('loadNum')" id="ah-loadNum">Load #</th>
+              <th onclick="sortArch('status')" id="ah-status">Status</th>
+              <th onclick="sortArch('vendor')" id="ah-vendor">Vendor</th>
+              <th onclick="sortArch('carrier')" id="ah-carrier">Carrier</th>
+              <th onclick="sortArch('dispatcher')" id="ah-dispatcher">Dispatcher</th>
+              <th onclick="sortArch('fCity')" id="ah-fCity">Origin</th>
+              <th onclick="sortArch('lCity')" id="ah-lCity">Destination</th>
+              <th onclick="sortArch('cr')" id="ah-cr">Carrier $</th>
+              <th onclick="sortArch('custR')" id="ah-custR">Cust $</th>
+              <th onclick="sortArch('margin')" id="ah-margin">Margin</th>
+            </tr></thead>
+            <tbody id="arch-body"></tbody>
+          </table></div>
+        </div>
+        <div class="split-handle" id="arch-handle"></div>
+        <div class="split-bot"><div id="arch-detail-panel"><div class="dempty">Select an archived load to view details</div></div></div>
+      </div>
+    </div>
   </div>
-</div>
+
+  </div><!-- /page-accounting -->
+</div><!-- /app -->
 
 <!-- ========== MODALS ========== -->
 
@@ -886,6 +1032,10 @@ function logout() { sessionStorage.removeItem('bdf_u'); location.reload(); }
     document.getElementById('app').style.display = 'flex';
     document.getElementById('cur-user').textContent = cap(s);
     document.getElementById('admin-btn').style.display = (currentUserRole === 'admin') ? '' : 'none';
+    // Activate dashboard tab
+    document.querySelectorAll('.ntab').forEach(function(x){x.classList.remove('on');});
+    var dashTab = document.getElementById('ntab-dashboard');
+    if(dashTab) dashTab.classList.add('on');
     // Firebase listener handles data load — show connecting overlay
     var ov = document.getElementById('fb-connecting');
     if(ov) ov.style.display = 'flex';
@@ -1073,6 +1223,7 @@ document.querySelectorAll('.overlay').forEach(function(m) {
 function initApp() {
   renderDealer(); updateDKPIs();
   renderBoard(); updateBKPIs();
+  renderDashboard();
   setInterval(function(){
     var now = Date.now();
     loads.forEach(function(l) {
@@ -1089,13 +1240,20 @@ function initApp() {
 }
 
 function goPage(p, el) {
+  // Hide archived sub-view if switching away from accounting
+  var archView = document.getElementById('acct-archived-view');
+  var acctMain = document.getElementById('acct-main-view');
+  if(archView && p !== 'accounting') {
+    archView.style.display = 'none';
+    if(acctMain) acctMain.style.display = '';
+  }
   document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
   document.querySelectorAll('.ntab').forEach(function(x){x.classList.remove('on');});
   document.getElementById('page-'+p).classList.add('on');
   if(el) el.classList.add('on');
+  if(p==='dashboard'){renderDashboard();}
   if(p==='dealer'){renderDealer();updateDKPIs();}
   if(p==='board'){renderBoard();updateBKPIs();}
-  if(p==='archived'){selArchLoad=null;renderArchived();}
   if(p==='scorecard'){renderSC();updateSCKPIs();}
   if(p==='locdb'){selLoc=null;renderLocDB();}
   if(p==='rates'){renderRates();updateRatesKPIs();}
@@ -1178,14 +1336,14 @@ function jumpToResult(type, id) {
   document.getElementById('g-search').value = '';
   if(type==='ld') {
     selLoad = id;
-    goPage('board', document.querySelectorAll('.ntab')[1]);
+    goPage('board', document.getElementById('ntab-board'));
     setTimeout(function(){renderBoard();renderDetail();}, 50);
   } else if(type==='po') {
-    goPage('dealer', document.querySelectorAll('.ntab')[0]);
+    goPage('dealer', document.getElementById('ntab-dealer'));
     setTimeout(function(){renderDealer();}, 50);
   } else if(type==='loc') {
     selLoc = id;
-    goPage('locdb', document.querySelectorAll('.ntab')[4]);
+    goPage('locdb', document.getElementById('ntab-locdb'));
     setTimeout(function(){renderLocDB();}, 50);
   }
 }
@@ -2839,7 +2997,7 @@ function renderLocProfile() {
 
 function jumpToLoad(id) {
   selLoad = id;
-  goPage('board', document.querySelectorAll('.ntab')[1]);
+  goPage('board', document.getElementById('ntab-board'));
   setTimeout(function(){renderBoard();renderDetail();}, 50);
 }
 function delSelLocs(){locations=locations.filter(function(l){return !l.sel;});saveState();renderLocDB();}
@@ -3046,9 +3204,8 @@ function saveRate(){
 // ============================
 // BOOT
 // ============================
-
 // ============================
-// ACCOUNTING & RATE CONFIRMATION
+// KEYBOARD SHORTCUTS
 // ============================
 var acctSort = {col:'loadNum', asc:false};
 
@@ -3393,10 +3550,153 @@ function exportAccounting() {
 }
 
 // ============================
+// ARCHIVED VIEW TOGGLE (inside Accounting)
+// ============================
+function openArchivedView() {
+  selArchLoad = null;
+  var archView = document.getElementById('acct-archived-view');
+  var acctMain = document.getElementById('acct-main-view');
+  if(archView) archView.style.display = 'flex';
+  if(acctMain) acctMain.style.display = 'none';
+  renderArchived();
+}
+function closeArchivedView() {
+  var archView = document.getElementById('acct-archived-view');
+  var acctMain = document.getElementById('acct-main-view');
+  if(archView) archView.style.display = 'none';
+  if(acctMain) acctMain.style.display = '';
+  renderAccounting();
+  updateAcctKPIs();
+}
+
+// ============================
+// DASHBOARD
+// ============================
+function renderDashboard() {
+  var u = cap(currentUser || '');
+  var h = new Date().getHours();
+  var greeting = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  var gEl = document.getElementById('dash-greeting');
+  var uEl = document.getElementById('dash-username');
+  if(gEl) gEl.textContent = greeting;
+  if(uEl) uEl.textContent = u;
+  var dlEl = document.getElementById('dash-user-label');
+  if(dlEl) dlEl.textContent = u + ' \u00B7 ' + (currentUserRole==='admin'?'Admin':'Standard');
+
+  function setEl(id, val) { var el=document.getElementById(id); if(el) el.textContent=val; }
+
+  // ---- Personal stats: loads where dispatcher matches current user ----
+  var myLoads = loads.filter(function(l){
+    return (l.dispatcher||'').toLowerCase() === (currentUser||'').toLowerCase();
+  });
+  var myActive = myLoads.filter(function(l){return !l.archived && !['Delivered','Closed'].includes(l.status);}).length;
+  var myRev = myLoads.reduce(function(a,l){return a+getEffectiveCustR(l);},0);
+  var myCR  = myLoads.reduce(function(a,l){return a+(l.cr||0);},0);
+  var myMar = myRev - myCR;
+  var myAvgMar = myLoads.length ? Math.round(myMar / myLoads.length) : 0;
+  var myMarPct = myRev > 0 ? (myMar/myRev*100).toFixed(1) : null;
+
+  setEl('dkpi-loads', myLoads.length);
+  setEl('dkpi-rev', '$' + myRev.toLocaleString());
+
+  var margEl = document.getElementById('dkpi-margin');
+  if(margEl) { margEl.textContent = '$' + myMar.toLocaleString(); margEl.className = 'dash-kpi-v ' + (myMar >= 0 ? 'g' : 'r'); }
+  setEl('dkpi-avgmargin', '$' + myAvgMar.toLocaleString());
+  setEl('dkpi-active', myActive);
+  setEl('dkpi-cr', '$' + myCR.toLocaleString());
+  var mpEl = document.getElementById('dkpi-marginpct');
+  if(mpEl) { mpEl.textContent = myMarPct !== null ? myMarPct + '%' : '\u2014'; mpEl.style.color = myMar >= 0 ? '#15803d' : 'var(--red)'; }
+
+  // ---- Nav button sub-labels ----
+  setEl('dnav-orders', dealers.length + ' PO' + (dealers.length!==1?'s':''));
+  var actBoardCount = loads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);}).length;
+  setEl('dnav-board', actBoardCount + ' active');
+  setEl('dnav-carriers', carriers.length + ' carrier' + (carriers.length!==1?'s':''));
+  setEl('dnav-locs', locations.length + ' location' + (locations.length!==1?'s':''));
+  setEl('dnav-rates', rates.length + ' rate' + (rates.length!==1?'s':'') + ' logged');
+  var pendAcct = loads.filter(function(l){return (['Delivered','Closed'].includes(l.status)||l.archived)&&!l.rateConfirmation;}).length;
+  setEl('dnav-acct', pendAcct + ' pending');
+
+  // ---- Company Overview ----
+  var nowStr2 = new Date().toISOString().slice(0,16).replace('T',' ');
+  var prePickup2 = ['Schedule','Available','Covered','Assigned','Dispatched'];
+  var preDel2 = ['Arrived','Departed'];
+  var coActive = loads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);}).length;
+  var coIssues = loads.filter(function(l){return l.status==='Issue';}).length;
+  var coOverdue = loads.filter(function(l){
+    if(l.archived) return false;
+    var s=getStopSum(l);
+    return (prePickup2.includes(l.status)&&s.fAppt&&s.fAppt<nowStr2)||(preDel2.includes(l.status)&&s.lAppt&&s.lAppt<nowStr2);
+  }).length;
+  var coRev = loads.reduce(function(a,l){return a+getEffectiveCustR(l);},0);
+  var coCR  = loads.reduce(function(a,l){return a+(l.cr||0);},0);
+  var coMar = coRev - coCR;
+  var nowD = new Date();
+  var monthStart = new Date(nowD.getFullYear(), nowD.getMonth(), 1).getTime();
+  var coMonth = loads.filter(function(l){
+    var t = l.deliveredAt || l.id;
+    return t && t >= monthStart;
+  }).length;
+
+  setEl('dco-active', coActive);
+  var odEl = document.getElementById('dco-overdue');
+  if(odEl) { odEl.textContent = coOverdue; odEl.className = 'dash-kpi-v ' + (coOverdue > 0 ? 'r' : ''); }
+  var issEl = document.getElementById('dco-issues');
+  if(issEl) { issEl.textContent = coIssues; issEl.className = 'dash-kpi-v ' + (coIssues > 0 ? 'r' : ''); }
+  setEl('dco-rev', '$' + coRev.toLocaleString());
+  var cmEl = document.getElementById('dco-margin');
+  if(cmEl) { cmEl.textContent = '$' + coMar.toLocaleString(); cmEl.className = 'dash-kpi-v ' + (coMar >= 0 ? 'g' : 'r'); }
+  setEl('dco-month', coMonth);
+
+  // ---- Carrier Scorecard Summary ----
+  var scored = carriers.map(function(c){ return {c:c, s:calcScore(c)}; });
+  var tierCounts = {A:0, B:0, C:0, P:0};
+  scored.forEach(function(x){ tierCounts[x.s.tier]++; });
+  setEl('dsc-a', tierCounts.A);
+  setEl('dsc-b', tierCounts.B);
+  setEl('dsc-c', tierCounts.C);
+  setEl('dsc-p', tierCounts.P);
+  var subEl = document.getElementById('dash-carrier-sub');
+  if(subEl) subEl.textContent = carriers.length + ' total';
+
+  // Top 8 carriers by score
+  var topCarriers = scored.slice().sort(function(a,b){return b.s.score-a.s.score;}).slice(0,8);
+  var tbody = document.getElementById('dash-carrier-body');
+  if(tbody) {
+    tbody.innerHTML = topCarriers.length ? topCarriers.map(function(x){
+      var c = x.c, s = x.s;
+      return '<tr>'
+        + '<td style="font-weight:600;color:var(--navy)">' + esc(c.name) + '</td>'
+        + '<td><span class="tier tier-' + s.tier + '">' + s.tier + '</span></td>'
+        + '<td style="font-weight:700">' + s.score + '</td>'
+        + '<td style="color:' + (s.puPct>=0.9?'#15803d':s.puPct>=0.75?'var(--amber)':'var(--red)') + ';font-weight:600">' + Math.round(s.puPct*100) + '%</td>'
+        + '<td style="color:' + (s.dlPct>=0.9?'#15803d':s.dlPct>=0.75?'var(--amber)':'var(--red)') + ';font-weight:600">' + Math.round(s.dlPct*100) + '%</td>'
+        + '<td style="color:var(--tx2)">' + s.loadsCount + '</td>'
+        + '</tr>';
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx3)">No carriers yet.</td></tr>';
+  }
+
+  // ---- Recent Loads ----
+  var recentLoads = loads.filter(function(l){return !l.archived&&l.status!=='Closed';})
+    .slice().sort(function(a,b){return b.id-a.id;}).slice(0,10);
+  var recentBody = document.getElementById('dash-recent-body');
+  if(recentBody) {
+    recentBody.innerHTML = recentLoads.length ? recentLoads.map(function(l){
+      var mar = getEffectiveCustR(l) - (l.cr||0);
+      var lid = l.id;
+      return '<tr style="cursor:pointer" onclick="(function(){selLoad='+lid+';goPage(\'board\',document.getElementById(\'ntab-board\'));setTimeout(function(){renderBoard();renderDetail();},60);})()">'
+        + '<td style="font-weight:700;color:var(--navy);font-family:var(--M)">' + esc(l.loadNum) + '</td>'
+        + '<td><span class="st st-' + l.status.toLowerCase() + '">' + l.status + '</span></td>'
+        + '<td style="color:var(--tx2)">' + esc(l.carrier||'\u2014') + '</td>'
+        + '<td style="color:var(--tx2)">' + esc(l.dispatcher||'\u2014') + '</td>'
+        + '<td class="' + (mar>=0?'mpos':'mneg') + '">$' + mar.toLocaleString() + '</td>'
+        + '</tr>';
+    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tx3)">No active loads.</td></tr>';
+  }
+}
+
+// ============================
 // BOOT
-// ============================
-// ============================
-// KEYBOARD SHORTCUTS
 // ============================
 document.addEventListener('keydown', function(e) {
   if(e.key !== 'n' && e.key !== 'N') return;
@@ -3452,6 +3752,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
       if(overlay) overlay.style.display = 'none';
       // If app is already showing (session restore), re-render everything
       if(document.getElementById('app').style.display === 'flex') {
+        renderDashboard();
         renderDealer(); updateDKPIs();
         renderBoard(); updateBKPIs();
         renderSC(); updateSCKPIs();
@@ -3465,9 +3766,9 @@ if(document.getElementById('app').style.display==='flex') initApp();
       var activePage = document.querySelector('.page.on');
       if(!activePage) return;
       var pid = activePage.id;
-      if(pid==='page-dealer'){renderDealer();updateDKPIs();}
+      if(pid==='page-dashboard'){renderDashboard();}
+      else if(pid==='page-dealer'){renderDealer();updateDKPIs();}
       else if(pid==='page-board'){renderBoard();updateBKPIs();}
-      else if(pid==='page-archived')renderArchived();
       else if(pid==='page-scorecard'){renderSC();updateSCKPIs();}
       else if(pid==='page-locdb')renderLocDB();
       else if(pid==='page-rates'){renderRates();updateRatesKPIs();}
