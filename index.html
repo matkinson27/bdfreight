@@ -1275,6 +1275,7 @@ var archSort = {col:'loadNum', asc:true}, selArchLoad = null;
 var selLoc = null;
 var editingLoad = null, stopRows = [];
 var pendingCallin = null, pendingInc = null, pendingStage = null, pendingAddTL = null;
+var pendingFromDealers = null; // holds selected dealer POs when building a load from Customer Orders
 var pendingPOGroup = null, pendingConvertTL = null;
 var editingDealerId = null, editingCarrierId = null, editingLocId = null;
 var contactRows = [];
@@ -1839,12 +1840,16 @@ function logTrackingDing(l, status) {
 }
 
 function setDoc(lid, key, input) {
-  var l=loads.find(function(x){return x.id===lid;});if(!l||!input.files[0])return;
+  if(!input.files[0])return;
   var file=input.files[0];
+  var fileName=file.name;
   var reader=new FileReader();
   reader.onload=function(e){
-    l.docs[key]=file.name;
-    l.docs[key+'Url']=e.target.result; // base64 data URI — persists in Firebase
+    var l=loads.find(function(x){return x.id===lid;});
+    if(!l)return;
+    if(!l.docs)l.docs={bol:null,bolUrl:null,pod:null,podUrl:null,rc:null,rcUrl:null};
+    l.docs[key]=fileName;
+    l.docs[key+'Url']=e.target.result;
     saveState();
     renderDetail();
   };
@@ -2129,6 +2134,7 @@ document.addEventListener('click',function(e){
 
 function openLoadModal(load) {
   editingLoad=load||null;
+  pendingFromDealers=null;
   document.getElementById('m-load-title').textContent=load?'Edit Load':'Add Load';
   var fv=function(id){return document.getElementById(id);};
   fv('lf-disp').value=cap(currentUser||'');
@@ -2202,13 +2208,11 @@ function saveLoad(){
   if(!obj.carrier && ['Covered','Assigned','Dispatched'].includes(obj.status)) {
     setTimeout(function(){alert('Note: Load '+obj.loadNum+' has no carrier assigned. Consider adding one before advancing status.');},100);
   }
-  // Issue 2: if this is a new load built from dealer POs (not a temp load convert), remove matched POs from dealers
-  if(isNew && pendingConvertTL===null) {
-    var newPOs=[];
-    obj.stops.filter(function(s){return s.type==='pickup';}).forEach(function(s){(s.pos||[]).forEach(function(p){if(p.po)newPOs.push(p.po);});});
-    if(newPOs.length){
-      dealers=dealers.filter(function(d){return !newPOs.includes(d.po);});
-    }
+  // Issue 2: if this is a new load built from dealer POs, remove those dealers from the active pool
+  if(isNew && pendingFromDealers) {
+    var ids=pendingFromDealers.map(function(d){return d.id;});
+    dealers=dealers.filter(function(d){return !ids.includes(d.id);});
+    pendingFromDealers=null;
   }
   if(pendingConvertTL!==null){
     tempLoads=tempLoads.filter(function(t){return t.id!==pendingConvertTL;});
@@ -2216,7 +2220,7 @@ function saveLoad(){
     renderTempLoads();updateTLBadge();
   }
   saveState();
-  closeM('m-load');renderBoard();updateBKPIs();
+  closeM('m-load');renderBoard();updateBKPIs();renderDealer();updateDKPIs();
 }
 </script>
 
@@ -2227,6 +2231,17 @@ function saveLoad(){
 function createLoadFromSelected() {
   var sel=dealers.filter(function(d){return d.sel;});
   if(!sel.length){alert('Check at least one PO row first.');return;}
+
+  // Race condition guard: re-validate each selected PO still exists in dealers
+  var currentPOs=dealers.map(function(d){return d.po;});
+  var taken=sel.filter(function(d){return !currentPOs.includes(d.po);});
+  if(taken.length){
+    alert('The following PO(s) are no longer available (already loaded by another user):\n'+taken.map(function(d){return d.po;}).join(', ')+'\n\nRefreshing your selection.');
+    sel=sel.filter(function(d){return currentPOs.includes(d.po);});
+    dealers.forEach(function(d){d.sel=false;});
+    renderDealer();
+    return;
+  }
   var dg={};
   sel.forEach(function(d){
     var k=d.dealer.trim().toLowerCase();
@@ -2287,11 +2302,12 @@ function buildLoadFromPOs(sel) {
     if(!locations.find(function(l){return l.name.toLowerCase()===g.dealer.toLowerCase();}))
       locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
   });
-  openLoadModalWithStops(puStops, dlStops, 'New Load from '+sel.length+' PO'+(sel.length!==1?'s':''), vendors[0]||'');
+  openLoadModalWithStops(puStops, dlStops, 'New Load from '+sel.length+' PO'+(sel.length!==1?'s':''), vendors[0]||'', sel);
 }
 
-function openLoadModalWithStops(puStops, dlStops, title, vendor) {
+function openLoadModalWithStops(puStops, dlStops, title, vendor, fromDealers) {
   pendingConvertTL=null;
+  pendingFromDealers=fromDealers||null;
   editingLoad=null;
   document.getElementById('m-load-title').textContent=title;
   var fv=function(id){return document.getElementById(id);};
