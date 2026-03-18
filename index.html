@@ -1747,7 +1747,7 @@ function renderDetail() {
 // STATUS TIMELINE BAR
 // ============================
 var TL_STAGES = [
-  {key:'Schedule',  label:'Sched',  color:'#FEF9C3', text:'#854D0E'},
+  {key:'Schedule',  label:'Sched',  color:'#F9A8D4', text:'#831843'},
   {key:'Available', label:'Avail',  color:'#BFDBFE', text:'#1E40AF'},
   {key:'Covered',   label:'Cov',    color:'#93C5FD', text:'#1E3A8A'},
   {key:'Assigned',  label:'Assign', color:'#C4B5FD', text:'#4C1D95'},
@@ -1793,14 +1793,14 @@ function buildTimelineBar(l) {
     var isDone = i < frozenIdx;
     var isCur = i === frozenIdx && !isSpecial;
     var isFuture = i > frozenIdx || (isSpecial && i >= frozenIdx);
-    var canRevert = isDone && !l.archived;
+    var canRevert = !isCur && !l.archived;
 
     var nodeBg = isDone ? st.color : isCur ? st.color : 'var(--sur2)';
     var nodeText = isDone ? st.text : isCur ? st.text : 'var(--tx3)';
     var nodeBorder = isCur ? '3px solid '+st.color : isDone ? '2px solid '+st.color : '2px solid var(--bd2)';
     var nodeOpacity = isFuture ? '0.35' : '1';
     var cursor = canRevert ? 'pointer' : 'default';
-    var title = canRevert ? 'Click to revert to '+st.key : st.key;
+    var title = canRevert ? 'Click to move to '+st.key : st.key;
     var onclick = canRevert ? 'revertStatus('+l.id+',\''+st.key+'\')' : '';
 
     var pulseRing = isCur && !isSpecial
@@ -1827,7 +1827,7 @@ function buildTimelineBar(l) {
     var node = '<div style="position:relative;flex-shrink:0">'
       + lateFlag + specialFlag
       +'<div onclick="'+onclick+'" title="'+title+'" style="'
-        +'width:32px;height:32px;border-radius:50%;'
+        +'width:26px;height:26px;border-radius:50%;'
         +'background:'+nodeBg+';'
         +'border:'+nodeBorder+';'
         +'display:flex;align-items:center;justify-content:center;'
@@ -1853,8 +1853,8 @@ function buildTimelineBar(l) {
       +'</div>'
     : '';
 
-  return '<div style="padding:12px 20px 10px;border-bottom:1px solid var(--bd);background:var(--sur)">'
-    +'<div style="padding:20px 8px 6px">'
+  return '<div style="padding:8px 16px 8px;border-bottom:1px solid var(--bd);background:var(--sur)">'
+    +'<div style="padding:16px 4px 4px">'
       +nodesHTML
     +'</div>'
     +specialBadge
@@ -1864,18 +1864,29 @@ function buildTimelineBar(l) {
 function revertStatus(lid, toStatus) {
   var l = loads.find(function(x){return x.id===lid;});if(!l)return;
   var from = l.status;
-  if(LC.indexOf(toStatus) >= LC.indexOf(from)){
-    alert('Can only revert to a previous status.');return;
+  if(toStatus === from) return;
+  // Closed requires BOL + POD + rate confirmation
+  if(toStatus === 'Closed') {
+    if(!canClose(l)){
+      var issues=[];
+      if(!l.docs||!l.docs.bol) issues.push('BOL not uploaded');
+      if(!l.docs||!l.docs.pod) issues.push('POD not uploaded');
+      if(!l.rateConfirmation) issues.push('Rates not confirmed');
+      var missing=getMissingTimes(l);
+      if(missing.length) issues.push(missing.length+' stop time(s) missing');
+      alert('Cannot move to Closed:\n- '+issues.join('\n- '));
+      return;
+    }
   }
-  if(!confirm('Revert '+l.loadNum+' from '+from+' to '+toStatus+'?\n\nThis will be logged in the call-in history.'))return;
+  if(!confirm('Move '+l.loadNum+' from '+from+' to '+toStatus+'?\n\nThis will be logged in the call-in history.'))return;
   l.status = toStatus;
-  l.archived = false;
-  // Clear deliveredAt if reverting from Delivered
-  if(from === 'Delivered') l.deliveredAt = null;
+  l.archived = toStatus === 'Closed';
+  if(from === 'Delivered' && toStatus !== 'Delivered') l.deliveredAt = null;
+  if(toStatus === 'Issue') l.preIssueStatus = from;
   l.callins.push({
-    status: from+' → '+toStatus+' (Reverted)',
+    status: from+' → '+toStatus,
     time: nowStr(),
-    note: 'Status reverted by '+cap(currentUser),
+    note: 'Status changed by '+cap(currentUser),
     req: false,
     type: 'note'
   });
@@ -1921,11 +1932,15 @@ function renderDetailInto(panel,l){
       +'</div>';
   }).join('');
 
-  var ciHTML=(l.callins||[]).slice().reverse().map(function(c){
+  var ciHTML=(l.callins||[]).slice().reverse().map(function(c, revIdx){
+    var realIdx = (l.callins.length - 1) - revIdx;
     var cls = c.type==='created'?'created':c.req?'req':c.type==='incident'?'inc':'';
     var badge = c.type==='created'?'<span class="cib cr">Created</span>':c.req&&c.type!=='incident'?'<span class="cib ci">Call-In</span>':c.type==='incident'?'<span class="cib ii">Incident</span>':'';
+    var delBtn = c.type==='note'
+      ? '<button class="btn xs d" style="margin-left:auto;padding:0 6px;height:18px;font-size:10px" onclick="deleteCallin('+l.id+','+realIdx+')">×</button>'
+      : '';
     return '<div class="cie '+cls+'">'
-      +'<div class="cim"><span class="cist">'+esc(c.status)+'</span><span class="cit">'+esc(c.time)+'</span>'+badge+'</div>'
+      +'<div class="cim" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="cist">'+esc(c.status)+'</span><span class="cit">'+esc(c.time)+'</span>'+badge+delBtn+'</div>'
       +'<div class="citx">'+(c.note?esc(c.note):'<em style="color:var(--tx3)">No note.</em>')+'</div>'
       +'</div>';
   }).join('')||'<div style="font-size:12px;color:var(--tx3)">No call-in notes yet.</div>';
@@ -2121,6 +2136,15 @@ function initiateStatus(lid, to) {
   document.getElementById('ci-req').style.display=req?'block':'none';
   document.getElementById('ci-note').value='';
   openM('m-callin');
+}
+
+function deleteCallin(lid, idx) {
+  var l=loads.find(function(x){return x.id===lid;});if(!l)return;
+  if(!l.callins[idx]||l.callins[idx].type!=='note'){return;}
+  if(!confirm('Delete this note?'))return;
+  l.callins.splice(idx,1);
+  saveState();
+  renderDetail();
 }
 
 // Issue 4: add a call-in note without changing status
