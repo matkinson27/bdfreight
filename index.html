@@ -17,14 +17,14 @@
   --navy:#1B2A4A;--navyl:#243659;--navyd:#111e35;
   --green:#2ECC40;--greend:#1fa832;
   --bg:#f4f6f9;--sur:#fff;--sur2:#f0f3f8;
-  --tx:#1a202c;--tx2:#64748b;--tx3:#94a3b8;
+  --tx:#1a202c;--tx2:#374151;--tx3:#6b7280;
   --bd:#e2e8f0;--bd2:#cbd5e1;
   --red:#dc2626;--amber:#d97706;--purple:#7c3aed;
   --F:"DM Sans",system-ui,sans-serif;--M:"Roboto Mono","Courier New",monospace;
   --r:8px;--rxl:14px;
   --sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 16px rgba(0,0,0,.12);
 }
-body{font-family:var(--F);font-size:13px;color:var(--tx);background:var(--bg);min-height:100vh}
+body{font-family:var(--F);font-size:14px;color:var(--tx);background:var(--bg);min-height:100vh}
 #login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1c30;position:fixed;inset:0;z-index:9000;flex-direction:column}
 @keyframes tire-spin{to{transform:rotate(360deg)}}
 @keyframes tl-spin{to{transform:rotate(360deg)}}
@@ -1674,10 +1674,10 @@ function renderBoard() {
       +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
       +'<td>'+esc(s.fCity||'-')+'</td>'
       +'<td style="color:var(--tx2)">'+esc(s.fState||'-')+(s.fZip?' '+esc(s.fZip):'')+'</td>'
-      +'<td style="font-size:11px">'+esc(s.fAppt||'-')+'</td>'
+      +'<td style="font-size:11px">'+(s.fAppt?dtToDisplay(s.fAppt):'-')+'</td>'
       +'<td>'+esc(s.lCity||'-')+'</td>'
       +'<td style="color:var(--tx2)">'+esc(s.lState||'-')+(s.lZip?' '+esc(s.lZip):'')+'</td>'
-      +'<td style="font-size:11px">'+esc(s.lAppt||'-')+'</td>'
+      +'<td style="font-size:11px">'+(s.lAppt?dtToDisplay(s.lAppt):'-')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
       +'<td>$'+getEffectiveCustR(l).toLocaleString()+'</td>'
@@ -1910,9 +1910,12 @@ function renderDetailInto(panel,l){
       +(s.notes?'<div class="smeta" style="font-style:italic">'+esc(s.notes)+'</div>':'')
       +posHTML
       +'<div class="smeta" style="margin-top:6px">Sched: <strong>'+(s.appt?dtToDisplay(s.appt):'-')+'</strong>'+(s.latestAppt?' | Latest: <strong>'+dtToDisplay(s.latestAppt)+'</strong>':'')+'</div>'
-      +'<div class="stimes">'
-        +'<div class="tf"><label>Actual In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'setStopTime('+l.id+','+orig_i+',\'inT\',v)', s.inT?'ok':inMiss?'miss':'')+'</div>'
-        +'<div class="tf"><label>Actual Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'setStopTime('+l.id+','+orig_i+',\'outT\',v)', s.outT?'ok':outMiss?'miss':'')+'</div>'
+      +'<div style="margin-top:8px;background:var(--sur2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 12px">'
+        +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Actual Times</div>'
+        +'<div class="stimes">'
+          +'<div class="tf"><label>In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'setStopTime('+l.id+','+orig_i+',\'inT\',v)', s.inT?'ok':inMiss?'miss':'')+'</div>'
+          +'<div class="tf"><label>Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'setStopTime('+l.id+','+orig_i+',\'outT\',v)', s.outT?'ok':outMiss?'miss':'')+'</div>'
+        +'</div>'
       +'</div>'
       +'</div>';
   }).join('');
@@ -2304,7 +2307,16 @@ function dtToInternal(v) {
   }
   // T = today 00:00
   if(/^[Tt]$/.test(v)) return todayAt0();
-  // T+# or T-#
+  // T+# or T-# with optional time: T+1 0900, T+1 09:00, T 0900, T 09:00
+  var tOffTime = v.match(/^[Tt]([+-]\d+)?\s+(\d{1,2}):?(\d{2})$/);
+  if(tOffTime) {
+    var d3=new Date(now);
+    if(tOffTime[1]) d3.setDate(d3.getDate()+parseInt(tOffTime[1]));
+    var hh=parseInt(tOffTime[2]);
+    var mm=parseInt(tOffTime[3]);
+    return d3.getFullYear()+'-'+pad2(d3.getMonth()+1)+'-'+pad2(d3.getDate())+'T'+pad2(hh)+':'+pad2(mm);
+  }
+  // T+# or T-# (no time)
   var tOff = v.match(/^[Tt]([+-]\d+)$/);
   if(tOff) {
     var d2=new Date(now); d2.setDate(d2.getDate()+parseInt(tOff[1]));
@@ -2386,7 +2398,7 @@ function addStop(stop) {
   var locked = s.name ? 'readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"' : '';
   var lockDisplay = s.name ? '' : 'none';
   d.innerHTML='<button class="rmbtn" onclick="rmStop('+idx+')">x</button>'
-    +'<div class="sr1">'
+    +'<div class="sr1" style="grid-template-columns:88px 1fr 160px 160px">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
       +'<div class="sl">Location'
         +'<div class="acw">'
@@ -2396,10 +2408,10 @@ function addStop(stop) {
         +'<button id="slclr-'+idx+'" class="btn xs" style="margin-top:3px;display:'+(s.name?'':'none')+'" onclick="clearStopLoc('+idx+')">Clear Location</button>'
       +'</div>'
       +'<div class="sl">Appt'+makeDTInput('sappt-'+idx, s.appt, 'stopRows['+idx+'].appt=v')+'</div>'
-    +'</div>'
-    +'<div class="sr2">'
-      +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
       +'<div class="sl">Latest Appt'+makeDTInput('slappt-'+idx, s.latestAppt, 'stopRows['+idx+'].latestAppt=v')+'</div>'
+    +'</div>'
+    +'<div class="sr2" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
+      +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
       +'<div class="sl">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
       +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" '+locked+' oninput="if(!this.readOnly)stopRows['+idx+'].city=this.value"></div>'
       +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" '+locked+' maxlength="2" oninput="if(!this.readOnly)stopRows['+idx+'].state=this.value"></div>'
