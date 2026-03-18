@@ -25,16 +25,23 @@
   --sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 16px rgba(0,0,0,.12);
 }
 body{font-family:var(--F);font-size:13px;color:var(--tx);background:var(--bg);min-height:100vh}
-#login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navyd);position:fixed;inset:0;z-index:9000}
-.lcard{background:var(--sur);border-radius:var(--rxl);padding:40px;width:370px;box-shadow:var(--shm)}
-.llogo{font-size:22px;font-weight:600;color:var(--navy);text-align:center}.llogo em{color:var(--green);font-style:normal}
-.lsub{font-size:11px;color:var(--tx3);text-align:center;margin:4px 0 24px}
-.lerr{background:#fff5f5;color:var(--red);border:1px solid #fecaca;border-radius:var(--r);padding:8px 12px;font-size:12px;margin-bottom:14px;display:none}
-.lf{margin-bottom:14px}.lf label{display:block;font-size:11px;font-weight:500;color:var(--tx2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-.lf input{width:100%;height:40px;border:1px solid var(--bd2);border-radius:var(--r);padding:0 12px;font-size:13px;font-family:var(--F);outline:none;color:var(--tx)}
-.lf input:focus{border-color:var(--navy)}
-.lbtn{width:100%;height:42px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:500;font-family:var(--F);cursor:pointer;margin-top:6px}
-.lbtn:hover{background:var(--navyl)}
+#login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1c30;position:fixed;inset:0;z-index:9000;flex-direction:column}
+@keyframes tire-spin{to{transform:rotate(360deg)}}
+@keyframes login-fadein{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cap-pulse{0%,100%{opacity:1}50%{opacity:.75}}
+.ltire-spin{animation:tire-spin 10s linear infinite;transform-box:fill-box;transform-origin:center}
+.ltire-fadein{animation:login-fadein 1.2s cubic-bezier(.22,1,.36,1) .1s both}
+.ltire-fadein2{animation:login-fadein 1.2s cubic-bezier(.22,1,.36,1) .3s both}
+.lcap{animation:cap-pulse 4s ease-in-out infinite}
+.lcard{background:#1B2A4A;border-radius:var(--rxl);padding:32px;width:340px;border:1px solid rgba(255,255,255,.07)}
+.llogo{font-size:36px;font-weight:700;color:#fff;text-align:center;letter-spacing:-1px;line-height:1}.llogo em{color:var(--green);font-style:normal}
+.lsub{font-size:11px;color:rgba(255,255,255,.3);text-align:center;margin:6px 0 24px;letter-spacing:.5px}
+.lerr{background:rgba(220,38,38,.15);color:#fca5a5;border:1px solid rgba(220,38,38,.3);border-radius:var(--r);padding:8px 12px;font-size:12px;margin-bottom:14px;display:none}
+.lf{margin-bottom:14px}.lf label{display:block;font-size:10px;font-weight:600;color:rgba(255,255,255,.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+.lf input{width:100%;height:40px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:0 12px;font-size:13px;font-family:var(--F);outline:none;color:#fff}
+.lf input:focus{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.08)}
+.lbtn{width:100%;height:42px;background:var(--green);color:#0f1c30;border:none;border-radius:var(--r);font-size:14px;font-weight:600;font-family:var(--F);cursor:pointer;margin-top:6px;letter-spacing:.3px}
+.lbtn:hover{background:var(--greend)}
 #app{display:none;flex-direction:column;min-height:100vh}
 .topbar{background:var(--navy);height:50px;padding:0 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;position:sticky;top:0;z-index:100}
 .topbar-logo{font-size:16px;font-weight:600;color:#fff;white-space:nowrap}.topbar-logo em{color:var(--green);font-style:normal}
@@ -311,14 +318,78 @@ tr.psel td{background:#eef9ee!important}
 
 <!-- LOGIN -->
 <div id="login-wrap">
-  <div class="lcard">
-    <div class="llogo">Box<em>Drop</em> <span>Freight</span></div>
+
+  <!-- Animated tire logo -->
+  <div class="ltire-fadein" style="margin-bottom:20px">
+    <svg width="140" height="140" viewBox="0 0 160 160" style="overflow:visible;display:block">
+      <defs>
+        <path id="l-upper-arc" d="M80,80 m-52,0 a52,52 0 1,1 104,0"/>
+        <path id="l-lower-arc" d="M80,80 m52,0 a52,52 0 1,1 -104,0"/>
+      </defs>
+      <!-- Outer outline ring — fixed, does not spin -->
+      <circle cx="80" cy="80" r="74.5" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+      <g class="ltire-spin">
+        <!-- Outer tire -->
+        <circle cx="80" cy="80" r="72" fill="#1a1a1a"/>
+        <circle cx="80" cy="80" r="68" fill="#222"/>
+        <!-- Tread ribs -->
+        <circle cx="80" cy="80" r="66" fill="none" stroke="#2a2a2a" stroke-width="1.5"/>
+        <circle cx="80" cy="80" r="63" fill="none" stroke="#2a2a2a" stroke-width="1.2"/>
+        <circle cx="80" cy="80" r="60" fill="none" stroke="#282828" stroke-width="1"/>
+        <circle cx="80" cy="80" r="57" fill="none" stroke="#252525" stroke-width="1"/>
+        <!-- Sidewall: BD FREIGHT bold upper arc -->
+        <text font-family="DM Sans,system-ui,sans-serif" font-size="12.5" font-weight="700" fill="rgba(255,255,255,.82)" letter-spacing="3.5">
+          <textPath href="#l-upper-arc" startOffset="12%">BD  FREIGHT</textPath>
+        </text>
+        <!-- Sidewall: BDF ghost lower arc -->
+        <text font-family="DM Sans,system-ui,sans-serif" font-size="13" font-weight="700" fill="rgba(255,255,255,.2)" letter-spacing="2">
+          <textPath href="#l-lower-arc" startOffset="38%">BDF</textPath>
+        </text>
+        <!-- Inner tire wall -->
+        <circle cx="80" cy="80" r="48" fill="#1b1b1b" stroke="#333" stroke-width="1"/>
+        <!-- Hub rings -->
+        <circle cx="80" cy="80" r="44" fill="#2a3040"/>
+        <circle cx="80" cy="80" r="44" fill="none" stroke="#4a5568" stroke-width="1.5"/>
+        <circle cx="80" cy="80" r="38" fill="#1e2535"/>
+        <circle cx="80" cy="80" r="38" fill="none" stroke="#3a4455" stroke-width="1"/>
+        <circle cx="80" cy="80" r="32" fill="#243050"/>
+        <circle cx="80" cy="80" r="32" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="1"/>
+        <!-- 10 lug holes -->
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(36 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(72 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(108 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(144 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(180 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(216 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(252 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(288 80 80)"/>
+        <circle cx="80" cy="54" r="4.5" fill="#0f1520" stroke="rgba(255,255,255,.15)" stroke-width=".8" transform="rotate(324 80 80)"/>
+        <!-- Center cap -->
+        <circle cx="80" cy="80" r="14" fill="#1a2236" stroke="rgba(255,255,255,.2)" stroke-width="1.2"/>
+        <circle cx="80" cy="80" r="10" fill="#243050" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+      </g>
+      <!-- Green valve cap — fixed, does not spin -->
+      <circle class="lcap" cx="80" cy="80" r="5.5" fill="#2ECC40" stroke="#1fa832" stroke-width=".8"/>
+      <circle cx="80" cy="80" r="2" fill="#0f1c30"/>
+    </svg>
+  </div>
+
+  <!-- Wordmark -->
+  <div class="ltire-fadein" style="text-align:center;margin-bottom:32px">
+    <div class="llogo">Box<em>Drop</em></div>
+    <div style="font-size:10px;letter-spacing:4px;color:rgba(255,255,255,.3);text-transform:uppercase;margin-top:5px;font-family:var(--F)">Freight</div>
+  </div>
+
+  <!-- Login card -->
+  <div class="lcard ltire-fadein2">
     <div class="lsub">Team Portal &middot; Internal Use Only</div>
     <div class="lerr" id="lerr">Invalid username or password.</div>
     <div class="lf"><label>Username</label><input type="text" id="l-user" onkeydown="if(event.key==='Enter')login()"></div>
     <div class="lf"><label>Password</label><input type="password" id="l-pass" onkeydown="if(event.key==='Enter')login()"></div>
     <button class="lbtn" onclick="login()">Sign In</button>
   </div>
+
 </div>
 
 <!-- APP -->
