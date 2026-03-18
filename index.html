@@ -167,6 +167,9 @@ tr.psel td{background:#eef9ee!important}
 .tf{display:flex;flex-direction:column;gap:2px}
 .tf label{font-size:10px;color:var(--tx2);font-weight:500}
 .tf input{height:28px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx);width:100%}
+.dtinput{height:28px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx);width:100%;cursor:text}
+.dtinput.ok{border-color:#86efac;background:#f0fdf4}
+.dtinput.miss{border-color:#fca5a5;background:#fff5f5}
 .tf input.ok{border-color:var(--green);background:#f0fdf4}
 .tf input.miss{border-color:var(--red);background:#fff5f5}
 .info-block{background:var(--sur2);border-radius:var(--r);padding:9px 12px;margin-bottom:8px;border:1px solid var(--bd)}
@@ -602,7 +605,7 @@ tr.psel td{background:#eef9ee!important}
     <div class="split">
       <div class="split-top" id="split-top" style="height:240px">
         <div class="tw"><table>
-          <colgroup><col style="width:28px"><col style="width:90px"><col style="width:100px"><col style="width:96px"><col style="width:105px"><col style="width:90px"><col style="width:80px"><col style="width:50px"><col style="width:130px"><col style="width:75px"><col style="width:130px"><col style="width:75px"><col style="width:120px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
+          <colgroup><col style="width:28px"><col style="width:90px"><col style="width:100px"><col style="width:96px"><col style="width:105px"><col style="width:90px"><col style="width:80px"><col style="width:50px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:120px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
           <thead><tr>
             <th class="nc" style="width:28px"></th>
             <th onclick="sortBoard('loadNum')" id="sh-loadNum">Load #</th>
@@ -612,9 +615,11 @@ tr.psel td{background:#eef9ee!important}
             <th onclick="sortBoard('dispatcher')" id="sh-dispatcher">Dispatcher</th>
             <th class="nc">PU #</th>
             <th class="nc">Stops</th>
-            <th onclick="sortBoard('fCity')" id="sh-fCity">First PU City, ZIP</th>
+            <th onclick="sortBoard('fCity')" id="sh-fCity">PU City</th>
+            <th onclick="sortBoard('fState')" id="sh-fState">PU St, ZIP</th>
             <th onclick="sortBoard('fAppt')" id="sh-fAppt">PU Date</th>
-            <th onclick="sortBoard('lCity')" id="sh-lCity">Last DEL City, ZIP</th>
+            <th onclick="sortBoard('lCity')" id="sh-lCity">DEL City</th>
+            <th onclick="sortBoard('lState')" id="sh-lState">DEL St, ZIP</th>
             <th onclick="sortBoard('lAppt')" id="sh-lAppt">DEL Date</th>
             <th onclick="sortBoard('carrier')" id="sh-carrier">Carrier</th>
             <th onclick="sortBoard('cr')" id="sh-cr">Carrier $</th>
@@ -1541,8 +1546,10 @@ function renderBoard() {
     var sa=getStopSum(a),sb=getStopSum(b);
     var av,bv;
     if(bSort.col==='fCity'){av=sa.fCity;bv=sb.fCity;}
+    else if(bSort.col==='fState'){av=sa.fState;bv=sb.fState;}
     else if(bSort.col==='fAppt'){av=sa.fAppt;bv=sb.fAppt;}
     else if(bSort.col==='lCity'){av=sa.lCity;bv=sb.lCity;}
+    else if(bSort.col==='lState'){av=sa.lState;bv=sb.lState;}
     else if(bSort.col==='lAppt'){av=sa.lAppt;bv=sb.lAppt;}
     else if(bSort.col==='cr'){av=a.cr;bv=b.cr;}
     else if(bSort.col==='custR'){av=a.custR;bv=b.custR;}
@@ -1552,9 +1559,9 @@ function renderBoard() {
     return bSort.asc?r:-r;
   });
   // Update sort indicators
-  ['loadNum','status','vendor','dispatcher','fCity','fAppt','lCity','lAppt','carrier','cr','custR','margin'].forEach(function(c){
+  ['loadNum','status','vendor','dispatcher','fCity','fState','fAppt','lCity','lState','lAppt','carrier','cr','custR','margin'].forEach(function(c){
     var el=document.getElementById('sh-'+c);if(!el)return;
-    var base={loadNum:'Load #',status:'Status',vendor:'Vendor',dispatcher:'Dispatcher',fCity:'First PU City, ZIP',fAppt:'PU Date',lCity:'Last DEL City, ZIP',lAppt:'DEL Date',carrier:'Carrier',cr:'Carrier $',custR:'Cust $',margin:'Margin'}[c];
+    var base={loadNum:'Load #',status:'Status',vendor:'Vendor',dispatcher:'Dispatcher',fCity:'PU City',fState:'PU St, ZIP',fAppt:'PU Date',lCity:'DEL City',lState:'DEL St, ZIP',lAppt:'DEL Date',carrier:'Carrier',cr:'Carrier $',custR:'Cust $',margin:'Margin'}[c];
     el.innerHTML=base+(bSort.col===c?' <span style="color:var(--green);font-size:10px">'+(bSort.asc?'▲':'▼')+'</span>':'');
   });
   document.getElementById('board-body').innerHTML=rows.map(function(l){
@@ -1564,7 +1571,6 @@ function renderBoard() {
     var trackCell = l.tracking
       ? '<a class="tlink" href="'+esc(l.tracking)+'" target="_blank" onclick="event.stopPropagation()">Track</a>'
       : '<span style="color:var(--tx3);font-size:11px">-</span>';
-    // Overdue detection: latestAppt has passed and load hasn't reached the post-pickup stage
     var prePickupStatuses = ['Schedule','Available','Covered','Assigned','Dispatched'];
     var preDeliveryStatuses = ['Arrived','Departed'];
     var nowStr2 = new Date().toISOString().slice(0,16).replace('T',' ');
@@ -1573,7 +1579,6 @@ function renderBoard() {
     var isOverdue = puOverdue || delOverdue;
     var overdueLabel = puOverdue ? '<span style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px;margin-left:4px">PU LATE</span>'
                      : delOverdue ? '<span style="font-size:9px;font-weight:700;background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:8px;margin-left:4px">DEL LATE</span>' : '';
-    // PU# from first pickup stop
     var puNums = l.stops.filter(function(s){return s.type==='pickup'&&s.puNum;}).map(function(s){return s.puNum;});
     var puNumCell = puNums.length ? '<span style="font-family:var(--M);font-size:11px;color:var(--navy)">'+esc(puNums[0])+(puNums.length>1?' +' +(puNums.length-1):'')+'</span>' : '<span style="color:var(--tx3);font-size:11px">—</span>';
     return '<tr class="row'+(l.id===selLoad?' sel':'')+(isIss?' iss':'')+(isOverdue&&!isIss?' overdue':'')+'" onclick="clickLoad('+l.id+')">'
@@ -1585,16 +1590,18 @@ function renderBoard() {
       +'<td style="color:var(--tx2)">'+esc(l.dispatcher||'-')+'</td>'
       +'<td>'+puNumCell+'</td>'
       +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
-      +'<td>'+esc(s.fCity)+(s.fState?', '+esc(s.fState):'')+(s.fZip?' '+esc(s.fZip):'')+'</td>'
+      +'<td>'+esc(s.fCity||'-')+'</td>'
+      +'<td style="color:var(--tx2)">'+esc(s.fState||'-')+(s.fZip?' '+esc(s.fZip):'')+'</td>'
       +'<td style="font-size:11px">'+esc(s.fAppt||'-')+'</td>'
-      +'<td>'+esc(s.lCity)+(s.lState?', '+esc(s.lState):'')+(s.lZip?' '+esc(s.lZip):'')+'</td>'
+      +'<td>'+esc(s.lCity||'-')+'</td>'
+      +'<td style="color:var(--tx2)">'+esc(s.lState||'-')+(s.lZip?' '+esc(s.lZip):'')+'</td>'
       +'<td style="font-size:11px">'+esc(s.lAppt||'-')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
       +'<td>$'+getEffectiveCustR(l).toLocaleString()+'</td>'
       +'<td class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</td>'
       +'</tr>';
-  }).join('')||'<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
+  }).join('')||'<tr><td colspan="18" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
   renderDetail();
 }
 function sortBoard(c){bSort.asc=bSort.col===c?!bSort.asc:true;bSort.col=c;renderBoard();}
@@ -1632,7 +1639,7 @@ function getLoadTotals(l){
 
 function getMissingTimes(l) {
   var missing = [];
-  var sorted = l.stops.slice().sort(function(a,b){return(a.appt||'').localeCompare(b.appt||'');});
+  var sorted = l.stops.slice().sort(function(a,b){ if(a.type!==b.type) return a.type==='pickup'?-1:1; return (a.appt||'').localeCompare(b.appt||''); });
   for(var i=0;i<sorted.length;i++){
     var s=sorted[i];
     if(!s.inT) missing.push(i+'_in');
@@ -1655,7 +1662,11 @@ function renderDetail() {
   renderDetailInto(panel,l);
 }
 function renderDetailInto(panel,l){
-  var sorted=l.stops.slice().sort(function(a,b){return(a.appt||'').localeCompare(b.appt||'');});
+  var sorted=l.stops.slice().sort(function(a,b){
+    // Pickups always before deliveries; within same type sort by appt
+    if(a.type!==b.type) return a.type==='pickup'?-1:1;
+    return (a.appt||'').localeCompare(b.appt||'');
+  });
   var nxt=nextStatus(l.status);
   var mar=getEffectiveCustR(l)-(l.cr||0);
   var tot=getLoadTotals(l);
@@ -1678,12 +1689,12 @@ function renderDetailInto(panel,l){
       +'<span class="stag '+(s.type==='pickup'?'pu':'dl')+'">'+(s.type==='pickup'?'Pickup':'Delivery')+' - Stop '+(i+1)+'</span>'
       +'<div class="sname">'+esc(s.name)+'</div>'
       +'<div class="smeta">'+esc(s.addr)+', '+esc(s.city)+', '+esc(s.state)+(s.zip?' '+esc(s.zip):'')+'</div>'
-      +'<div class="smeta">Sched: <strong>'+esc(s.appt||'-')+'</strong>'+(s.latestAppt?' | Latest: <strong>'+esc(s.latestAppt)+'</strong>':'')+'</div>'
+      +'<div class="smeta">Sched: <strong>'+(s.appt?dtToDisplay(s.appt):'-')+'</strong>'+(s.latestAppt?' | Latest: <strong>'+dtToDisplay(s.latestAppt)+'</strong>':'')+'</div>'
       +(s.notes?'<div class="smeta" style="font-style:italic">'+esc(s.notes)+'</div>':'')
       +posHTML
       +'<div class="stimes">'
-        +'<div class="tf"><label>Actual In</label><input type="datetime-local" value="'+esc(s.inT||'')+'" class="'+(s.inT?'ok':inMiss?'miss':'')+'" onchange="setStopTime('+l.id+','+orig_i+',\'inT\',this.value)"></div>'
-        +'<div class="tf"><label>Actual Out</label><input type="datetime-local" value="'+esc(s.outT||'')+'" class="'+(s.outT?'ok':outMiss?'miss':'')+'" onchange="setStopTime('+l.id+','+orig_i+',\'outT\',this.value)"></div>'
+        +'<div class="tf"><label>Actual In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'setStopTime('+l.id+','+orig_i+',\'inT\',v)', s.inT?'ok':inMiss?'miss':'')+'</div>'
+        +'<div class="tf"><label>Actual Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'setStopTime('+l.id+','+orig_i+',\'outT\',v)', s.outT?'ok':outMiss?'miss':'')+'</div>'
       +'</div>'
       +'</div>';
   }).join('');
@@ -1782,7 +1793,7 @@ function setStopTime(lid, idx, field, val) {
   if(!l) return;
   l.stops[idx][field] = val;
   var s = l.stops[idx];
-  var sorted = l.stops.slice().sort(function(a,b){return(a.appt||'').localeCompare(b.appt||'');});
+  var sorted = l.stops.slice().sort(function(a,b){ if(a.type!==b.type) return a.type==='pickup'?-1:1; return (a.appt||'').localeCompare(b.appt||''); });
   var isFirst = sorted[0] === s;
   var isLast = sorted[sorted.length-1] === s;
 
@@ -2016,8 +2027,110 @@ function delIncident(cid, idx) {
 }
 
 // ============================
-// LOAD MODAL
+// DATETIME TEXT INPUT HELPER
 // ============================
+// Internal format: YYYY-MM-DDTHH:MM  (what we store)
+// Display format:  MM/DD/YYYY HH:MM  (24hr, what user sees)
+
+function dtToDisplay(v) {
+  // YYYY-MM-DDTHH:MM -> MM/DD/YYYY HH:MM
+  if(!v) return '';
+  var m = v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(m) return m[2]+'/'+m[3]+'/'+m[1]+' '+m[4]+':'+m[5];
+  return v;
+}
+
+function dtToInternal(v) {
+  // MM/DD/YYYY HH:MM -> YYYY-MM-DDTHH:MM
+  // also handles shorthand: T, N, T+#, T-#
+  // and partial: MM/DD/YYYY (assumes 00:00), MM/DD HH:MM (assumes current year)
+  if(!v) return '';
+  v = v.trim();
+  var now = new Date();
+  function pad2(x){return x<10?'0'+x:''+x;}
+  function snap5(mins){return Math.round(mins/5)*5;}
+  function toISO(d){
+    return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T'+pad2(d.getHours())+':'+pad2(d.getMinutes());
+  }
+  function todayAt0(d){ d=d||now; return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T00:00'; }
+
+  // N = now snapped to 5 min
+  if(/^[Nn]$/.test(v)) {
+    var sn=new Date(now); sn.setMinutes(snap5(sn.getMinutes())); sn.setSeconds(0);
+    return toISO(sn);
+  }
+  // T = today 00:00
+  if(/^[Tt]$/.test(v)) return todayAt0();
+  // T+# or T-#
+  var tOff = v.match(/^[Tt]([+-]\d+)$/);
+  if(tOff) {
+    var d2=new Date(now); d2.setDate(d2.getDate()+parseInt(tOff[1]));
+    return todayAt0(d2);
+  }
+  // Already internal format
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return v.substring(0,16);
+  // MM/DD/YYYY HH:MM
+  var m1=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
+  if(m1) return m1[3]+'-'+pad2(parseInt(m1[1]))+'-'+pad2(parseInt(m1[2]))+'T'+pad2(parseInt(m1[4]))+':'+pad2(parseInt(m1[5]));
+  // MM/DD/YYYY (no time -> 00:00)
+  var m2=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m2) return m2[3]+'-'+pad2(parseInt(m2[1]))+'-'+pad2(parseInt(m2[2]))+'T00:00';
+  // MM/DD HH:MM (current year)
+  var m3=v.match(/^(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})$/);
+  if(m3) return now.getFullYear()+'-'+pad2(parseInt(m3[1]))+'-'+pad2(parseInt(m3[2]))+'T'+pad2(parseInt(m3[3]))+':'+pad2(parseInt(m3[4]));
+  // MM/DD (current year, 00:00)
+  var m4=v.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if(m4) return now.getFullYear()+'-'+pad2(parseInt(m4[1]))+'-'+pad2(parseInt(m4[2]))+'T00:00';
+  return '';
+}
+
+function dtAdjust5(internal, delta) {
+  // delta: +1 or -1 (in 5-min steps)
+  if(!internal) {
+    var now=new Date(); now.setSeconds(0); now.setMinutes(Math.round(now.getMinutes()/5)*5);
+    function pad2b(x){return x<10?'0'+x:''+x;}
+    return now.getFullYear()+'-'+pad2b(now.getMonth()+1)+'-'+pad2b(now.getDate())+'T'+pad2b(now.getHours())+':'+pad2b(now.getMinutes());
+  }
+  var m=internal.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+  if(!m) return internal;
+  var base=new Date(m[1]+'T'+m[2]+':'+m[3]+':00');
+  base.setMinutes(base.getMinutes()+(delta*5));
+  function pad2c(x){return x<10?'0'+x:''+x;}
+  return base.getFullYear()+'-'+pad2c(base.getMonth()+1)+'-'+pad2c(base.getDate())+'T'+pad2c(base.getHours())+':'+pad2c(base.getMinutes());
+}
+
+// Build a datetime text input element and return its outer HTML string
+// id: element id, val: internal value, cbStr: JS string to call with new internal value
+function makeDTInput(id, val, cbStr, extraClass) {
+  var disp = dtToDisplay(val);
+  return '<input type="text" id="'+id+'" value="'+esc(disp)+'" placeholder="MM/DD/YYYY HH:MM or T/N/T+1..."'
+    +' class="dtinput'+(extraClass?' '+extraClass:'')+'"'
+    +' onblur="applyDT(this,function(v){'+cbStr+'})"'
+    +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();applyDT(this,function(v){'+cbStr+'})}"'
+    +' onwheel="event.preventDefault();scrollDT(this,event.deltaY<0?1:-1,function(v){'+cbStr+'});"'
+    +'>';
+}
+
+function applyDT(el, cb) {
+  var raw = el.value.trim();
+  if(!raw){cb('');return;}
+  var internal = dtToInternal(raw);
+  if(internal) {
+    el.value = dtToDisplay(internal);
+    cb(internal);
+  }
+  // if unparseable, leave as-is so user can fix it
+}
+
+function scrollDT(el, delta, cb) {
+  var raw = el.value.trim();
+  var internal = raw ? dtToInternal(raw) : '';
+  var adjusted = dtAdjust5(internal, delta);
+  el.value = dtToDisplay(adjusted);
+  cb(adjusted);
+}
+
+
 function addStop(stop) {
   var idx=stopRows.length;
   var s=stop||{type:'pickup',name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[]};
@@ -2031,10 +2144,10 @@ function addStop(stop) {
     +'<div class="sr1">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
       +'<div class="sl">Location<div class="acw"><input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"><div class="acl" id="snac-'+idx+'"></div></div></div>'
-      +'<div class="sl">Appt<input type="datetime-local" value="'+esc(s.appt)+'" onchange="stopRows['+idx+'].appt=this.value"></div>'
+      +'<div class="sl">Appt'+makeDTInput('sappt-'+idx, s.appt, 'stopRows['+idx+'].appt=v')+'</div>'
     +'</div>'
     +'<div class="sr2">'
-      +'<div class="sl">Latest Appt<input type="datetime-local" value="'+esc(s.latestAppt)+'" onchange="stopRows['+idx+'].latestAppt=this.value"></div>'
+      +'<div class="sl">Latest Appt'+makeDTInput('slappt-'+idx, s.latestAppt, 'stopRows['+idx+'].latestAppt=v')+'</div>'
       +'<div class="sl">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
       +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" oninput="stopRows['+idx+'].city=this.value"></div>'
       +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" oninput="stopRows['+idx+'].state=this.value" maxlength="2"></div>'
@@ -2284,7 +2397,7 @@ function buildLoadFromPOs(sel) {
     var vp=sel.filter(function(d){return d.vendor===v;});
     var loc=locations.find(function(l){return l.name.toLowerCase()===v.toLowerCase();});
     var cs=loc?loc.city:'';var pt=cs.split(',');
-    return {type:'pickup',name:v,addr:loc?loc.addr:'',city:loc?(pt[0]||'').trim():'',state:loc?(pt[1]||'').trim():'',zip:'',
+    return {type:'pickup',name:v,addr:loc?loc.addr:'',city:loc?(pt[0]||'').trim():'',state:loc?(pt[1]||'').trim():'',zip:loc?loc.zip||'':'',
       appt:'',latestAppt:'',puNum:'',notes:loc?loc.dock||'':'',inT:'',outT:'',
       pos:vp.map(function(d,i){return {po:d.po,pieces:Number(d.pieces)||0,seats:Number(d.seats)||0,dealer:d.dealer,ri:i};})};
   });
@@ -2419,7 +2532,7 @@ function convertTL(tlId){
     var vp=tl.pos.filter(function(p){return p.vendor===v;});
     var loc=locations.find(function(l){return l.name.toLowerCase()===v.toLowerCase();});
     var cs=loc?loc.city:'';var pt=cs.split(',');
-    return {type:'pickup',name:v,addr:loc?loc.addr:'',city:loc?(pt[0]||'').trim():'',state:loc?(pt[1]||'').trim():'',zip:'',
+    return {type:'pickup',name:v,addr:loc?loc.addr:'',city:loc?(pt[0]||'').trim():'',state:loc?(pt[1]||'').trim():'',zip:loc?loc.zip||'':'',
       appt:'',latestAppt:'',puNum:'',notes:loc?loc.dock||'':'',inT:'',outT:'',
       pos:vp.map(function(p,i){return {po:p.po,pieces:Number(p.pieces)||0,seats:Number(p.seats)||0,dealer:p.dealer,ri:i};})};
   });
@@ -3965,45 +4078,6 @@ document.addEventListener('keydown', function(e) {
     }
   }
 
-  // Issue 8: T/N shorthand for datetime-local inputs
-  if(document.activeElement && document.activeElement.type==='datetime-local') {
-    var inp = document.activeElement;
-    var val = inp.value;
-    // Only intercept if user typed T or N at start (field empty or partial)
-    // We use keydown so we catch before value updates — use a short timeout to read typed char
-    var key = e.key;
-    if(key==='Enter'||key==='Tab') {
-      var raw = inp.value.trim();
-      var now = new Date();
-      function pad2(x){return x<10?'0'+x:''+x;}
-      function todayStr(d){
-        return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+'T00:00';
-      }
-      function nowDTStr(){
-        return now.getFullYear()+'-'+pad2(now.getMonth()+1)+'-'+pad2(now.getDate())
-          +'T'+pad2(now.getHours())+':'+pad2(now.getMinutes());
-      }
-      var matched = false;
-      if(/^[Nn]$/.test(raw)) {
-        inp.value = nowDTStr(); matched = true;
-      } else if(/^[Tt]$/.test(raw)) {
-        inp.value = todayStr(now); matched = true;
-      } else if(/^[Tt]\+(\d+)$/.test(raw)) {
-        var days = parseInt(raw.match(/\d+/)[0]);
-        var d2 = new Date(now); d2.setDate(d2.getDate()+days);
-        inp.value = todayStr(d2); matched = true;
-      } else if(/^[Tt]-(\d+)$/.test(raw)) {
-        var days2 = parseInt(raw.match(/\d+/)[0]);
-        var d3 = new Date(now); d3.setDate(d3.getDate()-days2);
-        inp.value = todayStr(d3); matched = true;
-      }
-      if(matched) {
-        e.preventDefault();
-        inp.dispatchEvent(new Event('change',{bubbles:true}));
-      }
-    }
-    return;
-  }
 
   if(e.key !== 'n' && e.key !== 'N') return;
   if(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
