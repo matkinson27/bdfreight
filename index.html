@@ -867,15 +867,8 @@ function login() {
     currentUser = u;
     currentUserRole = users[u].role || 'standard';
     sessionStorage.setItem('bdf_u', u);
-    document.getElementById('lerr').style.display = 'none';
-    document.getElementById('login-wrap').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
-    document.getElementById('cur-user').textContent = cap(u);
-    document.getElementById('admin-btn').style.display = isAdmin() ? '' : 'none';
-    // Firebase listener will fire initApp once connected
-    var ov = document.getElementById('fb-connecting');
-    if(ov) ov.style.display = 'flex';
-    if(!DB) initApp(); // fallback if Firebase not yet loaded
+    // Reload so Firebase initializes with session already set
+    location.reload();
   } else {
     document.getElementById('lerr').style.display = 'block';
     document.getElementById('l-pass').value = '';
