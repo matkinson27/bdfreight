@@ -2463,6 +2463,35 @@ function importDealerCSV(input){
           else if(n==='state')d.state=row[k];
           else if(n==='zip'||n==='zipcode')d.zip=row[k];
         });
+        // ── City+State → Location DB lookup ──────────────────────────
+        // If dealer name is blank but city+state are present,
+        // try to find a matching location record and backfill name, addr, phone
+        if(!d.dealer && d.city && d.state) {
+          var cityLower  = d.city.trim().toLowerCase();
+          var stateLower = d.state.trim().toLowerCase();
+          var match = locations.find(function(l){
+            // Location DB stores city as "City, ST" or just city
+            var lc = (l.city||'').toLowerCase();
+            var ls = '';
+            if(lc.indexOf(',')!==-1){
+              var parts=lc.split(',');
+              lc=parts[0].trim();
+              ls=parts[1].trim();
+            }
+            // Also check l.state if it exists as a separate field
+            if(l.state) ls=l.state.trim().toLowerCase();
+            return lc===cityLower && (ls===stateLower||ls==='');
+          });
+          if(match){
+            d.dealer = d.dealer || match.name;
+            d.addr   = d.addr   || match.addr || '';
+            d.phone  = d.phone  || match.phone || '';
+          }
+        }
+        // ── If dealer name still blank, use "City, ST" as fallback ───
+        if(!d.dealer && d.city) {
+          d.dealer = d.city.trim() + (d.state ? ', ' + d.state.trim() : '');
+        }
         var ei=d.po?dealers.findIndex(function(x){return x.po===d.po;}):- 1;
         var inTL=d.po?tempLoads.some(function(tl){return tl.pos.some(function(p){return p.po===d.po;});}):false;
         if(ei>=0){Object.assign(dealers[ei],d);updated++;}
