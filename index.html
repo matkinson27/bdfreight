@@ -608,25 +608,25 @@ tr.psel td{background:#eef9ee!important}
     <div class="split">
       <div class="split-top" id="split-top" style="height:240px">
         <div class="tw"><table>
-          <colgroup><col style="width:28px"><col style="width:90px"><col style="width:100px"><col style="width:96px"><col style="width:105px"><col style="width:90px"><col style="width:50px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:120px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
+          <colgroup><col style="width:28px"><col style="width:90px"><col style="width:96px"><col style="width:100px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:50px"><col style="width:62px"><col style="width:120px"><col style="width:105px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
           <thead><tr>
             <th class="nc" style="width:28px"></th>
             <th onclick="sortBoard('loadNum')" id="sh-loadNum">Load #</th>
-            <th class="nc">Tracking</th>
             <th onclick="sortBoard('status')" id="sh-status">Status</th>
-            <th onclick="sortBoard('vendor')" id="sh-vendor">Vendor</th>
-            <th onclick="sortBoard('dispatcher')" id="sh-dispatcher">Dispatcher</th>
-            <th class="nc">Stops</th>
+            <th class="nc" id="sh-tracking">Tracking</th>
             <th onclick="sortBoard('fCity')" id="sh-fCity">PU City</th>
-            <th onclick="sortBoard('fState')" id="sh-fState">PU St, ZIP</th>
+            <th onclick="sortBoard('fState')" id="sh-fState">PU St<span id="zip-label-pu">, ZIP</span> <button onclick="event.stopPropagation();toggleZip()" title="Show/hide ZIP" style="background:none;border:none;cursor:pointer;padding:0;font-size:11px;color:var(--tx3)">👁</button></th>
             <th onclick="sortBoard('fAppt')" id="sh-fAppt">PU Date</th>
             <th onclick="sortBoard('lCity')" id="sh-lCity">DEL City</th>
-            <th onclick="sortBoard('lState')" id="sh-lState">DEL St, ZIP</th>
+            <th onclick="sortBoard('lState')" id="sh-lState">DEL St<span id="zip-label-del">, ZIP</span></th>
             <th onclick="sortBoard('lAppt')" id="sh-lAppt">DEL Date</th>
+            <th class="nc" id="sh-stops">Stops</th>
+            <th onclick="sortBoard('equip')" id="sh-equip">Equip</th>
             <th onclick="sortBoard('carrier')" id="sh-carrier">Carrier</th>
+            <th onclick="sortBoard('vendor')" id="sh-vendor">Vendor</th>
             <th onclick="sortBoard('cr')" id="sh-cr">Carrier $</th>
             <th onclick="sortBoard('custR')" id="sh-custR">Cust $</th>
-            <th onclick="sortBoard('margin')" id="sh-margin">Margin</th>
+            <th onclick="sortBoard('margin')" id="sh-margin">Margin <button onclick="event.stopPropagation();toggleMarginMode()" title="Toggle $/%" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;color:var(--tx3)" id="margin-toggle-btn">%</button></th>
           </tr></thead>
           <tbody id="board-body"></tbody>
         </table></div>
@@ -808,8 +808,8 @@ tr.psel td{background:#eef9ee!important}
       <div class="fi"><label>Status</label><select id="lf-status"><option>Schedule</option><option>Available</option><option>Covered</option><option>Assigned</option><option>Dispatched</option><option>Arrived</option><option>Departed</option><option>Receiver</option><option>Delivered</option></select></div>
       <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="lf-vendor" placeholder="Search locations..." oninput="vendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-vendor"></div></div></div>
       <div class="fi"><label>Carrier</label><div class="acw"><input id="lf-carrier" placeholder="Search scorecard..." oninput="carrierAC(this.value)" autocomplete="off"><div class="acl" id="ac-carrier"></div></div></div>
-      <div class="fi"><label>Dispatcher</label><input id="lf-disp" disabled></div>
-      <div class="fi"><label>Carrier Rate ($)</label><input type="number" id="lf-cr"></div>
+      <div class="fi"><label>Dispatcher</label><input id="lf-disp" placeholder="Dispatcher name"></div>
+      <div class="fi"><label>Equipment Type</label><div class="acw"><input id="lf-equip" placeholder="V, SB, F, REEFER..." oninput="equipAC(this.value)" autocomplete="off"><div class="acl" id="ac-equip"></div></div></div>
       <div class="fi"><label>Customer Rate ($) <span style="font-weight:400;color:var(--tx3);font-size:10px">— or split per receiver below</span></label><input type="number" id="lf-custR"><div id="lf-custR-total" style="font-size:10px;color:var(--green);font-weight:600;margin-top:3px"></div></div>
       <div class="fi"><label>Miles (manual)</label><input type="number" id="lf-miles" placeholder="Enter miles"></div>
       <div class="fi"><label>Tracking Link</label><input id="lf-tracking" placeholder="https://..."></div>
@@ -817,9 +817,9 @@ tr.psel td{background:#eef9ee!important}
       <div class="fi"><label>Driver Phone</label><input id="lf-dphone" placeholder="614-555-0000"></div>
       <div class="fi"><label>Truck / Trailer #</label><input id="lf-truck" placeholder="Truck or trailer #"></div>
       <div class="fi s2"><label>Notes / Special Instructions</label><textarea id="lf-notes"></textarea></div>
-      <div class="fdiv">Stops</div>
+      <div class="fdiv" id="lf-stops-hd">Stops</div>
       <div style="grid-column:span 2" id="stop-list"></div>
-      <div style="grid-column:span 2"><button class="addstopbtn" onclick="addStop()">+ Add Stop</button></div>
+      <div style="grid-column:span 2" id="lf-addstop-btn"><button class="addstopbtn" onclick="addStop()">+ Add Stop</button></div>
     </div>
     <div class="mfooter">
       <button class="btn" onclick="closeM('m-load')">Cancel</button>
@@ -834,6 +834,14 @@ tr.psel td{background:#eef9ee!important}
     <div class="mh" id="ci-title">Status Change</div>
     <div class="ms" id="ci-sub"></div>
     <div class="merr" id="ci-req">A call-in note is required for this transition.</div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em">Last Known Location</label>
+      <div style="display:flex;gap:6px;margin-top:4px;align-items:center">
+        <input id="ci-loc" placeholder="City, ST or ZIP" style="flex:1;height:32px;font-size:12px;padding:0 9px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="ciLocChanged()">
+        <span id="ci-loc-badge" style="display:none;font-size:10px;background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:8px;white-space:nowrap">Auto-filled</span>
+      </div>
+      <div id="ci-eta" style="margin-top:5px;font-size:11px;color:var(--tx2);min-height:16px"></div>
+    </div>
     <textarea class="mta" id="ci-note" placeholder="Enter call-in note..."></textarea>
     <div class="mfooter">
       <button class="btn" onclick="closeM('m-callin')">Cancel</button>
@@ -1276,14 +1284,35 @@ function delUser(u) {
 // ============================
 // LOAD NUMBER COUNTER
 // ============================
+// Counter lives in Firebase (bdf_load_counter) with localStorage as fallback
 function getNextLoadNum() {
+  // Increment localStorage immediately for UI responsiveness
   var n = parseInt(localStorage.getItem('bdf_load_counter') || '200');
   localStorage.setItem('bdf_load_counter', String(n + 1));
+  // Mirror to Firebase
+  if(DB) DB.ref('bdf_load_counter').set(n + 1);
   return 'LD-' + String(n).padStart(6, '0');
 }
 function peekNextLoadNum() {
   var n = parseInt(localStorage.getItem('bdf_load_counter') || '200');
   return 'LD-' + String(n).padStart(6, '0');
+}
+// Sync counter from Firebase on connect so all machines stay in sequence
+function syncLoadCounter() {
+  if(!DB) return;
+  DB.ref('bdf_load_counter').once('value', function(snap) {
+    var fbVal = snap.val();
+    if(fbVal && typeof fbVal === 'number') {
+      var local = parseInt(localStorage.getItem('bdf_load_counter') || '200');
+      // Always use the higher of the two to avoid reuse
+      var winner = Math.max(fbVal, local);
+      localStorage.setItem('bdf_load_counter', String(winner));
+    } else {
+      // First time - push local value up to Firebase
+      var local2 = parseInt(localStorage.getItem('bdf_load_counter') || '200');
+      DB.ref('bdf_load_counter').set(local2);
+    }
+  });
 }
 
 // ============================
@@ -1403,7 +1432,7 @@ function fmtDate(s) {
 }
 
 document.querySelectorAll('.overlay').forEach(function(m) {
-  m.addEventListener('click', function(e){if(e.target===this)this.classList.remove('on');});
+  // Overlays only closeable via explicit close button — no backdrop click to dismiss
 });
 </script>
 
@@ -1637,20 +1666,30 @@ function renderBoard() {
     else if(bSort.col==='cr'){av=a.cr;bv=b.cr;}
     else if(bSort.col==='custR'){av=a.custR;bv=b.custR;}
     else if(bSort.col==='margin'){av=(a.custR||0)-(a.cr||0);bv=(b.custR||0)-(b.cr||0);}
+    else if(bSort.col==='equip'){av=a.equip||'';bv=b.equip||'';}
     else{av=a[bSort.col]||'';bv=b[bSort.col]||'';}
     var r=av>bv?1:av<bv?-1:0;
     return bSort.asc?r:-r;
   });
   // Update sort indicators
-  ['loadNum','status','vendor','dispatcher','fCity','fState','fAppt','lCity','lState','lAppt','carrier','cr','custR','margin'].forEach(function(c){
+  var showZip = localStorage.getItem('bdf_showZip')!=='0';
+  var marginPct = localStorage.getItem('bdf_marginPct')==='1';
+  ['loadNum','status','fCity','fState','fAppt','lCity','lState','lAppt','equip','carrier','vendor','cr','custR','margin'].forEach(function(c){
     var el=document.getElementById('sh-'+c);if(!el)return;
-    var base={loadNum:'Load #',status:'Status',vendor:'Vendor',dispatcher:'Dispatcher',fCity:'PU City',fState:'PU St, ZIP',fAppt:'PU Date',lCity:'DEL City',lState:'DEL St, ZIP',lAppt:'DEL Date',carrier:'Carrier',cr:'Carrier $',custR:'Cust $',margin:'Margin'}[c];
-    el.innerHTML=base+(bSort.col===c?' <span style="color:var(--green);font-size:10px">'+(bSort.asc?'▲':'▼')+'</span>':'');
+    var labels={loadNum:'Load #',status:'Status',fCity:'PU City',fState:'PU St'+(showZip?', ZIP':''),fAppt:'PU Date',lCity:'DEL City',lState:'DEL St'+(showZip?', ZIP':''),lAppt:'DEL Date',equip:'Equip',carrier:'Carrier',vendor:'Vendor',cr:'Carrier $',custR:'Cust $',margin:'Margin'};
+    var arrow=bSort.col===c?' <span style="color:var(--green);font-size:10px">'+(bSort.asc?'▲':'▼')+'</span>':'';
+    if(c==='fState'){el.innerHTML='PU St'+(showZip?', ZIP':'')+'&nbsp;<button onclick="event.stopPropagation();toggleZip()" title="Show/hide ZIP" style="background:none;border:none;cursor:pointer;padding:0;font-size:11px;color:var(--tx3)">👁</button>'+arrow;return;}
+    if(c==='lState'){el.innerHTML='DEL St'+(showZip?', ZIP':'')+'&nbsp;'+arrow;return;}
+    if(c==='margin'){el.innerHTML='Margin&nbsp;<button onclick="event.stopPropagation();toggleMarginMode()" title="Toggle $/%" style="background:none;border:none;cursor:pointer;padding:0;font-size:10px;color:var(--tx3)">'+(marginPct?'$':'%')+'</button>'+arrow;return;}
+    el.innerHTML=(labels[c]||c)+arrow;
   });
   document.getElementById('board-body').innerHTML=rows.map(function(l){
     var s=getStopSum(l);
     var isIss=l.status==='Issue';
     var mar=getEffectiveCustR(l)-(l.cr||0);
+    var marPct=getEffectiveCustR(l)>0?Math.round(mar/getEffectiveCustR(l)*100):0;
+    var showZip2 = localStorage.getItem('bdf_showZip')!=='0';
+    var marginPct2 = localStorage.getItem('bdf_marginPct')==='1';
     var trackCell = l.tracking
       ? '<a class="tlink" href="'+esc(l.tracking)+'" target="_blank" onclick="event.stopPropagation()">Track</a>'
       : '<span style="color:var(--tx3);font-size:11px">-</span>';
@@ -1662,26 +1701,28 @@ function renderBoard() {
     var isOverdue = puOverdue || delOverdue;
     var overdueLabel = puOverdue ? '<span style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:8px;margin-left:4px">PU LATE</span>'
                      : delOverdue ? '<span style="font-size:9px;font-weight:700;background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:8px;margin-left:4px">DEL LATE</span>' : '';
-    var puNums = l.stops.filter(function(s){return s.type==='pickup'&&s.puNum;}).map(function(s){return s.puNum;});
-    var puNumCell = puNums.length ? '<span style="font-family:var(--M);font-size:11px;color:var(--navy)">'+esc(puNums[0])+(puNums.length>1?' +' +(puNums.length-1):'')+'</span>' : '<span style="color:var(--tx3);font-size:11px">—</span>';
+    var equipCode = resolveEquipCode(l.equip||'');
+    var marginCell = marginPct2
+      ? '<span class="'+(mar>=0?'mpos':'mneg')+'">'+(marPct)+'%</span>'
+      : '<span class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</span>';
     return '<tr class="row'+(l.id===selLoad?' sel':'')+(isIss?' iss':'')+(isOverdue&&!isIss?' overdue':'')+'" onclick="clickLoad('+l.id+')">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)"></td>'
       +'<td style="font-weight:700;color:var(--navy)">'+esc(l.loadNum)+'</td>'
-      +'<td>'+trackCell+'</td>'
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'+overdueLabel+'</td>'
-      +'<td>'+esc(l.vendor||'-')+'</td>'
-      +'<td style="color:var(--tx2)">'+esc(l.dispatcher||'-')+'</td>'
-      +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
+      +'<td>'+trackCell+'</td>'
       +'<td>'+esc(s.fCity||'-')+'</td>'
-      +'<td style="color:var(--tx2)">'+esc(s.fState||'-')+(s.fZip?' '+esc(s.fZip):'')+'</td>'
+      +'<td style="color:var(--tx2)">'+esc(s.fState||'-')+(showZip2&&s.fZip?' '+esc(s.fZip):'')+'</td>'
       +'<td style="font-size:11px">'+(s.fAppt?dtToDisplay(s.fAppt):'-')+'</td>'
       +'<td>'+esc(s.lCity||'-')+'</td>'
-      +'<td style="color:var(--tx2)">'+esc(s.lState||'-')+(s.lZip?' '+esc(s.lZip):'')+'</td>'
+      +'<td style="color:var(--tx2)">'+esc(s.lState||'-')+(showZip2&&s.lZip?' '+esc(s.lZip):'')+'</td>'
       +'<td style="font-size:11px">'+(s.lAppt?dtToDisplay(s.lAppt):'-')+'</td>'
+      +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
+      +'<td style="font-size:11px;font-weight:600;color:var(--navy)">'+(equipCode?esc(equipCode):'-')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
+      +'<td style="color:var(--tx2)">'+esc(l.vendor||'-')+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
       +'<td>$'+getEffectiveCustR(l).toLocaleString()+'</td>'
-      +'<td class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</td>'
+      +'<td>'+marginCell+'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="17" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
   renderDetail();
@@ -1972,6 +2013,7 @@ function renderDetailInto(panel,l){
       : '';
     return '<div class="cie '+cls+'">'
       +'<div class="cim" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="cist">'+esc(c.status)+'</span><span class="cit">'+esc(c.time)+'</span>'+badge+delBtn+'</div>'
+      +(c.loc?'<div style="font-size:11px;color:var(--tx2);margin-top:2px">📍 '+esc(c.loc)+'</div>':'')
       +'<div class="citx">'+(c.note?esc(c.note):'<em style="color:var(--tx3)">No note.</em>')+'</div>'
       +'</div>';
   }).join('')||'<div style="font-size:12px;color:var(--tx3)">No call-in notes yet.</div>';
@@ -2006,6 +2048,7 @@ function renderDetailInto(panel,l){
           +(tot.pcs>0?'<div class="dp">Pieces <strong>'+tot.pcs+'</strong></div>':'')
           +(tot.seats>0?'<div class="dp">Seats <strong>'+tot.seats+'</strong></div>':'')
           +(l.miles?'<div class="dp">Miles <strong>'+l.miles+'</strong></div>':'')
+          +(l.equip?'<div class="dp">Equip <strong>'+esc(resolveEquipCode(l.equip))+'</strong></div>':'')
           +'<div class="dp">Carrier <strong>$'+(l.cr||0).toLocaleString()+'</strong></div>'
           +'<div class="dp">Customer <strong>$'+getEffectiveCustR(l).toLocaleString()+'</strong></div>'
           +'<div class="dp" style="border-color:'+(mar>=0?'#86efac':'#fca5a5')+';background:'+(mar>=0?'#f0fdf4':'#fff5f5')+'">Margin <strong style="color:'+(mar>=0?'#15803d':'var(--red)')+'">$'+mar.toLocaleString()+'</strong></div>'
@@ -2021,7 +2064,8 @@ function renderDetailInto(panel,l){
         +(l.status!=='Claim'?'<button class="abtn clm" onclick="initiateStatus('+l.id+',\'Claim\')">File Claim</button>':'')
         +(l.carrier?'<button class="abtn inc" onclick="openIncFromLoad('+l.id+')">Log Incident</button>':'')
         +'<button class="abtn" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2)" onclick="addCallInNote('+l.id+')">Add Note</button>'
-        +'<button class="btn sm p" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}))">Edit</button>'
+        +'<button class="btn sm p" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')">Edit Info</button>'
+        +'<button class="btn sm" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')">Edit Stops</button>'
       +'</div>'
     +'</div>'
     +buildTimelineBar(l)
@@ -2048,6 +2092,63 @@ function renderDetailInto(panel,l){
       +'</div>'
     +'</div>'
   +'</div>';
+}
+</script>
+
+<script>
+// ============================
+// EQUIPMENT
+// ============================
+var EQUIP_MAP = {
+  'V':'Van','VAN':'Van',
+  'R':'Reefer','REEFER':'Reefer','RF':'Reefer',
+  'F':'Flat','FLAT':'Flatbed','FB':'Flatbed',
+  'SD':'Step Deck','STEP':'Step Deck',
+  'DD':'Dbl Drop',
+  'RGN':'RGN',
+  'SB':'Box Truck','BOX':'Box Truck','BT':'Box Truck',
+  'SB26':'26ft Box','SB16':'16ft Box',
+  'SPR':'Sprinter','SPRINTER':'Sprinter',
+  'HB':'Hot Shot','HS':'Hot Shot','HOTSHOT':'Hot Shot',
+  'LTL':'LTL',
+  'CONESTOGA':'Conestoga','CON':'Conestoga',
+  'AUTO':'Auto Carrier',
+  'TANK':'Tanker','TK':'Tanker',
+  'BULK':'Bulk',
+  'FV':'Flatbed Van'
+};
+function resolveEquipCode(raw){
+  if(!raw)return '';
+  return EQUIP_MAP[raw.trim().toUpperCase()]||raw;
+}
+function equipAC(q){
+  var list=document.getElementById('ac-equip');
+  if(!q||q.length<1){list.style.display='none';return;}
+  var up=q.toUpperCase();
+  var matches=Object.entries(EQUIP_MAP).filter(function(e){
+    return e[0].startsWith(up)||e[1].toUpperCase().startsWith(up);
+  }).slice(0,8);
+  if(!matches.length){list.style.display='none';return;}
+  list.innerHTML=matches.map(function(e){
+    return '<div class="aci" onclick="pickEquip(\''+esc(e[0])+'\')">'
+      +'<span style="font-weight:600;color:var(--navy)">'+esc(e[0])+'</span>'
+      +' <span style="color:var(--tx2);font-size:11px">'+esc(e[1])+'</span></div>';
+  }).join('');
+  list.style.display='block';
+}
+function pickEquip(code){
+  document.getElementById('lf-equip').value=code;
+  document.getElementById('ac-equip').style.display='none';
+}
+function toggleZip(){
+  var cur=localStorage.getItem('bdf_showZip');
+  localStorage.setItem('bdf_showZip',cur==='0'?'1':'0');
+  renderBoard();
+}
+function toggleMarginMode(){
+  var cur=localStorage.getItem('bdf_marginPct');
+  localStorage.setItem('bdf_marginPct',cur==='1'?'0':'1');
+  renderBoard();
 }
 </script>
 
@@ -2137,16 +2238,114 @@ function setDoc(lid, key, input) {
 // ============================
 // STATUS CHANGE
 // ============================
+function openCallinModal(l, title, sub, req) {
+  // Auto-fill Last Known Location based on load status
+  var locEl = document.getElementById('ci-loc');
+  var badge = document.getElementById('ci-loc-badge');
+  var etaEl = document.getElementById('ci-eta');
+  locEl.value = '';
+  locEl.readOnly = false;
+  badge.style.display = 'none';
+  etaEl.textContent = '';
+
+  var atFacility = ['Arrived','Departed','Receiver'].includes(l.status);
+  if(atFacility) {
+    // Find the current active stop based on status
+    var sorted = l.stops.slice().sort(function(a,b){
+      if(a.type!==b.type) return a.type==='pickup'?-1:1;
+      return (a.appt||'').localeCompare(b.appt||'');
+    });
+    var curStop = null;
+    if(l.status==='Arrived'||l.status==='Departed') {
+      // Most recently checked-in pickup
+      curStop = sorted.filter(function(s){return s.type==='pickup'&&s.inT;}).pop() || sorted[0];
+    } else if(l.status==='Receiver') {
+      // Most recently checked-in delivery
+      curStop = sorted.filter(function(s){return s.type==='delivery'&&s.inT;}).pop() || sorted[sorted.length-1];
+    }
+    if(curStop && curStop.city) {
+      locEl.value = curStop.city + (curStop.state?', '+curStop.state:'') + (curStop.zip?' '+curStop.zip:'');
+      locEl.readOnly = true;
+      badge.style.display = '';
+    }
+  }
+
+  document.getElementById('ci-title').textContent = title;
+  document.getElementById('ci-sub').textContent = sub;
+  document.getElementById('ci-req').style.display = req ? 'block' : 'none';
+  document.getElementById('ci-note').value = '';
+
+  // Trigger ETA calculation after a tick so modal is open
+  setTimeout(function(){ ciLocChanged(); }, 100);
+  openM('m-callin');
+}
+
+function ciLocChanged() {
+  var loc = document.getElementById('ci-loc').value.trim();
+  var etaEl = document.getElementById('ci-eta');
+  etaEl.textContent = '';
+  if(!loc || !pendingCallin) return;
+  var l = loads.find(function(x){return x.id===pendingCallin.lid;});
+  if(!l) return;
+  // Find next unvisited delivery stop
+  var sorted = l.stops.slice().sort(function(a,b){
+    if(a.type!==b.type) return a.type==='pickup'?-1:1;
+    return (a.appt||'').localeCompare(b.appt||'');
+  });
+  var nextDel = sorted.find(function(s){return s.type==='delivery'&&!s.outT;});
+  if(!nextDel) return;
+  var dest = nextDel.city + (nextDel.state?', '+nextDel.state:'') + (nextDel.zip?' '+nextDel.zip:'');
+  if(!dest.trim()) return;
+  etaEl.textContent = 'Calculating ETA to '+dest+'...';
+  calcETA(loc, dest, function(result) {
+    if(result) {
+      etaEl.innerHTML = '📍 Est. <strong>'+result.eta+'</strong> to '+esc(dest)+' <span style="color:var(--tx3)">('+result.miles+' mi × 1.2 road factor @ 55mph)</span>';
+    } else {
+      etaEl.textContent = 'Could not calculate ETA — check location format.';
+    }
+  });
+}
+
+function calcETA(fromStr, toStr, cb) {
+  function geocode(query, done) {
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(query+', USA');
+    fetch(url, {headers:{'Accept-Language':'en','User-Agent':'BoxDropFreight/1.0'}})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d&&d[0]) done({lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)});
+        else done(null);
+      }).catch(function(){done(null);});
+  }
+  geocode(fromStr, function(from) {
+    if(!from) { cb(null); return; }
+    geocode(toStr, function(to) {
+      if(!to) { cb(null); return; }
+      // Haversine distance
+      var R = 3958.8; // miles
+      var dLat = (to.lat-from.lat)*Math.PI/180;
+      var dLng = (to.lng-from.lng)*Math.PI/180;
+      var a = Math.sin(dLat/2)*Math.sin(dLat/2)
+        + Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)
+        * Math.sin(dLng/2)*Math.sin(dLng/2);
+      var straightMiles = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      var roadMiles = Math.round(straightMiles * 1.2);
+      var hours = roadMiles / 55;
+      var h = Math.floor(hours);
+      var m = Math.round((hours-h)*60);
+      var eta = h > 0 ? h+'h '+(m<10?'0':'')+m+'min' : m+'min';
+      cb({miles:roadMiles, eta:eta});
+    });
+  });
+}
+
 function initiateStatus(lid, to) {
   var l=loads.find(function(x){return x.id===lid;});if(!l)return;
   var from=l.status;
 
-  // Issue 5: block Available -> Covered without a carrier
   if(from==='Available' && to==='Covered' && !l.carrier) {
     alert('Cannot move to Covered without assigning a carrier first.\nEdit the load to add a carrier.');
     return;
   }
-
   if(!NLC.includes(to)&&!NLC.includes(from)){
     var fi=LC.indexOf(from),ti=LC.indexOf(to);
     if(ti!==fi+1){alert('Cannot skip statuses.\nCurrent: '+from+'\nNext: '+(nextStatus(from)||'N/A'));return;}
@@ -2162,11 +2361,20 @@ function initiateStatus(lid, to) {
   }
   pendingCallin={lid:lid,from:from,to:to};
   var req=isReq(from,to);
-  document.getElementById('ci-title').textContent='Status: '+from+' to '+to;
-  document.getElementById('ci-sub').textContent='Load '+l.loadNum+(req?' - Call-in note required':' - Note optional');
-  document.getElementById('ci-req').style.display=req?'block':'none';
-  document.getElementById('ci-note').value='';
-  openM('m-callin');
+  openCallinModal(l,'Status: '+from+' → '+to,'Load '+l.loadNum+(req?' — Call-in note required':' — Note optional'),req);
+}
+
+function addCallInNote(lid) {
+  var l=loads.find(function(x){return x.id===lid;});if(!l)return;
+  pendingCallin={lid:lid,from:l.status,to:null};
+  openCallinModal(l,'Add Note — '+l.loadNum,'Status unchanged: '+l.status,false);
+}
+
+function removeIssue(lid) {
+  var l=loads.find(function(x){return x.id===lid;});if(!l)return;
+  var revertTo=l.preIssueStatus||'Available';
+  pendingCallin={lid:lid,from:'Issue',to:revertTo,isRevertIssue:true};
+  openCallinModal(l,'Remove Issue — '+l.loadNum,'Will revert to: '+revertTo+' — Note optional',false);
 }
 
 function deleteCallin(lid, idx) {
@@ -2179,38 +2387,16 @@ function deleteCallin(lid, idx) {
   renderDetail();
 }
 
-// Issue 4: add a call-in note without changing status
-function addCallInNote(lid) {
-  var l=loads.find(function(x){return x.id===lid;});if(!l)return;
-  pendingCallin={lid:lid,from:l.status,to:null};
-  document.getElementById('ci-title').textContent='Add Note — '+l.loadNum;
-  document.getElementById('ci-sub').textContent='Status unchanged: '+l.status;
-  document.getElementById('ci-req').style.display='none';
-  document.getElementById('ci-note').value='';
-  openM('m-callin');
-}
-
-// Issue 6: remove issue, revert to pre-issue status
-function removeIssue(lid) {
-  var l=loads.find(function(x){return x.id===lid;});if(!l)return;
-  var revertTo=l.preIssueStatus||'Available';
-  pendingCallin={lid:lid,from:'Issue',to:revertTo,isRevertIssue:true};
-  document.getElementById('ci-title').textContent='Remove Issue — '+l.loadNum;
-  document.getElementById('ci-sub').textContent='Will revert to: '+revertTo+' — Note optional';
-  document.getElementById('ci-req').style.display='none';
-  document.getElementById('ci-note').value='';
-  openM('m-callin');
-}
-
 function confirmCallin() {
   if(!pendingCallin)return;
   var l=loads.find(function(x){return x.id===pendingCallin.lid;});if(!l)return;
   var note=document.getElementById('ci-note').value.trim();
+  var loc=document.getElementById('ci-loc').value.trim();
   var from=pendingCallin.from,to=pendingCallin.to;
 
-  // Issue 4: note-only (no status change)
+  // note-only (no status change)
   if(to===null){
-    l.callins.push({status:'Note — '+from,time:nowStr(),note:note||'(no note)',req:false,type:'note'});
+    l.callins.push({status:'Note — '+from,time:nowStr(),note:note||'(no note)',loc:loc,req:false,type:'note'});
     closeM('m-callin');pendingCallin=null;
     saveState();renderDetail();
     return;
@@ -2219,29 +2405,25 @@ function confirmCallin() {
   if(isReq(from,to)&&!note&&!pendingCallin.isRevert){alert('A call-in note is required.');return;}
   if(pendingCallin.isRevert&&!note){alert('A note is required when reverting status.');return;}
 
-  // Revert path — apply backwards status change
   if(pendingCallin.isRevert){
     l.status=to;
     l.archived=false;
     if(from==='Delivered') l.deliveredAt=null;
-    l.callins.push({status:from+' → '+to+' (Reverted)',time:nowStr(),note:note,req:true,type:'callin'});
+    l.callins.push({status:from+' → '+to+' (Reverted)',time:nowStr(),note:note,loc:loc,req:true,type:'callin'});
     closeM('m-callin');pendingCallin=null;
     saveState();renderBoard();updateBKPIs();renderDetail();
     return;
   }
-  // Intercept Delivered — save the callin note and open rate confirmation
   if(to==='Delivered'){
     pendingCallin.callinNote=note;
+    pendingCallin.callinLoc=loc;
     closeM('m-callin');
     openRateConfirmModal(l);
     return;
   }
-  // Issue 6: store pre-issue status when flagging issue
-  if(to==='Issue'){
-    l.preIssueStatus=from;
-  }
+  if(to==='Issue') l.preIssueStatus=from;
   l.status=to;
-  l.callins.push({status:from+' to '+to,time:nowStr(),note:note,req:isReq(from,to),type:'callin'});
+  l.callins.push({status:from+' to '+to,time:nowStr(),note:note,loc:loc,req:isReq(from,to),type:'callin'});
   if(to==='Closed') l.archived=true;
   if(to==='Claim' && l.carrier) logClaimToCarrier(l, note);
   if(to==='Dispatched'&&!l.tracking&&l.carrier) logTrackingDing(l,'Dispatched');
@@ -2397,7 +2579,78 @@ function dtAdjust5(internal, delta) {
   return base.getFullYear()+'-'+pad2c(base.getMonth()+1)+'-'+pad2c(base.getDate())+'T'+pad2c(base.getHours())+':'+pad2c(base.getMinutes());
 }
 
-// Build a datetime text input element and return its outer HTML string
+// Hybrid appt input: calendar for date, manual time text entry
+// Renders as [date button showing date] [time text input]
+function makeApptInput(id, val, cbName) {
+  function pad2(x){return x<10?'0'+x:''+x;}
+  var datePart = '', timePart = '';
+  if(val) {
+    var m = val.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if(m) { datePart = m[1]+'-'+m[2]+'-'+m[3]; timePart = m[4]+':'+m[5]; }
+  }
+  // Display date as M/D/YYYY
+  var dateDisp = datePart ? (function(){var p=datePart.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
+  return '<div style="display:flex;gap:4px;align-items:center">'
+    // Hidden native date input
+    +'<input type="date" id="'+esc(id)+'-date" value="'+esc(datePart)+'" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0" onchange="apptDateChange(\''+esc(id)+'\',\''+esc(cbName)+'\')">'
+    // Visible date button
+    +'<button type="button" onclick="document.getElementById(\''+esc(id)+'-date\').showPicker()" style="height:28px;padding:0 8px;font-size:11px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);color:'+(datePart?'var(--tx)':'var(--tx3)')+';cursor:pointer;white-space:nowrap;min-width:90px;text-align:left" id="'+esc(id)+'-btn">'+(dateDisp||'Pick date')+'</button>'
+    // Time text input
+    +'<input type="text" id="'+esc(id)+'-time" value="'+esc(timePart)+'" placeholder="HH:MM" maxlength="5" style="height:28px;width:62px;font-size:11px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="apptTimeChange(\''+esc(id)+'\',\''+esc(cbName)+'\')" onblur="apptTimeBlur(\''+esc(id)+'\',\''+esc(cbName)+'\')">'
+  +'</div>';
+}
+
+function apptDateChange(id, cbName) {
+  var dateEl = document.getElementById(id+'-date');
+  var timeEl = document.getElementById(id+'-time');
+  var btnEl  = document.getElementById(id+'-btn');
+  if(!dateEl) return;
+  var datePart = dateEl.value; // YYYY-MM-DD
+  if(!datePart) return;
+  var p = datePart.split('-');
+  if(btnEl) { btnEl.textContent = parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0]; btnEl.style.color='var(--tx)'; }
+  var timePart = (timeEl&&timeEl.value.trim()) || '00:00';
+  // Normalise time
+  timePart = normaliseTime(timePart);
+  if(timeEl) timeEl.value = timePart;
+  var internal = datePart+'T'+timePart;
+  var fn = window[cbName]; if(typeof fn==='function') fn(internal);
+}
+
+function apptTimeChange(id, cbName) {
+  // live - just format if they've typed 4 digits with no colon
+  var timeEl = document.getElementById(id+'-time');
+  if(!timeEl) return;
+  var v = timeEl.value.replace(/[^0-9:]/g,'');
+  if(v.length===4 && v.indexOf(':')===-1) v = v.slice(0,2)+':'+v.slice(2);
+  timeEl.value = v;
+}
+
+function apptTimeBlur(id, cbName) {
+  var dateEl = document.getElementById(id+'-date');
+  var timeEl = document.getElementById(id+'-time');
+  if(!dateEl||!timeEl) return;
+  var datePart = dateEl.value;
+  var timePart = normaliseTime(timeEl.value.trim());
+  if(timePart) timeEl.value = timePart;
+  if(!datePart) return;
+  var internal = datePart+'T'+(timePart||'00:00');
+  var fn = window[cbName]; if(typeof fn==='function') fn(internal);
+}
+
+function normaliseTime(t) {
+  if(!t) return '00:00';
+  // accept HHMM or HH:MM
+  t = t.replace(/[^0-9:]/g,'');
+  if(t.length===4 && t.indexOf(':')===-1) t = t.slice(0,2)+':'+t.slice(2);
+  if(/^\d{1,2}:\d{2}$/.test(t)) {
+    var parts = t.split(':');
+    return (parts[0].length<2?'0'+parts[0]:parts[0])+':'+parts[1];
+  }
+  return t||'00:00';
+}
+
+
 // id: element id, val: internal value, cbName: global function name to call(newVal)
 function makeDTInput(id, val, cbName, extraClass) {
   var disp = dtToDisplay(val);
@@ -2424,7 +2677,9 @@ function applyDT(el) {
 
 function scrollDT(el, delta) {
   var raw = el.value.trim();
-  var internal = raw ? dtToInternal(raw) : '';
+  if(!raw) return; // don't populate empty fields on scroll
+  var internal = dtToInternal(raw);
+  if(!internal) return;
   var adjusted = dtAdjust5(internal, delta);
   el.value = dtToDisplay(adjusted);
   var cb = el.getAttribute('data-cb');
@@ -2456,8 +2711,8 @@ function addStop(stop) {
         +'</div>'
         +'<button id="slclr-'+idx+'" class="btn xs" style="margin-top:3px;display:'+(s.name?'':'none')+'" onclick="clearStopLoc('+idx+')">Clear Location</button>'
       +'</div>'
-      +'<div class="sl">Appt'+makeDTInput('sappt-'+idx, s.appt, 'dtCbAppt'+idx)+'</div>'
-      +'<div class="sl">Latest Appt'+makeDTInput('slappt-'+idx, s.latestAppt, 'dtCbLAppt'+idx)+'</div>'
+      +'<div class="sl">Appt'+makeApptInput('sappt-'+idx, s.appt, 'dtCbAppt'+idx)+'</div>'
+      +'<div class="sl">Latest Appt'+makeApptInput('slappt-'+idx, s.latestAppt, 'dtCbLAppt'+idx)+'</div>'
     +'</div>'
     +'<div class="sr2" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
       +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
@@ -2597,12 +2852,26 @@ document.addEventListener('click',function(e){
   document.querySelectorAll('.acl').forEach(function(l){if(!l.contains(e.target))l.style.display='none';});
 });
 
-function openLoadModal(load) {
+function openLoadModal(load, mode) {
+  // mode: 'header' = hide stops section, 'stops' = hide header fields, undefined = show all
   editingLoad=load||null;
   pendingFromDealers=null;
-  document.getElementById('m-load-title').textContent=load?'Edit Load':'Add Load';
+  var stopsHd  = document.getElementById('lf-stops-hd');
+  var stopList = document.getElementById('stop-list');
+  var addStopBtn = document.getElementById('lf-addstop-btn');
+  var headerFields = document.querySelectorAll('#m-load .fg .fi, #m-load .fg .fdiv:not(#lf-stops-hd)');
+
+  // Reset visibility
+  if(stopsHd)  stopsHd.style.display  = (mode==='header') ? 'none' : '';
+  if(stopList) stopList.style.display  = (mode==='header') ? 'none' : '';
+  if(addStopBtn) addStopBtn.style.display = (mode==='header') ? 'none' : '';
+  headerFields.forEach(function(el){ el.style.display = (mode==='stops') ? 'none' : ''; });
+
+  document.getElementById('m-load-title').textContent = mode==='header' ? 'Edit Load Info' : mode==='stops' ? 'Edit Stops' : (load ? 'Edit Load' : 'Add Load');
   var fv=function(id){return document.getElementById(id);};
-  fv('lf-disp').value=cap(currentUser||'');
+  // Dispatcher: preserve original on edit, set to current user only for new loads
+  fv('lf-disp').value = load ? (load.dispatcher||cap(currentUser||'')) : cap(currentUser||'');
+  fv('lf-disp').disabled = !isAdmin();
   if(load){
     fv('lf-num').value=load.loadNum;
     fv('lf-status').value=load.status;
@@ -2616,10 +2885,11 @@ function openLoadModal(load) {
     fv('lf-dname').value=load.driverName||'';
     fv('lf-dphone').value=load.driverPhone||'';
     fv('lf-truck').value=load.truck||'';
+    fv('lf-equip').value=load.equip||'';
   } else {
     fv('lf-num').value=peekNextLoadNum();
     fv('lf-status').value='Schedule';
-    ['lf-vendor','lf-carrier','lf-cr','lf-custR','lf-miles','lf-notes','lf-tracking','lf-dname','lf-dphone','lf-truck'].forEach(function(id){fv(id).value='';});
+    ['lf-vendor','lf-carrier','lf-cr','lf-custR','lf-miles','lf-notes','lf-tracking','lf-dname','lf-dphone','lf-truck','lf-equip'].forEach(function(id){fv(id).value=''});
   }
   stopRows=[];fv('stop-list').innerHTML='';
   var initStops=load?load.stops:[
@@ -2666,7 +2936,7 @@ function saveLoad(){
   var obj={
     loadNum:loadNum, status:fv('lf-status'), vendor:fv('lf-vendor'), carrier:fv('lf-carrier'),
     dispatcher:fv('lf-disp'), cr:parseFloat(fv('lf-cr'))||0, custR:effectiveCustR,
-    miles:parseFloat(fv('lf-miles'))||0, notes:fv('lf-notes'),
+    miles:parseFloat(fv('lf-miles'))||0, notes:fv('lf-notes'), equip:fv('lf-equip'),
     tracking:fv('lf-tracking'), driverName:fv('lf-dname'), driverPhone:fv('lf-dphone'), truck:fv('lf-truck'),
     stops:fs,
     callins:editingLoad?editingLoad.callins:[{status:'Load Created',time:nowStr(),note:'Created by '+cap(currentUser),req:false,type:'created'}],
@@ -2763,7 +3033,15 @@ function buildLoadFromPOs(sel) {
   var dm={};
   sel.forEach(function(d){
     var k=(d.dealer+'||'+d.addr+','+d.city+','+d.state).toLowerCase();
-    if(!dm[k])dm[k]={dealer:d.dealer,addr:d.addr,city:d.city,state:d.state,zip:d.zip||'',pos:[]};
+    if(!dm[k]){
+      // Try to fill missing address from Location DB
+      var locMatch = locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();});
+      var addr  = d.addr  || (locMatch?locMatch.addr||'':'');
+      var city  = d.city  || (locMatch?(locMatch.city||'').split(',')[0].trim():'');
+      var state = d.state || (locMatch?(locMatch.city||'').split(',')[1]&&(locMatch.city||'').split(',')[1].trim() || locMatch.state||'':'');
+      var zip   = d.zip   || (locMatch?locMatch.zip||'':'');
+      dm[k]={dealer:d.dealer,addr:addr,city:city,state:state,zip:zip,pos:[]};
+    }
     dm[k].pos.push({po:d.po,pieces:Number(d.pieces)||0,seats:Number(d.seats)||0,dealer:d.dealer,ri:dm[k].pos.length});
   });
   var dlStops=Object.values(dm).map(function(g){
@@ -4580,6 +4858,8 @@ if(document.getElementById('app').style.display==='flex') initApp();
 
   // Sync user list from Firebase so all machines share the same users
   syncUsersFromFirebase();
+  // Sync load counter from Firebase so it never resets on redeploy
+  syncLoadCounter();
 
   // Show connecting overlay
   var overlay = document.getElementById('fb-connecting');
