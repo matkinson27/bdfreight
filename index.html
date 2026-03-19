@@ -411,6 +411,8 @@ tr.psel td{background:#eef9ee!important}
       <span class="badge red" id="tb-issue" style="display:none">0 Issues</span>
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
+      <button class="tbtn" onclick="toggleZip()" id="tb-zip-btn" title="Toggle ZIP visibility">👁 ZIP</button>
+      <button class="tbtn" onclick="toggleMarginMode();updateDetailMarginPill()" id="tb-margin-btn" title="Toggle Margin %/$">% Margin</button>
       <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
       <div class="upill" style="cursor:pointer" onclick="openChangePassword()" title="Change Password"><span class="ugreen"></span><span id="cur-user">-</span></div>
       <button class="tbtn" onclick="logout()">Sign Out</button>
@@ -1116,9 +1118,17 @@ tr.psel td{background:#eef9ee!important}
             <span style="font-size:12px;color:var(--tx2)">Now (snapped 5 min)</span>
             <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">N</kbd>
           </div>
+        </div>
+
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:18px 0 10px">Board Toggles</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-            <span style="font-size:12px;color:var(--tx2)">Scroll ±5 min</span>
-            <kbd style="font-size:11px;font-weight:600;background:var(--sur2);border:1px solid var(--bd2);border-radius:5px;padding:2px 8px;color:var(--tx);font-family:var(--M)">scroll</kbd>
+            <span style="font-size:12px;color:var(--tx2)">Show/hide ZIP</span>
+            <button class="tbtn" onclick="toggleZip()" style="font-size:11px;padding:2px 10px">👁 ZIP</button>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:12px;color:var(--tx2)">Margin % / $</span>
+            <button class="tbtn" onclick="toggleMarginMode();updateDetailMarginPill()" style="font-size:11px;padding:2px 10px">% Margin</button>
           </div>
         </div>
 
@@ -1335,9 +1345,14 @@ var nDealer = 1, nCarrier = 1, nLoc = 1, nRate = 1, nTL = 1;
 // ============================
 var DB = null; // Firebase database reference, set after SDK loads
 var _fbSaving = false; // prevent echo loops
+var _fbLoaded = false; // CRITICAL: never save until Firebase data has been received at least once
 
 function saveState() {
   if(!DB) return;
+  if(!_fbLoaded) {
+    console.warn('saveState blocked — Firebase not yet loaded');
+    return;
+  }
   try {
     // Strip non-serialisable UI flags before saving
     function clean(arr) {
@@ -1347,21 +1362,31 @@ function saveState() {
         return o;
       });
     }
-    DB.ref('appstate').set({
-      loads: clean(loads),
-      dealers: clean(dealers),
-      carriers: clean(carriers),
-      locations: clean(locations),
-      rates: clean(rates),
-      tempLoads: tempLoads,
-      nDealer: nDealer, nCarrier: nCarrier,
-      nLoc: nLoc, nRate: nRate, nTL: nTL
+    // Safety check — never write empty loads over existing data
+    // (extra protection against crash-before-load scenarios)
+    DB.ref('appstate/loads').once('value', function(snap) {
+      var existing = snap.val();
+      if(existing && existing.length > 0 && loads.length === 0) {
+        console.warn('saveState blocked — would overwrite '+existing.length+' loads with empty array');
+        return;
+      }
+      DB.ref('appstate').set({
+        loads: clean(loads),
+        dealers: clean(dealers),
+        carriers: clean(carriers),
+        locations: clean(locations),
+        rates: clean(rates),
+        tempLoads: tempLoads,
+        nDealer: nDealer, nCarrier: nCarrier,
+        nLoc: nLoc, nRate: nRate, nTL: nTL
+      });
     });
   } catch(e) { console.error('Firebase save error', e); }
 }
 
 function applyRemoteState(d) {
   if(!d) return;
+  _fbLoaded = true; // Firebase has responded — saveState is now safe
   function withSel(arr) {
     return (arr||[]).map(function(x){ return Object.assign({sel:false}, x); });
   }
@@ -2047,11 +2072,12 @@ function renderDetailInto(panel,l){
   function docSlot(key,label){
     var d=l.docs&&l.docs[key];
     var url=l.docs&&l.docs[key+'Url'];
-    return '<label class="doc'+(d?' up':'')+'">'
-      +'<div class="docico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="'+(d?'#15803d':'#94a3b8')+'" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>'
-      +'<div class="docl">'+(d?esc(d):'Upload '+label)+'</div>'
-      +(d&&url?'<a class="docview" href="'+esc(url)+'" target="_blank" onclick="event.stopPropagation()">View</a>':'')
-      +'<input type="file" accept="image/*,.pdf" onchange="setDoc('+l.id+',\''+key+'\',this)">'
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid '+(d?'#86efac':'var(--bd2)')+';border-radius:var(--r);background:'+(d?'#f0fdf4':'var(--sur)')+';cursor:pointer;font-size:11px">'
+      +'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="'+(d?'#15803d':'#94a3b8')+'" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      +'<span style="font-weight:600;color:'+(d?'#15803d':'var(--tx2)')+'">'+label+'</span>'
+      +(d?'<span style="color:var(--tx3);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(d)+'</span>':'<span style="color:var(--tx3);font-size:10px">Upload</span>')
+      +(d&&url?'<a href="'+esc(url)+'" target="_blank" onclick="event.stopPropagation()" style="font-size:10px;color:var(--navy);font-weight:500;text-decoration:none;padding:1px 5px;background:var(--sur);border:1px solid var(--bd2);border-radius:10px">View</a>':'')
+      +'<input type="file" accept="image/*,.pdf,.heic,.heif,.tiff,.tif" style="display:none" onchange="setDoc('+l.id+',\''+key+'\',this)">'
       +'</label>';
   }
 
@@ -2059,62 +2085,94 @@ function renderDetailInto(panel,l){
   if(!l.docs||!l.docs.bol) missDocs.push('BOL');
   if(!l.docs||!l.docs.pod) missDocs.push('POD');
 
+  var marginPctMode = localStorage.getItem('bdf_marginPct')==='1';
+  var marDisplay = marginPctMode
+    ? (getEffectiveCustR(l)>0?Math.round(mar/getEffectiveCustR(l)*100)+'%':'0%')
+    : '$'+mar.toLocaleString();
+
   panel.innerHTML='<div style="background:var(--sur)">'
-    +'<div class="dhead">'
-      +'<div>'
-        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">'
-          +'<span class="dnum">'+esc(l.loadNum)+'</span>'
-          +'<span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'
-          +(l.vendor?'<span style="font-size:12px;color:var(--tx2)">'+esc(l.vendor)+'</span>':'')
-          +(l.carrier?'<span style="font-size:12px;color:var(--tx2)">- '+esc(l.carrier)+'</span>':'')
-          +(l.dispatcher?'<span style="font-size:12px;color:var(--tx2)">- '+esc(l.dispatcher)+'</span>':'')
-        +'</div>'
-        +'<div class="dpills">'
-          +(tot.n>0?'<div class="dp">POs <strong>'+tot.n+'</strong></div>':'')
-          +(tot.pcs>0?'<div class="dp">Pieces <strong>'+tot.pcs+'</strong></div>':'')
-          +(tot.seats>0?'<div class="dp">Seats <strong>'+tot.seats+'</strong></div>':'')
-          +(l.miles?'<div class="dp">Miles <strong>'+l.miles+'</strong></div>':'')
-          +(l.equip?'<div class="dp">Equip <strong>'+esc(resolveEquipCode(l.equip))+'</strong></div>':'')
-          +'<div class="dp">Carrier <strong>$'+(l.cr||0).toLocaleString()+'</strong></div>'
-          +'<div class="dp">Customer <strong>$'+getEffectiveCustR(l).toLocaleString()+'</strong></div>'
-          +'<div class="dp" style="border-color:'+(mar>=0?'#86efac':'#fca5a5')+';background:'+(mar>=0?'#f0fdf4':'#fff5f5')+'">Margin <strong style="color:'+(mar>=0?'#15803d':'var(--red)')+'">$'+mar.toLocaleString()+'</strong></div>'
-          +(missDocs.length&&l.status==='Delivered'?'<div class="dp" style="border-color:#fca5a5;background:#fff5f5"><strong style="color:var(--red)">Missing: '+missDocs.join(', ')+'</strong></div>':'')
-        +'</div>'
-      +'</div>'
-      +'<div class="dacts">'
+    // ── Header ──
+    +'<div style="padding:10px 16px 8px;border-bottom:1px solid var(--bd)">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+        +'<span class="dnum">'+esc(l.loadNum)+'</span>'
+        +'<button class="btn xs p" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')">Edit Info</button>'
+        +'<span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'
         +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button class="abtn nx" onclick="initiateStatus('+l.id+',\''+nxt+'\')">Next: '+nxt+'</button>':'')
-        +(l.status==='Issue'
-          ?'<button class="abtn" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d" onclick="removeIssue('+l.id+')">Remove Issue</button>'
-          :'<button class="abtn iss" onclick="initiateStatus('+l.id+',\'Issue\')">Flag Issue</button>'
-        )
-        +(l.status!=='Claim'?'<button class="abtn clm" onclick="initiateStatus('+l.id+',\'Claim\')">File Claim</button>':'')
-        +(l.carrier?'<button class="abtn inc" onclick="openIncFromLoad('+l.id+')">Log Incident</button>':'')
-        +'<button class="abtn" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2)" onclick="addCallInNote('+l.id+')">Add Note</button>'
-        +'<button class="btn sm p" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')">Edit Info</button>'
-        +'<button class="btn sm" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')">Edit Stops</button>'
+        +(l.status==='Delivered'&&!l.ratesVerified?'<button class="abtn" style="background:#dcfce7;color:#14532d;border:1px solid #86efac" onclick="confirmRates('+l.id+')">✓ Confirm Rates</button>':'')
+        +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d">✓ Rates Confirmed</span>':'')
+      +'</div>'
+      +'<div class="dpills">'
+        +(tot.n>0?'<div class="dp">POs <strong>'+tot.n+'</strong></div>':'')
+        +(tot.pcs>0?'<div class="dp">Pieces <strong>'+tot.pcs+'</strong></div>':'')
+        +(tot.seats>0?'<div class="dp">Seats <strong>'+tot.seats+'</strong></div>':'')
+        +(l.miles?'<div class="dp">Miles <strong>'+l.miles+'</strong></div>':'')
+        +(l.equip?'<div class="dp">Equip <strong>'+esc(resolveEquipCode(l.equip))+'</strong></div>':'')
+        +'<div class="dp">Carrier <strong>$'+(l.cr||0).toLocaleString()+'</strong></div>'
+        +'<div class="dp">Customer <strong>$'+getEffectiveCustR(l).toLocaleString()+'</strong></div>'
+        +'<div class="dp" style="cursor:pointer;border-color:'+(mar>=0?'#86efac':'#fca5a5')+';background:'+(mar>=0?'#f0fdf4':'#fff5f5')+'" onclick="toggleMarginMode();updateDetailMarginPill()" title="Toggle %/$">Margin <strong id="detail-margin-pill" style="color:'+(mar>=0?'#15803d':'var(--red)')+'">'+marDisplay+'</strong></div>'
+        +(missDocs.length&&l.status==='Delivered'?'<div class="dp" style="border-color:#fca5a5;background:#fff5f5"><strong style="color:var(--red)">Missing: '+missDocs.join(', ')+'</strong></div>':'')
       +'</div>'
     +'</div>'
-    +buildTimelineBar(l)
+    // ── 3-col body ──
     +'<div class="dbody">'
-      +'<div class="dcol"><div class="dct">Stops ('+sorted.length+') - '+sorted.filter(function(s){return s.type==='pickup';}).length+'PU / '+sorted.filter(function(s){return s.type==='delivery';}).length+'DEL</div>'+stopsHTML+'</div>'
-      +'<div class="dcol"><div class="dct">Call-In Log</div>'+ciHTML+'</div>'
+      // Col 1 — Stops
       +'<div class="dcol">'
-        +'<div class="dct">Driver &amp; Tracking</div>'
-        +'<div class="info-block">'
-          +'<div class="info-row">'
-            +'<div class="info-field"><label>Driver</label><input value="'+esc(l.driverName||'')+'" onchange="l=loads.find(function(x){return x.id==='+l.id+'});if(l)l.driverName=this.value" placeholder="-"></div>'
-            +'<div class="info-field"><label>Phone</label><input value="'+esc(l.driverPhone||'')+'" oninput="fmtPhone(this)" onchange="l=loads.find(function(x){return x.id==='+l.id+'});if(l)l.driverPhone=this.value" placeholder="-"></div>'
-          +'</div>'
-          +'<div class="info-row">'
-            +'<div class="info-field"><label>Truck / Trailer</label><input value="'+esc(l.truck||'')+'" onchange="l=loads.find(function(x){return x.id==='+l.id+'});if(l)l.truck=this.value" placeholder="-"></div>'
-            +'<div class="info-field"><label>Tracking Link'+(l.tracking?' - <a href="'+esc(l.tracking)+'" target="_blank" style="font-size:10px;color:var(--navy);font-weight:500">Open</a>':'')+'</label>'
-              +'<input value="'+esc(l.tracking||'')+'" placeholder="https://..." onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.tracking=v;renderBoard();}})(this.value)">'
-            +'</div>'
+        +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          +'<span>Stops ('+sorted.length+') — '+sorted.filter(function(s){return s.type==='pickup';}).length+'PU / '+sorted.filter(function(s){return s.type==='delivery';}).length+'DEL</span>'
+          +'<button class="btn xs" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')">Edit Stops</button>'
+        +'</div>'
+        +stopsHTML
+      +'</div>'
+      // Col 2 — Call-In Log
+      +'<div class="dcol">'
+        +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
+          +'<span>Call-In Log</span>'
+          +'<div style="display:flex;gap:4px">'
+            +(l.status==='Issue'
+              ?'<button class="abtn" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;height:24px;font-size:10px;padding:0 8px" onclick="removeIssue('+l.id+')">Remove Issue</button>'
+              :'<button class="abtn iss" style="height:24px;font-size:10px;padding:0 8px" onclick="initiateStatus('+l.id+',\'Issue\')">Flag Issue</button>'
+            )
+            +'<button class="abtn" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);height:24px;font-size:10px;padding:0 8px" onclick="addCallInNote('+l.id+')">Add Note</button>'
           +'</div>'
         +'</div>'
-        +'<div class="dct" style="margin-top:10px">Documents</div>'
-        +'<div class="doclist">'+docSlot('bol','BOL')+docSlot('pod','POD')+docSlot('rc','Rate Confirmation')+'</div>'
-        +(l.notes?'<div style="margin-top:12px"><div class="dct">Special Instructions</div><div style="margin-top:7px;font-size:12px;line-height:1.6;background:var(--sur2);border-radius:var(--r);padding:9px 11px">'+esc(l.notes)+'</div></div>':'')
+        +ciHTML
+      +'</div>'
+      // Col 3 — Load Info + Driver + Docs
+      +'<div class="dcol">'
+        // Load Info mini-panel
+        +'<div style="background:var(--sur2);border:1px solid var(--bd);border-radius:var(--r);padding:9px 11px;margin-bottom:10px">'
+          +'<div class="dct" style="margin-bottom:7px">Load Info</div>'
+          +'<div style="display:flex;flex-direction:column;gap:5px">'
+            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Vendor</span><input value="'+esc(l.vendor||'')+'" style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.vendor=v;saveState();renderBoard();}})(this.value)"></div>'
+            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Carrier</span><input value="'+esc(l.carrier||'')+'" style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.carrier=v;saveState();renderBoard();}})(this.value)"></div>'
+            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Dispatcher</span><input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="(function(v){if(!'+isAdmin()+')return;var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.dispatcher=v;saveState();renderBoard();}})(this.value)"></div>'
+          +'</div>'
+        +'</div>'
+        // Driver & Tracking
+        +'<div class="dct" style="margin-bottom:6px">Driver &amp; Tracking</div>'
+        +'<div class="info-block">'
+          +'<div class="info-row">'
+            +'<div class="info-field"><label>Driver</label><input value="'+esc(l.driverName||'')+'" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld)ld.driverName=v;})(this.value)" placeholder="-"></div>'
+            +'<div class="info-field"><label>Phone</label><input value="'+esc(l.driverPhone||'')+'" oninput="fmtPhone(this)" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld)ld.driverPhone=v;})(this.value)" placeholder="-"></div>'
+          +'</div>'
+          +'<div class="info-row">'
+            +'<div class="info-field"><label>Truck/Trailer</label><input value="'+esc(l.truck||'')+'" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld)ld.truck=v;})(this.value)" placeholder="-"></div>'
+            +'<div class="info-field"><label>Tracking'+(l.tracking?' — <a href="'+esc(l.tracking)+'" target="_blank" style="font-size:10px;color:var(--navy)">Open</a>':'')+'</label><input value="'+esc(l.tracking||'')+'" placeholder="https://..." onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.tracking=v;renderBoard();}})(this.value)"></div>'
+          +'</div>'
+        +'</div>'
+        // Documents
+        +'<div style="margin-top:10px">'
+          +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">'
+            +'<span>Documents</span>'
+            +'<div style="display:flex;gap:4px">'
+              +(l.status!=='Claim'?'<button class="abtn clm" style="height:22px;font-size:10px;padding:0 7px" onclick="initiateStatus('+l.id+',\'Claim\')">File Claim</button>':'')
+              +(l.carrier?'<button class="abtn inc" style="height:22px;font-size:10px;padding:0 7px" onclick="openIncFromLoad('+l.id+')">Log Incident</button>':'')
+            +'</div>'
+          +'</div>'
+          +'<div style="font-size:10px;color:var(--tx3);margin-bottom:5px">Accepted: JPG, PNG, PDF, HEIC, TIFF</div>'
+          +'<div style="display:flex;flex-direction:column;gap:4px">'+docSlot('bol','BOL')+docSlot('pod','POD')+docSlot('rc','Rate Conf')+'</div>'
+        +'</div>'
+        +(l.notes?'<div style="margin-top:10px"><div class="dct">Special Instructions</div><div style="margin-top:5px;font-size:12px;line-height:1.5;background:var(--sur2);border-radius:var(--r);padding:8px 10px">'+esc(l.notes)+'</div></div>':'')
       +'</div>'
     +'</div>'
   +'</div>';
@@ -2153,6 +2211,16 @@ function toggleMarginMode(){
   var cur=localStorage.getItem('bdf_marginPct');
   localStorage.setItem('bdf_marginPct',cur==='1'?'0':'1');
   renderBoard();
+}
+function updateDetailMarginPill(){
+  // Update the margin pill in the detail panel without full re-render
+  var pill=document.getElementById('detail-margin-pill');
+  if(!pill||!selLoad)return;
+  var l=loads.find(function(x){return x.id===selLoad;});if(!l)return;
+  var mar=getEffectiveCustR(l)-(l.cr||0);
+  var pct=localStorage.getItem('bdf_marginPct')==='1';
+  var val=pct?(getEffectiveCustR(l)>0?Math.round(mar/getEffectiveCustR(l)*100)+'%':'0%'):'$'+mar.toLocaleString();
+  pill.textContent=val;
 }
 </script>
 
