@@ -1614,7 +1614,7 @@ function globalSearch(q) {
   if(!items.length) { res.classList.remove('open'); return; }
   res.innerHTML = items.slice(0,10).map(function(item) {
     var poEnc = item.po ? encodeURIComponent(item.po) : '';
-    return '<div class="gsr-item" onclick="jumpToResult(''+item.type+'','+JSON.stringify(item.id)+',''+poEnc+'')">'
+    return '<div class="gsr-item" onclick="jumpToResult(''+item.type+'','+(item.id===null?'null':item.id)+',''+poEnc+'')">'
       + '<span class="gsr-tag '+(item.type==='stg'?'po':item.type)+'">'+item.type.toUpperCase()+'</span>'
       + '<div><div class="gsr-info">'+esc(item.num)+'</div><div class="gsr-sub">'+esc(item.sub)+'</div></div>'
       + '</div>';
