@@ -4951,30 +4951,36 @@ if(document.getElementById('app').style.display==='flex') initApp();
 // ============================
 if('serviceWorker' in navigator) {
   var swCode = `
-    const CACHE = 'bdfreight-v1';
+    const CACHE = 'bdfreight-v` + Date.now() + `';
     self.addEventListener('install', function(e) {
       self.skipWaiting();
     });
     self.addEventListener('activate', function(e) {
-      e.waitUntil(clients.claim());
+      // Delete all old caches on activate
+      e.waitUntil(
+        caches.keys().then(function(keys) {
+          return Promise.all(keys.map(function(key) {
+            if(key !== CACHE) return caches.delete(key);
+          }));
+        }).then(function(){ return clients.claim(); })
+      );
     });
     self.addEventListener('fetch', function(e) {
-      // Only cache same-origin requests, pass Firebase through normally
-      if(e.request.url.includes('firebaseio.com') || 
+      // Always pass Firebase through — never cache
+      if(e.request.url.includes('firebaseio.com') ||
          e.request.url.includes('googleapis.com') ||
-         e.request.url.includes('gstatic.com')) {
+         e.request.url.includes('gstatic.com') ||
+         e.request.url.includes('nominatim')) {
         return;
       }
+      // Network-first: try network, fall back to cache only if offline
       e.respondWith(
-        caches.match(e.request).then(function(cached) {
-          return cached || fetch(e.request).then(function(response) {
-            return caches.open(CACHE).then(function(cache) {
-              cache.put(e.request, response.clone());
-              return response;
-            });
-          });
+        fetch(e.request).then(function(response) {
+          var toCache = response.clone();
+          caches.open(CACHE).then(function(cache){ cache.put(e.request, toCache); });
+          return response;
         }).catch(function() {
-          return cached;
+          return caches.match(e.request);
         })
       );
     });
