@@ -146,7 +146,7 @@ tr.psel td{background:#eef9ee!important}
 .dbody{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--sur)}
 .dcol{padding:14px 16px;border-right:1px solid var(--bd);overflow-y:auto;max-height:460px}
 .dcol:last-child{border-right:none}
-.dct{font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;padding-bottom:6px;border-bottom:1px solid var(--bd);margin-bottom:10px;position:sticky;top:0;background:var(--sur);z-index:1}
+.dct{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.08em;padding-bottom:7px;border-bottom:2px solid var(--green);margin-bottom:10px;position:sticky;top:0;background:var(--sur);z-index:1}
 /* Action buttons - styled properly */
 .abtn{height:30px;padding:0 13px;font-size:11px;font-weight:600;border-radius:20px;cursor:pointer;border:none;font-family:var(--F);display:inline-flex;align-items:center;gap:5px;transition:opacity .15s;letter-spacing:.01em}
 .abtn:hover{opacity:.82}
@@ -177,7 +177,7 @@ tr.psel td{background:#eef9ee!important}
 .tf input.ok{border-color:var(--green);background:#f0fdf4}
 .tf input.miss{border-color:var(--red);background:#fff5f5}
 .info-block{background:var(--sur2);border-radius:var(--r);padding:9px 12px;margin-bottom:8px;border:1px solid var(--bd)}
-.info-block-title{font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.info-block-title{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
 .info-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px}
 .info-field{display:flex;flex-direction:column;gap:2px}
 .info-field label{font-size:10px;color:var(--tx2)}
@@ -1604,7 +1604,7 @@ var STATUS_COLORS = {
 };
 function statusBtnStyle(status) {
   var c = STATUS_COLORS[status] || {bg:'var(--sur2)',color:'var(--tx)'};
-  return 'background:'+c.bg+';color:'+c.color+';border:1px solid '+c.color+'44;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);white-space:nowrap';
+  return 'background:'+c.bg+';color:'+c.color+';border:1px solid '+c.color+'44;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);white-space:nowrap;display:inline-flex;align-items:center;justify-content:center';
 }
 
 // ============================
@@ -2110,8 +2110,8 @@ function renderDetailInto(panel,l){
     // ── Header ──
     +'<div style="padding:10px 16px 8px;border-bottom:1px solid var(--bd)">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px">'
-        +'<span style="font-size:22px;font-weight:800;color:var(--navy);font-family:var(--M);letter-spacing:-.5px">'+esc(l.loadNum)+'</span>'
-        +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')" style="background:#1B2A4A;color:#fff;border:none;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">Edit Info</button>'
+        +'<span style="font-size:24px;font-weight:800;color:var(--navy);font-family:var(--M);letter-spacing:-1px">'+esc(l.loadNum)+'</span>'
+        +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')" style="background:var(--sur);color:var(--navy);border:2.5px solid var(--green);font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);display:inline-flex;align-items:center">Edit Info</button>'
         +'<button onclick="popoutLoad('+l.id+')" title="Open in new window" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);font-size:12px;padding:0 10px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)" title="Pop out">⧉</button>'
         +'<span style="'+curStyle+'">'+l.status+'</span>'
         +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button onclick="initiateStatus('+l.id+',\''+nxt+'\')" style="'+nxtStyle+'">Next: '+nxt+'</button>':'')
@@ -2167,8 +2167,8 @@ function renderDetailInto(panel,l){
           +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">'
             +'<span>Documents</span>'
             +'<div style="display:flex;gap:4px">'
-              +(l.status!=='Claim'?'<button onclick="initiateStatus('+l.id+',\'Claim\')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">File Claim</button>':'')
-              +(l.carrier?'<button onclick="openIncFromLoad('+l.id+')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Log Incident</button>':'')
+              +(l.status!=='Claim'?'<button onclick="initiateStatus('+l.id+',\'Claim\')" style="border:2.5px solid var(--green);color:var(--navy);background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">File Claim</button>':'')
+              +(l.carrier?'<button onclick="openIncFromLoad('+l.id+')" style="border:2.5px solid var(--green);color:var(--navy);background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">Log Incident</button>':'')
             +'</div>'
           +'</div>'
           +'<div style="font-size:10px;color:var(--tx3);margin-bottom:5px">Accepted: JPG, PNG, PDF, HEIC, TIFF</div>'
@@ -2181,7 +2181,7 @@ function renderDetailInto(panel,l){
       +'<div class="dcol">'
         +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
           +'<span>Stops ('+sorted.length+') — '+sorted.filter(function(s){return s.type==='pickup';}).length+'PU / '+sorted.filter(function(s){return s.type==='delivery';}).length+'DEL</span>'
-          +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Stops</button>'
+          +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')" style="border:2.5px solid var(--green);color:var(--navy);background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Stops</button>'
         +'</div>'
         +stopsHTML
       +'</div>'
@@ -2195,7 +2195,7 @@ function renderDetailInto(panel,l){
               ?'<button onclick="removeIssue('+l.id+')" style="border:1.5px solid #92400e;color:#92400e;background:#fef3c7;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Remove Issue</button>'
               :'<button onclick="initiateStatus('+l.id+',\'Issue\')" style="border:1.5px solid #991b1b;color:#991b1b;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Flag Issue</button>'
             )
-            +'<button onclick="addCallInNote('+l.id+')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Add Note</button>'
+            +'<button onclick="addCallInNote('+l.id+')" style="border:2.5px solid var(--green);color:var(--navy);background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">Add Note</button>'
           +'</div>'
         +'</div>'
         +ciHTML
@@ -2250,23 +2250,23 @@ function updateDetailMarginPill(){
 function popoutLoad(lid) {
   var l = loads.find(function(x){return x.id===lid;});
   if(!l) return;
-  var w = window.open('', 'popout_'+lid, 'width=1100,height=700,resizable=yes,scrollbars=yes');
-  if(!w) { alert('Please allow popups for this site.'); return; }
-  // Build a standalone HTML page with the load detail
-  var panel = document.createElement('div');
-  renderDetailInto(panel, l);
-  var html = '<!DOCTYPE html><html><head>'
+  var _popPanel = document.createElement('div');
+  renderDetailInto(_popPanel, l);
+  var _popStyles = Array.from(document.querySelectorAll('style')).map(function(s){return s.textContent;}).join('\n');
+  var _popHtml = '<!DOCTYPE html><html><head>'
     +'<meta charset="UTF-8">'
     +'<title>'+l.loadNum+' — BoxDrop Freight</title>'
-    +'<style>'+document.querySelector('style').textContent+'</style>'
-    +'<style>body{margin:0;padding:16px;font-family:system-ui,sans-serif}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
+    +'<style>'+_popStyles+'</style>'
+    +'<style>body{margin:0;padding:16px;background:#f4f6f9;font-family:system-ui,sans-serif}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
     +'</head><body>'
-    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+' (read-only snapshot)</div>'
-    +panel.innerHTML
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+' (snapshot)</div>'
+    +_popPanel.innerHTML
     +'</body></html>';
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  var _popBlob = new Blob([_popHtml], {type:'text/html'});
+  var _popUrl = URL.createObjectURL(_popBlob);
+  var w = window.open(_popUrl, 'bdf_'+lid, 'width=1100,height=700,resizable=yes,scrollbars=yes');
+  if(!w) { alert('Please allow popups for this site.'); return; }
+  setTimeout(function(){ URL.revokeObjectURL(_popUrl); }, 15000);
 }
 
 
