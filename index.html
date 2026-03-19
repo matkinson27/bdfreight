@@ -155,9 +155,11 @@ tr.psel td{background:#eef9ee!important}
 .abtn.clm{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
 .abtn.inc{background:#fefce8;color:#854d0e;border:1px solid #fde047}
 .scard{background:var(--sur2);border-radius:var(--r);padding:9px 12px;margin-bottom:8px;border-left:3px solid var(--bd2)}
-.scard.pu{border-left-color:#2563eb}.scard.dl{border-left-color:#16a34a}
+.scard.pu{border-left-color:#1B2A4A}.scard.dl{border-left-color:#2ECC40}
+.scard.pu .stag.pu{background:#1B2A4A;color:#fff}.scard.dl .stag.dl{background:#2ECC40;color:#0f1c30}
 .stag{display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:20px;margin-bottom:4px}
-.stag.pu{background:#dbeafe;color:#1e40af}.stag.dl{background:#dcfce7;color:#15803d}
+.stag{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:3px;margin-bottom:5px}
+.stag.pu{background:#1B2A4A;color:#fff}.stag.dl{background:#2ECC40;color:#0f1c30}
 .sname{font-weight:600;font-size:12px;margin-bottom:2px}
 .smeta{font-size:11px;color:var(--tx2);line-height:1.6}
 .polist{margin-top:6px;padding-top:6px;border-top:1px solid var(--bd)}
@@ -1354,7 +1356,6 @@ function saveState() {
     return;
   }
   try {
-    // Strip non-serialisable UI flags before saving
     function clean(arr) {
       return arr.map(function(x){
         var o = Object.assign({}, x);
@@ -1362,24 +1363,15 @@ function saveState() {
         return o;
       });
     }
-    // Safety check — never write empty loads over existing data
-    // (extra protection against crash-before-load scenarios)
-    DB.ref('appstate/loads').once('value', function(snap) {
-      var existing = snap.val();
-      if(existing && existing.length > 0 && loads.length === 0) {
-        console.warn('saveState blocked — would overwrite '+existing.length+' loads with empty array');
-        return;
-      }
-      DB.ref('appstate').set({
-        loads: clean(loads),
-        dealers: clean(dealers),
-        carriers: clean(carriers),
-        locations: clean(locations),
-        rates: clean(rates),
-        tempLoads: tempLoads,
-        nDealer: nDealer, nCarrier: nCarrier,
-        nLoc: nLoc, nRate: nRate, nTL: nTL
-      });
+    DB.ref('appstate').set({
+      loads: clean(loads),
+      dealers: clean(dealers),
+      carriers: clean(carriers),
+      locations: clean(locations),
+      rates: clean(rates),
+      tempLoads: tempLoads,
+      nDealer: nDealer, nCarrier: nCarrier,
+      nLoc: nLoc, nRate: nRate, nTL: nTL
     });
   } catch(e) { console.error('Firebase save error', e); }
 }
@@ -1591,6 +1583,28 @@ function jumpToResult(type, id) {
     goPage('locdb', document.getElementById('ntab-locdb'));
     setTimeout(function(){renderLocDB();}, 50);
   }
+}
+
+// ============================
+// STATUS COLORS
+// ============================
+var STATUS_COLORS = {
+  'Schedule': {bg:'#F9A8D4',color:'#831843'},
+  'Available': {bg:'#BFDBFE',color:'#1E40AF'},
+  'Covered':   {bg:'#93C5FD',color:'#1E3A8A'},
+  'Assigned':  {bg:'#C4B5FD',color:'#4C1D95'},
+  'Dispatched':{bg:'#BBF7D0',color:'#14532D'},
+  'Arrived':   {bg:'#86EFAC',color:'#14532D'},
+  'Departed':  {bg:'#2ECC40',color:'#fff'},
+  'Receiver':  {bg:'#5EEAD4',color:'#134E4A'},
+  'Delivered': {bg:'#0F1C30',color:'#fff'},
+  'Closed':    {bg:'#CBD5E1',color:'#334155'},
+  'Issue':     {bg:'#fee2e2',color:'#991b1b'},
+  'Claim':     {bg:'#ffedd5',color:'#9a3412'}
+};
+function statusBtnStyle(status) {
+  var c = STATUS_COLORS[status] || {bg:'var(--sur2)',color:'var(--tx)'};
+  return 'background:'+c.bg+';color:'+c.color+';border:1px solid '+c.color+'44;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);white-space:nowrap';
 }
 
 // ============================
@@ -2089,17 +2103,20 @@ function renderDetailInto(panel,l){
   var marDisplay = marginPctMode
     ? (getEffectiveCustR(l)>0?Math.round(mar/getEffectiveCustR(l)*100)+'%':'0%')
     : '$'+mar.toLocaleString();
+  var nxtStyle = nxt ? statusBtnStyle(nxt) : '';
+  var curStyle = statusBtnStyle(l.status);
 
   panel.innerHTML='<div style="background:var(--sur)">'
     // ── Header ──
     +'<div style="padding:10px 16px 8px;border-bottom:1px solid var(--bd)">'
-      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
-        +'<span class="dnum">'+esc(l.loadNum)+'</span>'
-        +'<button class="btn xs p" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')">Edit Info</button>'
-        +'<span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'
-        +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button class="abtn nx" onclick="initiateStatus('+l.id+',\''+nxt+'\')">Next: '+nxt+'</button>':'')
-        +(l.status==='Delivered'&&!l.ratesVerified?'<button class="abtn" style="background:#dcfce7;color:#14532d;border:1px solid #86efac" onclick="confirmRates('+l.id+')">✓ Confirm Rates</button>':'')
-        +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d">✓ Rates Confirmed</span>':'')
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px">'
+        +'<span style="font-size:22px;font-weight:800;color:var(--navy);font-family:var(--M);letter-spacing:-.5px">'+esc(l.loadNum)+'</span>'
+        +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')" style="background:#1B2A4A;color:#fff;border:none;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">Edit Info</button>'
+        +'<button onclick="popoutLoad('+l.id+')" title="Open in new window" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);font-size:12px;padding:0 10px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)" title="Pop out">⧉</button>'
+        +'<span style="'+curStyle+'">'+l.status+'</span>'
+        +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button onclick="initiateStatus('+l.id+',\''+nxt+'\')" style="'+nxtStyle+'">Next: '+nxt+'</button>':'')
+        +(l.status==='Delivered'&&!l.ratesVerified?'<button onclick="confirmRates('+l.id+')" style="background:#dcfce7;color:#14532d;border:1px solid #86efac;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">✓ Confirm Rates</button>':'')
+        +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d;padding:0 10px;height:30px;display:inline-flex;align-items:center;background:#dcfce7;border-radius:20px;border:1px solid #86efac">✓ Rates Confirmed</span>':'')
       +'</div>'
       +'<div class="dpills">'
         +(tot.n>0?'<div class="dp">POs <strong>'+tot.n+'</strong></div>':'')
@@ -2113,42 +2130,28 @@ function renderDetailInto(panel,l){
         +(missDocs.length&&l.status==='Delivered'?'<div class="dp" style="border-color:#fca5a5;background:#fff5f5"><strong style="color:var(--red)">Missing: '+missDocs.join(', ')+'</strong></div>':'')
       +'</div>'
     +'</div>'
-    // ── 3-col body ──
+    // ── 3-col body: Info | Stops | Call-In ──
     +'<div class="dbody">'
-      // Col 1 — Stops
+
+      // Col 1 — Load Info + Driver + Docs
       +'<div class="dcol">'
-        +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-          +'<span>Stops ('+sorted.length+') — '+sorted.filter(function(s){return s.type==='pickup';}).length+'PU / '+sorted.filter(function(s){return s.type==='delivery';}).length+'DEL</span>'
-          +'<button class="btn xs" onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')">Edit Stops</button>'
-        +'</div>'
-        +stopsHTML
-      +'</div>'
-      // Col 2 — Call-In Log
-      +'<div class="dcol">'
-        +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
-          +'<span>Call-In Log</span>'
-          +'<div style="display:flex;gap:4px">'
-            +(l.status==='Issue'
-              ?'<button class="abtn" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;height:24px;font-size:10px;padding:0 8px" onclick="removeIssue('+l.id+')">Remove Issue</button>'
-              :'<button class="abtn iss" style="height:24px;font-size:10px;padding:0 8px" onclick="initiateStatus('+l.id+',\'Issue\')">Flag Issue</button>'
-            )
-            +'<button class="abtn" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);height:24px;font-size:10px;padding:0 8px" onclick="addCallInNote('+l.id+')">Add Note</button>'
-          +'</div>'
-        +'</div>'
-        +ciHTML
-      +'</div>'
-      // Col 3 — Load Info + Driver + Docs
-      +'<div class="dcol">'
-        // Load Info mini-panel
         +'<div style="background:var(--sur2);border:1px solid var(--bd);border-radius:var(--r);padding:9px 11px;margin-bottom:10px">'
           +'<div class="dct" style="margin-bottom:7px">Load Info</div>'
           +'<div style="display:flex;flex-direction:column;gap:5px">'
-            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Vendor</span><input value="'+esc(l.vendor||'')+'" style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.vendor=v;saveState();renderBoard();}})(this.value)"></div>'
-            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Carrier</span><input value="'+esc(l.carrier||'')+'" style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.carrier=v;saveState();renderBoard();}})(this.value)"></div>'
-            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Dispatcher</span><input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="(function(v){if(!'+isAdmin()+')return;var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.dispatcher=v;saveState();renderBoard();}})(this.value)"></div>'
+            // Vendor searchable
+            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Vendor</span>'
+              +'<div class="acw" style="flex:1"><input id="di-vendor-'+l.id+'" value="'+esc(l.vendor||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diVendorAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.vendor=v;saveState();renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-vendor-ac-'+l.id+'"></div></div>'
+            +'</div>'
+            // Carrier searchable
+            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Carrier</span>'
+              +'<div class="acw" style="flex:1"><input id="di-carrier-'+l.id+'" value="'+esc(l.carrier||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diCarrierAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.carrier=v;saveState();renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-carrier-ac-'+l.id+'"></div></div>'
+            +'</div>'
+            // Dispatcher
+            +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Dispatcher</span>'
+              +'<input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="(function(v){if(!'+isAdmin()+')return;var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.dispatcher=v;saveState();renderBoard();}})(this.value)">'
+            +'</div>'
           +'</div>'
         +'</div>'
-        // Driver & Tracking
         +'<div class="dct" style="margin-bottom:6px">Driver &amp; Tracking</div>'
         +'<div class="info-block">'
           +'<div class="info-row">'
@@ -2160,19 +2163,42 @@ function renderDetailInto(panel,l){
             +'<div class="info-field"><label>Tracking'+(l.tracking?' — <a href="'+esc(l.tracking)+'" target="_blank" style="font-size:10px;color:var(--navy)">Open</a>':'')+'</label><input value="'+esc(l.tracking||'')+'" placeholder="https://..." onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.tracking=v;renderBoard();}})(this.value)"></div>'
           +'</div>'
         +'</div>'
-        // Documents
         +'<div style="margin-top:10px">'
           +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">'
             +'<span>Documents</span>'
             +'<div style="display:flex;gap:4px">'
-              +(l.status!=='Claim'?'<button class="abtn clm" style="height:22px;font-size:10px;padding:0 7px" onclick="initiateStatus('+l.id+',\'Claim\')">File Claim</button>':'')
-              +(l.carrier?'<button class="abtn inc" style="height:22px;font-size:10px;padding:0 7px" onclick="openIncFromLoad('+l.id+')">Log Incident</button>':'')
+              +(l.status!=='Claim'?'<button onclick="initiateStatus('+l.id+',\'Claim\')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">File Claim</button>':'')
+              +(l.carrier?'<button onclick="openIncFromLoad('+l.id+')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Log Incident</button>':'')
             +'</div>'
           +'</div>'
           +'<div style="font-size:10px;color:var(--tx3);margin-bottom:5px">Accepted: JPG, PNG, PDF, HEIC, TIFF</div>'
           +'<div style="display:flex;flex-direction:column;gap:4px">'+docSlot('bol','BOL')+docSlot('pod','POD')+docSlot('rc','Rate Conf')+'</div>'
         +'</div>'
         +(l.notes?'<div style="margin-top:10px"><div class="dct">Special Instructions</div><div style="margin-top:5px;font-size:12px;line-height:1.5;background:var(--sur2);border-radius:var(--r);padding:8px 10px">'+esc(l.notes)+'</div></div>':'')
+      +'</div>'
+
+      // Col 2 — Stops
+      +'<div class="dcol">'
+        +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          +'<span>Stops ('+sorted.length+') — '+sorted.filter(function(s){return s.type==='pickup';}).length+'PU / '+sorted.filter(function(s){return s.type==='delivery';}).length+'DEL</span>'
+          +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'stops\')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Stops</button>'
+        +'</div>'
+        +stopsHTML
+      +'</div>'
+
+      // Col 3 — Call-In Log
+      +'<div class="dcol">'
+        +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
+          +'<span>Call-In Log</span>'
+          +'<div style="display:flex;gap:4px">'
+            +(l.status==='Issue'
+              ?'<button onclick="removeIssue('+l.id+')" style="border:1.5px solid #92400e;color:#92400e;background:#fef3c7;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Remove Issue</button>'
+              :'<button onclick="initiateStatus('+l.id+',\'Issue\')" style="border:1.5px solid #991b1b;color:#991b1b;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Flag Issue</button>'
+            )
+            +'<button onclick="addCallInNote('+l.id+')" style="border:1.5px solid #1B2A4A;color:#1B2A4A;background:var(--sur);font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Add Note</button>'
+          +'</div>'
+        +'</div>'
+        +ciHTML
       +'</div>'
     +'</div>'
   +'</div>';
@@ -2213,7 +2239,6 @@ function toggleMarginMode(){
   renderBoard();
 }
 function updateDetailMarginPill(){
-  // Update the margin pill in the detail panel without full re-render
   var pill=document.getElementById('detail-margin-pill');
   if(!pill||!selLoad)return;
   var l=loads.find(function(x){return x.id===selLoad;});if(!l)return;
@@ -2221,6 +2246,54 @@ function updateDetailMarginPill(){
   var pct=localStorage.getItem('bdf_marginPct')==='1';
   var val=pct?(getEffectiveCustR(l)>0?Math.round(mar/getEffectiveCustR(l)*100)+'%':'0%'):'$'+mar.toLocaleString();
   pill.textContent=val;
+}
+function popoutLoad(lid) {
+  var l = loads.find(function(x){return x.id===lid;});
+  if(!l) return;
+  var w = window.open('', 'popout_'+lid, 'width=1100,height=700,resizable=yes,scrollbars=yes');
+  if(!w) { alert('Please allow popups for this site.'); return; }
+  // Build a standalone HTML page with the load detail
+  var panel = document.createElement('div');
+  renderDetailInto(panel, l);
+  var html = '<!DOCTYPE html><html><head>'
+    +'<meta charset="UTF-8">'
+    +'<title>'+l.loadNum+' — BoxDrop Freight</title>'
+    +'<style>'+document.querySelector('style').textContent+'</style>'
+    +'<style>body{margin:0;padding:16px;font-family:system-ui,sans-serif}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
+    +'</head><body>'
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+' (read-only snapshot)</div>'
+    +panel.innerHTML
+    +'</body></html>';
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+
+  var list=document.getElementById('di-vendor-ac-'+lid);if(!list)return;
+  if(!q||q.length<1){list.style.display='none';return;}
+  var m=locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&l.name.toLowerCase().includes(q.toLowerCase());}).slice(0,6);
+  if(!m.length){list.style.display='none';return;}
+  list.innerHTML=m.map(function(loc){return '<div class="aci" onclick="pickDIVendor(\''+esc(loc.name)+'\','+lid+')"><div>'+esc(loc.name)+'</div><div class="acs">'+esc(loc.city)+'</div></div>';}).join('');
+  list.style.display='block';
+}
+function pickDIVendor(name,lid){
+  var el=document.getElementById('di-vendor-'+lid);if(el)el.value=name;
+  var list=document.getElementById('di-vendor-ac-'+lid);if(list)list.style.display='none';
+  var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.vendor=name;saveState();renderBoard();}
+}
+function diCarrierAC(q,lid){
+  var list=document.getElementById('di-carrier-ac-'+lid);if(!list)return;
+  if(!q||q.length<1){list.style.display='none';return;}
+  var m=carriers.filter(function(c){return c.name.toLowerCase().includes(q.toLowerCase());}).slice(0,6);
+  if(!m.length){list.style.display='none';return;}
+  list.innerHTML=m.map(function(c){return '<div class="aci" onclick="pickDICarrier(\''+esc(c.name)+'\','+lid+')"><div>'+esc(c.name)+'</div><div class="acs">'+esc(c.mc||'')+'</div></div>';}).join('');
+  list.style.display='block';
+}
+function pickDICarrier(name,lid){
+  var el=document.getElementById('di-carrier-'+lid);if(el)el.value=name;
+  var list=document.getElementById('di-carrier-ac-'+lid);if(list)list.style.display='none';
+  var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.carrier=name;saveState();renderBoard();}
 }
 </script>
 
@@ -2925,52 +2998,63 @@ document.addEventListener('click',function(e){
 });
 
 function openLoadModal(load, mode) {
-  // mode: 'header' = hide stops section, 'stops' = hide header fields, undefined = show all
   editingLoad=load||null;
   pendingFromDealers=null;
-  var stopsHd  = document.getElementById('lf-stops-hd');
-  var stopList = document.getElementById('stop-list');
+
+  // Show/hide sections based on mode
+  var stopsHd    = document.getElementById('lf-stops-hd');
+  var stopList   = document.getElementById('stop-list');
   var addStopBtn = document.getElementById('lf-addstop-btn');
-  var headerFields = document.querySelectorAll('#m-load .fg .fi, #m-load .fg .fdiv:not(#lf-stops-hd)');
-
-  // Reset visibility
-  if(stopsHd)  stopsHd.style.display  = (mode==='header') ? 'none' : '';
-  if(stopList) stopList.style.display  = (mode==='header') ? 'none' : '';
+  if(stopsHd)    stopsHd.style.display    = (mode==='header') ? 'none' : '';
+  if(stopList)   stopList.style.display   = (mode==='header') ? 'none' : '';
   if(addStopBtn) addStopBtn.style.display = (mode==='header') ? 'none' : '';
-  headerFields.forEach(function(el){ el.style.display = (mode==='stops') ? 'none' : ''; });
 
-  document.getElementById('m-load-title').textContent = mode==='header' ? 'Edit Load Info' : mode==='stops' ? 'Edit Stops' : (load ? 'Edit Load' : 'Add Load');
-  var fv=function(id){return document.getElementById(id);};
-  // Load # — admins can override, standard users see it read-only
-  var numEl = fv('lf-num');
+  // Hide header fields when in stops-only mode
+  var fgEls = document.querySelectorAll('#m-load .fg > .fi');
+  fgEls.forEach(function(el){ el.style.display = (mode==='stops') ? 'none' : ''; });
+  // Always show fdiv (section label) unless it's the stops header
+  var fdivEls = document.querySelectorAll('#m-load .fg > .fdiv');
+  fdivEls.forEach(function(el){
+    if(el.id === 'lf-stops-hd') return; // handled above
+    el.style.display = (mode==='stops') ? 'none' : '';
+  });
+
+  document.getElementById('m-load-title').textContent =
+    mode==='header' ? 'Edit Load Info' :
+    mode==='stops'  ? 'Edit Stops' :
+    (load ? 'Edit Load' : 'Add Load');
+
+  var fv = function(id){ var el=document.getElementById(id); return el||{value:'',readOnly:false,disabled:false,style:{},textContent:''}; };
+
+  var numEl = document.getElementById('lf-num');
+  if(numEl){ numEl.readOnly=!isAdmin(); numEl.style.background=isAdmin()?'':'var(--sur2)'; numEl.style.color=isAdmin()?'':'var(--tx2)'; }
   var numHint = document.getElementById('lf-num-hint');
-  numEl.readOnly = !isAdmin();
-  numEl.style.background = isAdmin() ? '' : 'var(--sur2)';
-  numEl.style.color = isAdmin() ? '' : 'var(--tx2)';
-  if(numHint) numHint.textContent = isAdmin() ? '(editable)' : '';
-  // Dispatcher: preserve original on edit, set to current user only for new loads
-  fv('lf-disp').value = load ? (load.dispatcher||cap(currentUser||'')) : cap(currentUser||'');
-  fv('lf-disp').disabled = !isAdmin();
+  if(numHint) numHint.textContent = isAdmin()?'(editable)':'';
+
+  var dispEl = document.getElementById('lf-disp');
+  if(dispEl){ dispEl.disabled=!isAdmin(); dispEl.value=load?(load.dispatcher||cap(currentUser||'')):cap(currentUser||''); }
+
   if(load){
-    fv('lf-num').value=load.loadNum;
-    fv('lf-status').value=load.status;
-    fv('lf-vendor').value=load.vendor||'';
-    fv('lf-carrier').value=load.carrier||'';
-    fv('lf-cr').value=load.cr||'';
-    fv('lf-custR').value=load.custR||'';
-    fv('lf-miles').value=load.miles||'';
-    fv('lf-notes').value=load.notes||'';
-    fv('lf-tracking').value=load.tracking||'';
-    fv('lf-dname').value=load.driverName||'';
-    fv('lf-dphone').value=load.driverPhone||'';
-    fv('lf-truck').value=load.truck||'';
-    fv('lf-equip').value=load.equip||'';
+    fv('lf-num').value    = load.loadNum;
+    fv('lf-status').value = load.status;
+    fv('lf-vendor').value = load.vendor||'';
+    fv('lf-carrier').value= load.carrier||'';
+    fv('lf-cr').value     = load.cr||'';
+    fv('lf-custR').value  = load.custR||'';
+    fv('lf-miles').value  = load.miles||'';
+    fv('lf-notes').value  = load.notes||'';
+    fv('lf-tracking').value = load.tracking||'';
+    fv('lf-dname').value  = load.driverName||'';
+    fv('lf-dphone').value = load.driverPhone||'';
+    fv('lf-truck').value  = load.truck||'';
+    fv('lf-equip').value  = load.equip||'';
   } else {
-    fv('lf-num').value=peekNextLoadNum();
-    fv('lf-status').value='Schedule';
-    ['lf-vendor','lf-carrier','lf-cr','lf-custR','lf-miles','lf-notes','lf-tracking','lf-dname','lf-dphone','lf-truck','lf-equip'].forEach(function(id){fv(id).value=''});
+    fv('lf-num').value    = peekNextLoadNum();
+    fv('lf-status').value = 'Schedule';
+    ['lf-vendor','lf-carrier','lf-cr','lf-custR','lf-miles','lf-notes','lf-tracking','lf-dname','lf-dphone','lf-truck','lf-equip'].forEach(function(id){fv(id).value='';});
   }
-  stopRows=[];fv('stop-list').innerHTML='';
+  var _sl=document.getElementById('stop-list');
+  stopRows=[];if(_sl)_sl.innerHTML='';
   var initStops=load?load.stops:[
     {type:'pickup',name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[]},
     {type:'delivery',name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[]}
@@ -3546,7 +3630,6 @@ function renderArchDetail(){
   if(!selArchLoad){panel.innerHTML='<div class="dempty">Select an archived load to view details</div>';return;}
   var l=loads.find(function(x){return x.id===selArchLoad;});
   if(!l){panel.innerHTML='';return;}
-  // Reuse the full detail render logic — temporarily swap selLoad
   var prev=selLoad;selLoad=selArchLoad;
   renderDetailInto(panel,l);
   selLoad=prev;
