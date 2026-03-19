@@ -417,8 +417,6 @@ tr.psel td{background:#eef9ee!important}
       <span class="badge red" id="tb-issue" style="display:none">0 Issues</span>
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
-      <button class="tbtn" onclick="toggleZip()" id="tb-zip-btn" title="Toggle ZIP visibility">👁 ZIP</button>
-      <button class="tbtn" onclick="toggleMarginMode();updateDetailMarginPill()" id="tb-margin-btn" title="Toggle Margin %/$">% Margin</button>
       <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
       <div class="upill" style="cursor:pointer" onclick="openChangePassword()" title="Change Password"><span class="ugreen"></span><span id="cur-user">-</span></div>
       <button class="tbtn" onclick="logout()">Sign Out</button>
@@ -2026,7 +2024,7 @@ function renderDetailInto(panel,l){
         +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
           +'<span style="font-weight:700;font-size:14px;color:var(--navy)">'+esc(s.name||'—')+'</span>'
           +(poCount?'<span style="font-size:11px;background:var(--sur2);border:1px solid var(--bd2);border-radius:4px;padding:1px 6px;color:var(--tx2)">'+poCount+' PO'+(poCount!==1?'s':'')+'</span>':'')
-          +(s.appt?'<span style="font-size:11px;color:var(--tx3);margin:0 2px">|</span><span style="font-size:11px;color:var(--tx2)">Sched: <strong style=&quot;color:var(--tx)&quot;>'+dtToDisplay(s.appt)+'</strong></span>':'')
+          +(s.appt?'<span style="font-size:11px;color:var(--tx3);margin:0 3px">|</span><span style="font-size:11px;color:var(--tx2)">Sched: <strong style=&quot;color:var(--tx)&quot;>'+dtToDisplay(s.appt)+'</strong></span>':'')
           +(s.latestAppt?'<span style="font-size:11px;color:var(--tx2);margin-left:4px">Latest: <strong style=&quot;color:var(--tx)&quot;>'+dtToDisplay(s.latestAppt)+'</strong></span>':'')
         +'</div>'
       +'</div>'
