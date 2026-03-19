@@ -49,7 +49,7 @@ body{font-family:var(--F);font-size:14px;color:var(--tx);background:var(--bg);mi
 .topbar-logo{font-size:16px;font-weight:600;color:#fff;white-space:nowrap}.topbar-logo em{color:var(--green);font-style:normal}
 .topbar-logo span{color:rgba(255,255,255,.5);font-weight:400}
 .gsearch{flex:1;max-width:320px;position:relative}
-.gsearch input{width:100%;height:32px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);padding:0 10px 0 32px;font-size:12px;color:#fff;font-family:var(--F);outline:none}
+.gsearch input{width:100%;height:32px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);padding:0 70px 0 10px;font-size:12px;color:#fff;font-family:var(--F);outline:none}
 .gsearch input::placeholder{color:rgba(255,255,255,.45)}
 .gsearch input:focus{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4)}
 .gsearch-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.45);font-size:13px;pointer-events:none}
@@ -59,6 +59,7 @@ body{font-family:var(--F);font-size:14px;color:var(--tx);background:var(--bg);mi
 .gsr-item:last-child{border-bottom:none}.gsr-item:hover{background:var(--sur2)}
 .gsr-tag{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px;flex-shrink:0}
 .gsr-tag.ld{background:#dbeafe;color:#1e40af}.gsr-tag.po{background:#dcfce7;color:#15803d}.gsr-tag.loc{background:#ede9fe;color:#4c1d95}
+.gsr-tag.stg{background:#fef3c7;color:#92400e}
 .gsr-info{font-size:12px;font-weight:600;color:var(--tx)}
 .gsr-sub{font-size:11px;color:var(--tx2)}
 .topbar-r{display:flex;align-items:center;gap:8px;margin-left:auto}
@@ -325,6 +326,8 @@ tr.psel td{background:#eef9ee!important}
 .score-bar-fill.bad{background:var(--red)}
 .score-bar-pct{font-size:11px;font-weight:600;color:var(--tx);width:38px;text-align:right}
 /* ── Staging Loads ── */
+#stg-table th{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--tx2)}
+#stg-table td{font-size:13px;padding:8px 10px}
 .stg-row{cursor:pointer}
 .stg-row:hover td{background:#f0f7ff}
 .stg-row.sel td{background:#e8f4fd}
@@ -426,8 +429,8 @@ tr.psel td{background:#eef9ee!important}
   <div class="topbar">
     <div class="topbar-logo">Box<em>Drop</em> <span>Freight</span></div>
     <div class="gsearch">
-      <span class="gsearch-icon">&#128269;</span>
-      <input type="text" id="g-search" placeholder="Search LD# or PO#..." oninput="globalSearch(this.value)" onblur="setTimeout(function(){document.getElementById('g-results').classList.remove('open');},200)">
+      <input type="text" id="g-search" placeholder="Search LD#, PO#, TL#, ticket#..." oninput="globalSearch(this.value)" onblur="setTimeout(function(){document.getElementById('g-results').classList.remove('open');},200)" onkeydown="if(event.key==='Enter'){var first=document.querySelector('.gsr-item');if(first)first.click();}">
+      <button onclick="var first=document.querySelector('.gsr-item');if(first)first.click();" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);height:24px;padding:0 10px;background:var(--green);color:#0f1c30;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--F)">Search</button>
       <div class="gsearch-results" id="g-results"></div>
     </div>
     <div class="topbar-r">
@@ -1563,7 +1566,7 @@ function globalSearch(q) {
   // Search loads by load number
   loads.forEach(function(l) {
     if(l.loadNum.toUpperCase().includes(qu)) {
-      items.push({type:'ld', num:l.loadNum, sub:l.vendor+' - '+l.status, id:l.id});
+      items.push({type:'ld', num:l.loadNum, sub:l.vendor+' - '+l.status, id:l.id, po:null});
     }
   });
   // Search loads by PO# (PO is on a load stop)
@@ -1572,7 +1575,7 @@ function globalSearch(q) {
       (s.pos||[]).forEach(function(p) {
         if((p.po||'').toUpperCase().includes(qu)) {
           if(!items.find(function(x){return x.type==='ld'&&x.id===l.id;}))
-            items.push({type:'ld', num:l.loadNum, sub:'PO '+p.po+' - '+esc(l.vendor||'')+' - '+l.status, id:l.id});
+            items.push({type:'ld', num:l.loadNum, sub:'PO '+p.po+' — '+esc(l.vendor||'')+' — '+l.status, id:l.id, po:p.po});
         }
       });
     });
@@ -1581,45 +1584,79 @@ function globalSearch(q) {
   dealers.forEach(function(d) {
     if((d.po||'').toUpperCase().includes(qu)) {
       var onLoad = loads.some(function(l){return l.stops.some(function(s){return (s.pos||[]).some(function(p){return p.po===d.po;});});});
-      if(!onLoad) items.push({type:'po', num:d.po, sub:d.dealer+' - '+d.vendor+' (Active POs)', id:d.id});
+      if(!onLoad) items.push({type:'po', num:d.po, sub:d.dealer+' — '+d.vendor+' (Active POs)', id:d.id, po:d.po});
     }
   });
-  // Search temp load POs
+  // Search staging loads by TL#, ticket#, and PO#
   tempLoads.forEach(function(tl) {
-    tl.pos.forEach(function(p) {
-      if((p.po||'').toUpperCase().includes(qu)) {
-        var onLoad = loads.some(function(l){return l.stops.some(function(s){return (s.pos||[]).some(function(x){return x.po===p.po;});});});
-        if(!onLoad) items.push({type:'po', num:p.po, sub:p.dealer+' - Staged in '+tl.tlNum, id:null});
-      }
-    });
+    var tlMatch = tl.tlNum.toUpperCase().includes(qu) || (tl.ticket||'').toUpperCase().includes(qu);
+    if(tlMatch) {
+      var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
+      items.push({type:'stg', num:tl.tlNum, sub:(tl.ticket?'Ticket '+tl.ticket+' — ':'')+vendors, id:tl.id, po:null});
+    } else {
+      tl.pos.forEach(function(p) {
+        if((p.po||'').toUpperCase().includes(qu)) {
+          var onLoad = loads.some(function(l){return l.stops.some(function(s){return (s.pos||[]).some(function(x){return x.po===p.po;});});});
+          if(!onLoad && !items.find(function(x){return x.type==='stg'&&x.id===tl.id&&x.po===p.po;}))
+            items.push({type:'stg', num:p.po, sub:p.dealer+' — Staged in '+tl.tlNum, id:tl.id, po:p.po});
+        }
+      });
+    }
   });
   // Search locations by name, city, dealer#, coach
   locations.forEach(function(loc) {
     var hay = (loc.name+' '+loc.city+' '+(loc.dealerNum||'')+' '+(loc.coach||'')).toUpperCase();
     if(hay.includes(qu)) {
       var lc = getLoadsForLocation(loc.name);
-      items.push({type:'loc', num:loc.name, sub:loc.type+' \u2014 '+loc.city+(lc.length?' \u2014 '+lc.length+' load'+(lc.length!==1?'s':''):''), id:loc.id});
+      items.push({type:'loc', num:loc.name, sub:loc.type+' — '+loc.city+(lc.length?' — '+lc.length+' load'+(lc.length!==1?'s':''):''), id:loc.id, po:null});
     }
   });
   if(!items.length) { res.classList.remove('open'); return; }
   res.innerHTML = items.slice(0,10).map(function(item) {
-    return '<div class="gsr-item" onclick="jumpToResult(\''+item.type+'\','+item.id+')">'
-      + '<span class="gsr-tag '+item.type+'">'+item.type.toUpperCase()+'</span>'
+    var poEnc = item.po ? encodeURIComponent(item.po) : '';
+    return '<div class="gsr-item" onclick="jumpToResult(''+item.type+'','+JSON.stringify(item.id)+',''+poEnc+'')">'
+      + '<span class="gsr-tag '+(item.type==='stg'?'po':item.type)+'">'+item.type.toUpperCase()+'</span>'
       + '<div><div class="gsr-info">'+esc(item.num)+'</div><div class="gsr-sub">'+esc(item.sub)+'</div></div>'
       + '</div>';
   }).join('');
   res.classList.add('open');
 }
-function jumpToResult(type, id) {
+
+var stgHighlightPo = null; // PO to highlight in expanded staging row
+
+function jumpToResult(type, id, poEnc) {
   document.getElementById('g-results').classList.remove('open');
   document.getElementById('g-search').value = '';
+  var po = poEnc ? decodeURIComponent(poEnc) : null;
   if(type==='ld') {
     selLoad = id;
     goPage('board', document.getElementById('ntab-board'));
     setTimeout(function(){renderBoard();renderDetail();}, 50);
   } else if(type==='po') {
     goPage('dealer', document.getElementById('ntab-dealer'));
-    setTimeout(function(){renderDealer();}, 50);
+    setTimeout(function(){
+      var s = document.getElementById('d-search');
+      if(s && po){s.value=po; renderDealer();}
+    }, 50);
+  } else if(type==='stg') {
+    // id = tl.id, po = specific PO to highlight (may be null if matched by TL#/ticket)
+    stgHighlightPo = po;
+    stgExpanded[id] = true; // expand this TL
+    goPage('staging', document.getElementById('ntab-staging'));
+    setTimeout(function(){
+      // Filter search to TL if matched by TL#, else by PO
+      var tl = tempLoads.find(function(t){return t.id===id;});
+      if(tl) {
+        var s = document.getElementById('stg-search');
+        if(s) { s.value = po || tl.tlNum; }
+      }
+      renderStaging();
+      // Scroll to the row
+      setTimeout(function(){
+        var row = document.getElementById('stgr-'+id);
+        if(row) row.scrollIntoView({block:'center', behavior:'smooth'});
+      }, 80);
+    }, 50);
   } else if(type==='loc') {
     selLoc = id;
     goPage('locdb', document.getElementById('ntab-locdb'));
@@ -3384,7 +3421,7 @@ function renderStaging() {
     // Main row
     html += '<tr class="stg-row'+(isExpanded?' sel':'')+'" onclick="toggleStagingRow('+tl.id+')" id="stgr-'+tl.id+'">'
       + '<td style="padding:7px 10px;color:var(--tx3);font-size:13px">'+(isExpanded?'▼':'▶')+'</td>'
-      + '<td style="font-weight:700;color:var(--navy);font-family:var(--M)">'+esc(tl.tlNum)+'</td>'
+      + '<td style="font-weight:800;color:var(--navy);font-size:14px">'+esc(tl.tlNum)+'</td>'
       + '<td onclick="event.stopPropagation()">'
         + '<input class="stg-ticket" id="stg-ticket-'+tl.id+'" value="'+esc(ticketVal)+'" placeholder="—" '
         + 'onblur="saveStagingField('+tl.id+',\'ticket\',this.value)" '
@@ -3411,7 +3448,7 @@ function renderStaging() {
     if(isExpanded) {
       var poRows = tl.pos.map(function(p) {
         return '<tr>'
-          + '<td style="font-weight:600;color:var(--navy);font-family:var(--M)">'+esc(p.po||'')+'</td>'
+          + '<td style="font-weight:600;color:var(--navy);font-family:var(--M);background:'+(stgHighlightPo&&stgHighlightPo===p.po?'#fef08a':'')+'">'+esc(p.po||'')+'</td>'
           + '<td>'+esc(p.vendor||'')+'</td>'
           + '<td style="text-align:center">'+esc(p.pieces||'0')+'</td>'
           + '<td style="text-align:center">'+esc(p.seats||'0')+'</td>'
@@ -3438,6 +3475,8 @@ function renderStaging() {
 
   body.innerHTML = html;
   if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
+  // Clear highlight after render so it only shows once
+  setTimeout(function(){ stgHighlightPo = null; }, 2000);
 }
 
 function toggleStagingRow(tlId) {
