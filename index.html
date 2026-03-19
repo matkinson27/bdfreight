@@ -324,6 +324,24 @@ tr.psel td{background:#eef9ee!important}
 .score-bar-fill.warn{background:var(--amber)}
 .score-bar-fill.bad{background:var(--red)}
 .score-bar-pct{font-size:11px;font-weight:600;color:var(--tx);width:38px;text-align:right}
+/* ── Staging Loads ── */
+.stg-row{cursor:pointer}
+.stg-row:hover td{background:#f0f7ff}
+.stg-row.sel td{background:#e8f4fd}
+.stg-row.sel td:first-child{border-left:3px solid var(--green)}
+.stg-expand{background:var(--sur);border-bottom:2px solid var(--green)}
+.stg-expand td{padding:0}
+.stg-inner{padding:0 14px 12px 42px}
+.stg-po-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.stg-po-tbl th{background:var(--navyl);color:rgba(255,255,255,.7);padding:5px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.stg-po-tbl td{padding:5px 10px;border-bottom:1px solid var(--bd)}
+.stg-po-tbl tr:last-child td{border-bottom:none}
+.stg-ticket{height:24px;font-size:12px;padding:0 7px;border:1px solid transparent;border-radius:4px;background:transparent;font-family:var(--F);color:var(--tx);width:120px;cursor:text}
+.stg-ticket:hover{border-color:var(--bd2);background:var(--sur)}
+.stg-ticket:focus{border-color:var(--green);background:var(--sur);outline:none}
+.stg-notes-input{height:24px;font-size:11px;padding:0 7px;border:1px solid transparent;border-radius:4px;background:transparent;font-family:var(--F);color:var(--tx2);width:180px;cursor:text}
+.stg-notes-input:hover{border-color:var(--bd2);background:var(--sur)}
+.stg-notes-input:focus{border-color:var(--green);background:var(--sur);outline:none;color:var(--tx)}
 </style></head>
 <body>
 
@@ -427,6 +445,7 @@ tr.psel td{background:#eef9ee!important}
   <div class="nav" id="main-nav">
     <div class="ntab on" id="ntab-dashboard" onclick="goPage('dashboard',this)">Dashboard</div>
     <div class="ntab" id="ntab-dealer" onclick="goPage('dealer',this)">Customer Orders</div>
+    <div class="ntab" id="ntab-staging" onclick="goPage('staging',this)">Staging</div>
     <div class="ntab" id="ntab-board" onclick="goPage('board',this)">Shipment Tracking</div>
     <div class="ntab" id="ntab-scorecard" onclick="goPage('scorecard',this)">Carrier Database</div>
     <div class="ntab" id="ntab-locdb" onclick="goPage('locdb',this)">Location Database</div>
@@ -552,17 +571,8 @@ tr.psel td{background:#eef9ee!important}
 
   <!-- DEALER ORDERS -->
   <div class="page" id="page-dealer">
-    <div class="kpis c4" id="kpi-dealer"></div>
-    <div class="csvdrop" onclick="document.getElementById('dealer-csv').click()">
-      <div class="csvico"><svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg></div>
-      <div class="csvtxt"><strong>Import Dealer Orders CSV</strong><br>Columns: PO#, Vendor, Piece Count, Seats, Ready Date, Dealer Name, Phone Number, Street Address, City, State &mdash; duplicate PO# updates in place</div>
-      <input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this)">
-    </div>
+    <div id="kpi-dealer" style="display:none"></div>
     <div class="csvmsg" id="dealer-msg"></div>
-    <div class="stabs">
-      <div class="stab on" id="dt-active" onclick="dealerTab('active',this)">Active POs</div>
-      <div class="stab" id="dt-temp" onclick="dealerTab('temp',this)">Temp Loads <span class="cnt" id="tl-cnt">0</span></div>
-    </div>
     <div id="dv-active">
       <div class="tbar">
         <input type="text" id="d-search" placeholder="Search PO#, dealer, vendor..." oninput="renderDealer()">
@@ -582,14 +592,41 @@ tr.psel td{background:#eef9ee!important}
         <tbody id="dealer-body"></tbody>
       </table></div>
     </div>
-    <div id="dv-temp" style="display:none;padding:14px;overflow-y:auto;flex:1">
-      <div id="tl-list"></div>
+
+  </div>
+
+  <!-- STAGING LOADS PAGE -->
+  <div class="page" id="page-staging">
+    <div class="tbar">
+      <input type="text" id="stg-search" placeholder="Search TL#, ticket#, PO#, vendor, dealer..." oninput="renderStaging()" style="width:320px">
+      <button class="btn p" onclick="openNewStagingModal()">+ New Staging Load</button>
+      <span id="stg-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
+    <div class="tw" style="overflow-y:auto;flex:1">
+      <table id="stg-table" style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th class="nc" style="width:28px"></th>
+            <th onclick="sortStaging('tlNum')" id="sth-tlNum">TL #</th>
+            <th class="nc">Ticket #</th>
+            <th onclick="sortStaging('vendors')" id="sth-vendors">Vendor(s)</th>
+            <th onclick="sortStaging('pos')" id="sth-pos">POs</th>
+            <th onclick="sortStaging('pcs')" id="sth-pcs">Pcs</th>
+            <th onclick="sortStaging('seats')" id="sth-seats">Seats</th>
+            <th onclick="sortStaging('createdAt')" id="sth-createdAt">Created</th>
+            <th class="nc">Notes</th>
+            <th class="nc">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stg-body"></tbody>
+      </table>
+    </div>
+    <div style="position:sticky;bottom:0;text-align:right;padding:4px 16px;background:var(--sur);border-top:1px solid var(--bd);font-size:11px;color:var(--tx3)" id="stg-footer"></div>
   </div>
 
   <!-- SHIPMENT BOARD -->
   <div class="page" id="page-board">
-    <div class="kpis c5" id="kpi-board"></div>
+    <div id="kpi-board" style="display:none"></div>
     <div class="stabs">
       <div class="stab on" onclick="setBF('all',this)">All Loads</div>
       <div class="stab" onclick="setBF('active',this)">Active</div>
@@ -1503,6 +1540,7 @@ function goPage(p, el) {
   if(p==='locdb'){selLoc=null;renderLocDB();}
   if(p==='rates'){renderRates();updateRatesKPIs();}
   if(p==='accounting'){renderAccounting();updateAcctKPIs();}
+  if(p==='staging'){renderStaging();}
 }
 function setBF(f,el) {
   boardFilter=f;
@@ -1511,11 +1549,7 @@ function setBF(f,el) {
   renderBoard();
 }
 function dealerTab(t,el) {
-  document.querySelectorAll('#page-dealer .stab').forEach(function(x){x.classList.remove('on');});
-  el.classList.add('on');
-  document.getElementById('dv-active').style.display = t==='active'?'':'none';
-  document.getElementById('dv-temp').style.display = t==='temp'?'block':'none';
-  if(t==='temp') renderTempLoads();
+  // Temp loads moved to Staging page — this is a no-op kept for compatibility
 }
 
 // ============================
@@ -2120,7 +2154,7 @@ function renderDetailInto(panel,l){
         +'<button onclick="popoutLoad('+l.id+')" title="Open in new window" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);font-size:12px;padding:0 10px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)" title="Pop out">⧉</button>'
         +'<span style="'+curStyle+'">'+l.status+'</span>'
         +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button onclick="initiateStatus('+l.id+',\''+nxt+'\')" style="'+nxtStyle+'">Next: '+nxt+'</button>':'')
-        +(l.status==='Delivered'&&!l.ratesVerified?'<button onclick="confirmRates('+l.id+')" style="background:#dcfce7;color:#14532d;border:1px solid #86efac;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">✓ Confirm Rates</button>':'')
+        +(l.status==='Delivered'&&!l.ratesVerified?'<button onclick="verifyRates('+l.id+')" style="background:#dcfce7;color:#14532d;border:1px solid #86efac;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">✓ Confirm Rates</button>':'')
         +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d;padding:0 10px;height:30px;display:inline-flex;align-items:center;background:#dcfce7;border-radius:20px;border:1px solid #86efac">✓ Rates Confirmed</span>':'')
       +'</div>'
       +'<div class="dpills">'
@@ -2587,7 +2621,7 @@ function confirmCallin() {
 }
 
 // Issue 11: confirm rates on a delivered load
-function confirmRates(lid) {
+function verifyRates(lid) {
   var l=loads.find(function(x){return x.id===lid;});if(!l)return;
   if(!confirm('Confirm that rates for '+l.loadNum+' are correct and unchanged?'))return;
   l.ratesVerified=true;
@@ -3143,7 +3177,7 @@ function saveLoad(){
   if(pendingConvertTL!==null){
     tempLoads=tempLoads.filter(function(t){return t.id!==pendingConvertTL;});
     pendingConvertTL=null;
-    renderTempLoads();updateTLBadge();
+    renderStaging();
   }
   saveState();
   closeM('m-load');renderBoard();updateBKPIs();renderDealer();updateDKPIs();
@@ -3260,18 +3294,10 @@ function openLoadModalWithStops(puStops, dlStops, title, vendor, fromDealers) {
 // ============================
 // TEMP LOADS
 // ============================
-function updateTLBadge(){document.getElementById('tl-cnt').textContent=tempLoads.length;}
-
-function stageTempLoad(){
-  var sel=dealers.filter(function(d){return d.sel;});
-  if(!sel.length){alert('Select at least one PO from Active POs first.');return;}
-  pendingStage=sel;
-  var num='TL-'+String(1000+nTL);
-  document.getElementById('tl-num').value=num;
-  document.getElementById('tl-notes').value='';
-  var summary=sel.length+' PO'+(sel.length!==1?'s':'')+' - '+[...new Set(sel.map(function(d){return d.vendor;}))].join(', ');
-  document.getElementById('stage-sub').textContent=summary+'. These POs will be removed from the Active pool.';
-  openM('m-stage');
+function updateTLBadge(){
+  // Legacy - just re-render staging if active
+  var footer=document.getElementById('stg-footer');
+  if(footer) footer.textContent=tempLoads.length+' staging load'+(tempLoads.length!==1?'s':'');
 }
 function confirmStage(){
   if(!pendingStage)return;
@@ -3285,49 +3311,165 @@ function confirmStage(){
   dealers=dealers.filter(function(d){return !ids.includes(d.id);});
   closeM('m-stage');pendingStage=null;
   saveState();
-  renderDealer();updateDKPIs();renderTempLoads();updateTLBadge();
-  dealerTab('temp',document.getElementById('dt-temp'));
+  renderDealer();updateDKPIs();
+  goPage('staging',document.getElementById('ntab-staging'));
 }
 
-function renderTempLoads(){
-  updateTLBadge();
-  var c=document.getElementById('tl-list');if(!c)return;
-  if(!tempLoads.length){c.innerHTML='<div class="tlempty">No Temp Loads yet.<br><span style="font-size:12px;color:var(--tx3)">Select POs from Active POs and click "Stage as Temp Load".</span></div>';return;}
-  c.innerHTML=tempLoads.map(function(tl){
-    var pcs=tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
-    var seats=tl.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
-    var vendors=[...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
-    var rows=tl.pos.map(function(p){
-      return '<tr><td style="font-weight:600;color:var(--navy);font-family:var(--M)">'+esc(p.po||'')+'</td>'
-        +'<td>'+esc(p.vendor||'')+'</td><td>'+esc(p.pieces||'')+'</td><td>'+esc(p.seats||'')+'</td>'
-        +'<td>'+esc(fmtDate(p.ready||''))+'</td><td>'+esc(p.dealer||'')+'</td>'
-        +'<td>'+esc(p.city||'')+(p.state?', '+esc(p.state):'')+'</td>'
-        +'<td><button class="btn xs d" onclick="removePOFromTL('+tl.id+',\''+esc(p.po||'')+'\')">Remove</button></td></tr>';
-    }).join('');
-    return '<div class="tlcard">'
-      +'<div class="tlhead">'
-        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-          +'<span class="tlnum">'+esc(tl.tlNum)+'</span><span class="tlbadge">Staging</span>'
-          +'<span style="font-size:12px;color:var(--tx2)">'+esc(vendors)+'</span>'
-        +'</div>'
-        +'<div class="tlmeta">'
-          +'<div class="tlpill">POs <strong>'+tl.pos.length+'</strong></div>'
-          +'<div class="tlpill">Pieces <strong>'+pcs+'</strong></div>'
-          +'<div class="tlpill">Seats <strong>'+seats+'</strong></div>'
-          +'<div class="tlpill" style="font-size:10px;color:var(--tx3)">'+esc(tl.createdAt)+' by '+esc(tl.createdBy)+'</div>'
-        +'</div>'
-        +'<div class="tlacts">'
-          +'<button class="btn sm" onclick="openAddPOsModal('+tl.id+')">+ Add POs</button>'
-          +'<button class="btn sm p" onclick="convertTL('+tl.id+')">Convert to Load</button>'
-          +'<button class="btn sm d" onclick="dissolveTL('+tl.id+')">Dissolve</button>'
-        +'</div>'
-      +'</div>'
-      +(tl.notes?'<div style="padding:7px 14px;font-size:12px;color:var(--tx2);background:#fefce8;border-bottom:1px solid var(--bd)">'+esc(tl.notes)+'</div>':'')
-      +'<table class="tltbl"><thead><tr><th>PO #</th><th>Vendor</th><th>Pieces</th><th>Seats</th><th>Ready</th><th>Dealer</th><th>City, ST</th><th></th></tr></thead>'
-      +'<tbody>'+rows+'</tbody></table>'
-      +'</div>';
-  }).join('');
+var stgSort = {col:'tlNum', asc:true};
+var stgExpanded = {}; // {tlId: true/false}
+
+function renderStaging() {
+  var q = (document.getElementById('stg-search').value||'').toLowerCase();
+  var body = document.getElementById('stg-body');
+  var footer = document.getElementById('stg-footer');
+  if(!body) return;
+
+  var rows = tempLoads.filter(function(tl) {
+    if(!q) return true;
+    var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(' ');
+    var pos = tl.pos.map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ');
+    var hay = (tl.tlNum+' '+(tl.ticket||'')+' '+vendors+' '+pos).toLowerCase();
+    return hay.includes(q);
+  });
+
+  // Sort
+  rows = rows.slice().sort(function(a,b) {
+    var av, bv;
+    if(stgSort.col==='tlNum') { av=a.tlNum; bv=b.tlNum; }
+    else if(stgSort.col==='vendors') {
+      av=[...new Set(a.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(',');
+      bv=[...new Set(b.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(',');
+    }
+    else if(stgSort.col==='pos') { av=a.pos.length; bv=b.pos.length; }
+    else if(stgSort.col==='pcs') {
+      av=a.pos.reduce(function(s,p){return s+(Number(p.pieces)||0);},0);
+      bv=b.pos.reduce(function(s,p){return s+(Number(p.pieces)||0);},0);
+    }
+    else if(stgSort.col==='seats') {
+      av=a.pos.reduce(function(s,p){return s+(Number(p.seats)||0);},0);
+      bv=b.pos.reduce(function(s,p){return s+(Number(p.seats)||0);},0);
+    }
+    else if(stgSort.col==='createdAt') { av=a.createdAt||''; bv=b.createdAt||''; }
+    else { av=a.tlNum; bv=b.tlNum; }
+    var r = av>bv?1:av<bv?-1:0;
+    return stgSort.asc?r:-r;
+  });
+
+  // Sort indicators
+  ['tlNum','vendors','pos','pcs','seats','createdAt'].forEach(function(c) {
+    var el = document.getElementById('sth-'+c); if(!el) return;
+    var labels = {tlNum:'TL #', vendors:'Vendor(s)', pos:'POs', pcs:'Pcs', seats:'Seats', createdAt:'Created'};
+    var arrow = stgSort.col===c ? ' <span style="color:var(--green);font-size:10px">'+(stgSort.asc?'▲':'▼')+'</span>' : '';
+    el.innerHTML = (labels[c]||c)+arrow;
+  });
+
+  if(!rows.length) {
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--tx3)">'+
+      (q ? 'No staging loads match your search.' : 'No staging loads yet. Select POs on Customer Orders and click "Stage as Temp Load".')+
+      '</td></tr>';
+    if(footer) footer.textContent = '';
+    return;
+  }
+
+  var html = '';
+  rows.forEach(function(tl) {
+    var pcs = tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
+    var seats = tl.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
+    var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
+    var isExpanded = stgExpanded[tl.id];
+    var ticketVal = tl.ticket || '';
+    var notesVal = tl.notes || '';
+    var createdShort = tl.createdAt ? tl.createdAt.substring(5,16) : '';
+
+    // Main row
+    html += '<tr class="stg-row'+(isExpanded?' sel':'')+'" onclick="toggleStagingRow('+tl.id+')" id="stgr-'+tl.id+'">'
+      + '<td style="padding:7px 10px;color:var(--tx3);font-size:13px">'+(isExpanded?'▼':'▶')+'</td>'
+      + '<td style="font-weight:700;color:var(--navy);font-family:var(--M)">'+esc(tl.tlNum)+'</td>'
+      + '<td onclick="event.stopPropagation()">'
+        + '<input class="stg-ticket" id="stg-ticket-'+tl.id+'" value="'+esc(ticketVal)+'" placeholder="—" '
+        + 'onblur="saveStagingField('+tl.id+',\'ticket\',this.value)" '
+        + 'onkeydown="if(event.key===\'Enter\')this.blur()">'
+        + '</td>'
+      + '<td>'+esc(vendors||'—')+'</td>'
+      + '<td style="text-align:center">'+tl.pos.length+'</td>'
+      + '<td style="text-align:center">'+pcs+'</td>'
+      + '<td style="text-align:center">'+seats+'</td>'
+      + '<td style="font-size:11px;color:var(--tx2)">'+esc(createdShort)+' <span style="color:var(--tx3)">'+esc(tl.createdBy||'')+'</span></td>'
+      + '<td onclick="event.stopPropagation()">'
+        + '<input class="stg-notes-input" value="'+esc(notesVal)+'" placeholder="notes..." '
+        + 'onblur="saveStagingField('+tl.id+',\'notes\',this.value)" '
+        + 'onkeydown="if(event.key===\'Enter\')this.blur()">'
+        + '</td>'
+      + '<td onclick="event.stopPropagation()" style="white-space:nowrap">'
+        + '<button class="btn xs" style="border:2px solid var(--green);color:var(--navy);font-weight:700;margin-right:3px" onclick="openAddPOsModal('+tl.id+')">+ POs</button>'
+        + '<button class="btn xs p" style="font-weight:700;margin-right:3px" onclick="convertTL('+tl.id+')">Convert</button>'
+        + '<button class="btn xs d" onclick="dissolveTL('+tl.id+')">Dissolve</button>'
+        + '</td>'
+      + '</tr>';
+
+    // Expanded PO table
+    if(isExpanded) {
+      var poRows = tl.pos.map(function(p) {
+        return '<tr>'
+          + '<td style="font-weight:600;color:var(--navy);font-family:var(--M)">'+esc(p.po||'')+'</td>'
+          + '<td>'+esc(p.vendor||'')+'</td>'
+          + '<td style="text-align:center">'+esc(p.pieces||'0')+'</td>'
+          + '<td style="text-align:center">'+esc(p.seats||'0')+'</td>'
+          + '<td>'+esc(fmtDate(p.ready||''))+'</td>'
+          + '<td>'+esc(p.dealer||'')+'</td>'
+          + '<td style="color:var(--tx2)">'+esc(p.city||'')+(p.state?', '+esc(p.state):'')+'</td>'
+          + '<td><button class="btn xs d" onclick="removePOFromTL('+tl.id+',\''+esc(p.po||'')+'\')">Remove</button></td>'
+          + '</tr>';
+      }).join('');
+
+      html += '<tr class="stg-expand" id="stgx-'+tl.id+'">'
+        + '<td colspan="10" class="stg-inner">'
+          + '<table class="stg-po-tbl">'
+            + '<thead><tr>'
+              + '<th>PO #</th><th>Vendor</th><th>Pcs</th><th>Seats</th>'
+              + '<th>Ready</th><th>Dealer</th><th>City, ST</th><th></th>'
+            + '</tr></thead>'
+            + '<tbody>'+poRows+'</tbody>'
+          + '</table>'
+        + '</td>'
+        + '</tr>';
+    }
+  });
+
+  body.innerHTML = html;
+  if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
 }
+
+function toggleStagingRow(tlId) {
+  stgExpanded[tlId] = !stgExpanded[tlId];
+  renderStaging();
+}
+
+function sortStaging(col) {
+  stgSort.asc = stgSort.col===col ? !stgSort.asc : true;
+  stgSort.col = col;
+  renderStaging();
+}
+
+function saveStagingField(tlId, field, val) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;});
+  if(!tl) return;
+  tl[field] = val;
+  saveState();
+  // Update footer count without full re-render
+  var footer = document.getElementById('stg-footer');
+  if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
+}
+
+function openNewStagingModal() {
+  // Go to Customer Orders and remind user to select POs
+  goPage('dealer', document.getElementById('ntab-dealer'));
+  setTimeout(function(){
+    var el = document.getElementById('d-search');
+    if(el) el.focus();
+  }, 100);
+}
+
 
 function removePOFromTL(tlId,po){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
@@ -3335,7 +3477,7 @@ function removePOFromTL(tlId,po){
   dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
   tl.pos=tl.pos.filter(function(x){return x.po!==po;});
   if(!tl.pos.length)tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
-  saveState();renderTempLoads();updateDKPIs();
+  saveState();renderStaging();updateDKPIs();
 }
 function dissolveTL(tlId){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
@@ -3344,7 +3486,7 @@ function dissolveTL(tlId){
     dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
   });
   tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
-  saveState();renderTempLoads();updateDKPIs();
+  saveState();renderStaging();updateDKPIs();
 }
 function convertTL(tlId){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
@@ -3401,7 +3543,7 @@ function confirmAddPOs(){
   dealers=dealers.filter(function(d){return !ids.includes(d.id);});
   closeM('m-addpo');pendingAddTL=null;
   saveState();
-  renderTempLoads();updateDKPIs();
+  renderStaging();updateDKPIs();
 }
 </script>
 
@@ -5064,7 +5206,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
         renderSC(); updateSCKPIs();
         renderLocDB();
         renderRates(); updateRatesKPIs();
-        renderTempLoads(); updateTLBadge();
+        renderStaging();
         renderAccounting(); updateAcctKPIs();
       }
     } else {
@@ -5079,6 +5221,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
       else if(pid==='page-locdb')renderLocDB();
       else if(pid==='page-rates'){renderRates();updateRatesKPIs();}
       else if(pid==='page-accounting'){renderAccounting();updateAcctKPIs();}
+      else if(pid==='page-staging'){renderStaging();}
       // Always keep topbar badges fresh
       updateBKPIs();
     }
