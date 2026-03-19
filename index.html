@@ -418,7 +418,7 @@ tr.psel td{background:#eef9ee!important}
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
       <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
-      <button class="tbtn" id="tb-zip-state" onclick="toggleZip()" title="Toggle ZIP in board">👁 ZIP: <span id="zip-state-lbl">ON</span></button>
+      <button class="tbtn" id="tb-zip-state" onclick="toggleZip()" title="Toggle ZIP">👁 ZIP: <span id="zip-state-lbl">ON</span></button>
       <button class="tbtn" id="tb-margin-state" onclick="toggleMarginMode()" title="Toggle Margin $/%%">Margin: <span id="margin-state-lbl">$</span></button>
       <div class="upill" style="cursor:pointer" onclick="openChangePassword()" title="Change Password"><span class="ugreen"></span><span id="cur-user">-</span></div>
       <button class="tbtn" onclick="logout()">Sign Out</button>
@@ -1130,11 +1130,11 @@ tr.psel td{background:#eef9ee!important}
         <div style="display:flex;flex-direction:column;gap:9px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <span style="font-size:12px;color:var(--tx2)">Show/hide ZIP</span>
-            <span style="font-size:11px;color:var(--tx3)">👁 in PU St column header</span>
+            <span style="font-size:11px;color:var(--tx3)">👁 ZIP button in topbar</span>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <span style="font-size:12px;color:var(--tx2)">Margin % / $</span>
-            <span style="font-size:11px;color:var(--tx3)">% button in Margin column or Margin pill</span>
+            <span style="font-size:11px;color:var(--tx3)">Margin button in topbar or Margin pill</span>
           </div>
         </div>
 
@@ -1462,11 +1462,10 @@ document.querySelectorAll('.overlay').forEach(function(m) {
 // INIT & NAV
 // ============================
 function initApp() {
-  // Init toggle state labels
   var zl=document.getElementById('zip-state-lbl');
-  if(zl) zl.textContent=localStorage.getItem('bdf_showZip')==='0'?'OFF':'ON';
+  if(zl)zl.textContent=localStorage.getItem('bdf_showZip')==='0'?'OFF':'ON';
   var ml=document.getElementById('margin-state-lbl');
-  if(ml) ml.textContent=localStorage.getItem('bdf_marginPct')==='1'?'%':'$';
+  if(ml)ml.textContent=localStorage.getItem('bdf_marginPct')==='1'?'%':'$';
   renderDealer(); updateDKPIs();
   renderBoard(); updateBKPIs();
   renderDashboard();
@@ -2239,7 +2238,7 @@ function toggleZip(){
   var next=cur==='0'?'1':'0';
   localStorage.setItem('bdf_showZip',next);
   var lbl=document.getElementById('zip-state-lbl');
-  if(lbl) lbl.textContent=next==='0'?'OFF':'ON';
+  if(lbl)lbl.textContent=next==='0'?'OFF':'ON';
   renderBoard();
 }
 function toggleMarginMode(){
@@ -2247,7 +2246,7 @@ function toggleMarginMode(){
   var next=cur==='1'?'0':'1';
   localStorage.setItem('bdf_marginPct',next);
   var lbl=document.getElementById('margin-state-lbl');
-  if(lbl) lbl.textContent=next==='1'?'%':'$';
+  if(lbl)lbl.textContent=next==='1'?'%':'$';
   renderBoard();
 }
 function updateDetailMarginPill(){
@@ -2279,8 +2278,7 @@ function popoutLoad(lid) {
   if(!_w){alert('Please allow popups for this site.');return;}
   setTimeout(function(){_w.document.open();_w.document.write(_out);_w.document.close();},50);
 }
-
-
+function diVendorAC(q,lid){
   var list=document.getElementById('di-vendor-ac-'+lid);if(!list)return;
   if(!q||q.length<1){list.style.display='none';return;}
   var m=locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&l.name.toLowerCase().includes(q.toLowerCase());}).slice(0,6);
