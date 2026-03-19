@@ -2231,11 +2231,13 @@ function toggleZip(){
   var cur=localStorage.getItem('bdf_showZip');
   localStorage.setItem('bdf_showZip',cur==='0'?'1':'0');
   renderBoard();
+  renderDetail();
 }
 function toggleMarginMode(){
   var cur=localStorage.getItem('bdf_marginPct');
   localStorage.setItem('bdf_marginPct',cur==='1'?'0':'1');
   renderBoard();
+  renderDetail();
 }
 function updateDetailMarginPill(){
   var pill=document.getElementById('detail-margin-pill');
@@ -2249,23 +2251,23 @@ function updateDetailMarginPill(){
 function popoutLoad(lid) {
   var l = loads.find(function(x){return x.id===lid;});
   if(!l) return;
-  var _ppanel = document.createElement('div');
-  renderDetailInto(_ppanel, l);
-  var _pstyles = Array.from(document.querySelectorAll('style')).map(function(s){return s.textContent;}).join('\n');
-  var _phtml = '<!DOCTYPE html><html><head>'
+  var _pp = document.createElement('div');
+  renderDetailInto(_pp, l);
+  var _ps = Array.from(document.querySelectorAll('style')).map(function(s){return s.textContent;}).join('\n');
+  var _ph = '<!DOCTYPE html><html><head>'
     +'<meta charset="UTF-8">'
     +'<title>'+l.loadNum+' — BoxDrop Freight</title>'
-    +'<style>'+_pstyles+'</style>'
+    +'<style>'+_ps+'</style>'
     +'<style>body{margin:0;padding:16px;background:#f4f6f9;font-family:system-ui,sans-serif}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
     +'</head><body>'
-    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+' (snapshot)</div>'
-    +_ppanel.innerHTML
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+'</div>'
+    +_pp.innerHTML
     +'</body></html>';
-  var _pblob = new Blob([_phtml],{type:'text/html'});
-  var _purl = URL.createObjectURL(_pblob);
-  var w = window.open(_purl,'bdf_'+lid,'width=1100,height=700,resizable=yes,scrollbars=yes');
-  if(!w){alert('Please allow popups for this site.');return;}
-  setTimeout(function(){URL.revokeObjectURL(_purl);},15000);
+  var _pw = window.open('','bdf_'+lid,'width=1100,height=700,resizable=yes,scrollbars=yes');
+  if(!_pw){alert('Please allow popups for this site.');return;}
+  _pw.document.open();
+  _pw.document.write(_ph);
+  _pw.document.close();
 }
 
 
