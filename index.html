@@ -1612,14 +1612,21 @@ function globalSearch(q) {
     }
   });
   if(!items.length) { res.classList.remove('open'); return; }
-  res.innerHTML = items.slice(0,10).map(function(item) {
-    var poEnc = item.po ? encodeURIComponent(item.po) : '';
-    return '<div class="gsr-item" onclick="jumpToResult(''+item.type+'','+(item.id===null?'null':item.id)+',''+poEnc+'')">'
+  // Store results globally to avoid quoting issues in onclick
+  window._gsrItems = items.slice(0,10);
+  res.innerHTML = window._gsrItems.map(function(item, idx) {
+    return '<div class="gsr-item" onclick="jumpToResultIdx('+idx+')">'
       + '<span class="gsr-tag '+(item.type==='stg'?'po':item.type)+'">'+item.type.toUpperCase()+'</span>'
       + '<div><div class="gsr-info">'+esc(item.num)+'</div><div class="gsr-sub">'+esc(item.sub)+'</div></div>'
       + '</div>';
   }).join('');
   res.classList.add('open');
+}
+
+function jumpToResultIdx(idx) {
+  var item = window._gsrItems && window._gsrItems[idx];
+  if(!item) return;
+  jumpToResult(item.type, item.id, item.po ? encodeURIComponent(item.po) : '');
 }
 
 var stgHighlightPo = null; // PO to highlight in expanded staging row
