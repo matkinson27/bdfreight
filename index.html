@@ -20,7 +20,7 @@
   --tx:#1a202c;--tx2:#374151;--tx3:#6b7280;
   --bd:#e2e8f0;--bd2:#cbd5e1;
   --red:#dc2626;--amber:#d97706;--purple:#7c3aed;
-  --F:"DM Sans",system-ui,sans-serif;--M:"Roboto Mono","Courier New",monospace;
+  --F:"DM Sans",system-ui,sans-serif;--M:"DM Mono","Courier New",monospace;
   --r:8px;--rxl:14px;
   --sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 16px rgba(0,0,0,.12);
 }
@@ -1128,11 +1128,11 @@ tr.psel td{background:#eef9ee!important}
         <div style="display:flex;flex-direction:column;gap:9px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <span style="font-size:12px;color:var(--tx2)">Show/hide ZIP</span>
-            <button class="tbtn" onclick="toggleZip()" style="font-size:11px;padding:2px 10px">👁 ZIP</button>
+            <span style="font-size:11px;color:var(--tx3)">👁 button in PU St column header</span>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <span style="font-size:12px;color:var(--tx2)">Margin % / $</span>
-            <button class="tbtn" onclick="toggleMarginMode();updateDetailMarginPill()" style="font-size:11px;padding:2px 10px">% Margin</button>
+            <span style="font-size:11px;color:var(--tx3)">% button in Margin column header</span>
           </div>
         </div>
 
@@ -2231,13 +2231,11 @@ function toggleZip(){
   var cur=localStorage.getItem('bdf_showZip');
   localStorage.setItem('bdf_showZip',cur==='0'?'1':'0');
   renderBoard();
-  renderDetail();
 }
 function toggleMarginMode(){
   var cur=localStorage.getItem('bdf_marginPct');
   localStorage.setItem('bdf_marginPct',cur==='1'?'0':'1');
   renderBoard();
-  renderDetail();
 }
 function updateDetailMarginPill(){
   var pill=document.getElementById('detail-margin-pill');
@@ -2253,21 +2251,25 @@ function popoutLoad(lid) {
   if(!l) return;
   var _pp = document.createElement('div');
   renderDetailInto(_pp, l);
-  var _ps = Array.from(document.querySelectorAll('style')).map(function(s){return s.textContent;}).join('\n');
+  // Use only the main app <style> block (first one) — avoids huge inline manifest styles
+  var _mainStyle = document.querySelector('style') ? document.querySelector('style').textContent : '';
   var _ph = '<!DOCTYPE html><html><head>'
     +'<meta charset="UTF-8">'
+    +'<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">'
     +'<title>'+l.loadNum+' — BoxDrop Freight</title>'
-    +'<style>'+_ps+'</style>'
-    +'<style>body{margin:0;padding:16px;background:#f4f6f9;font-family:system-ui,sans-serif}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
+    +'<style>'+_mainStyle+'</style>'
+    +'<style>body{margin:0;padding:16px;background:#f4f6f9}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
     +'</head><body>'
-    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+'</div>'
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;font-family:var(--F)">BoxDrop Freight — '+l.loadNum+'</div>'
     +_pp.innerHTML
     +'</body></html>';
   var _pw = window.open('','bdf_'+lid,'width=1100,height=700,resizable=yes,scrollbars=yes');
   if(!_pw){alert('Please allow popups for this site.');return;}
-  _pw.document.open();
-  _pw.document.write(_ph);
-  _pw.document.close();
+  setTimeout(function(){
+    _pw.document.open();
+    _pw.document.write(_ph);
+    _pw.document.close();
+  },50);
 }
 
 
