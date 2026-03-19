@@ -804,7 +804,7 @@ tr.psel td{background:#eef9ee!important}
   <div class="mbox xxl">
     <div class="mh" id="m-load-title">Add Load</div><div style="height:6px"></div>
     <div class="fg">
-      <div class="fi"><label>Load #</label><input id="lf-num"></div>
+      <div class="fi"><label>Load # <span id="lf-num-hint" style="font-size:10px;font-weight:400;color:var(--tx3)"></span></label><input id="lf-num"></div>
       <div class="fi"><label>Status</label><select id="lf-status"><option>Schedule</option><option>Available</option><option>Covered</option><option>Assigned</option><option>Dispatched</option><option>Arrived</option><option>Departed</option><option>Receiver</option><option>Delivered</option></select></div>
       <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="lf-vendor" placeholder="Search locations..." oninput="vendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-vendor"></div></div></div>
       <div class="fi"><label>Carrier</label><div class="acw"><input id="lf-carrier" placeholder="Search scorecard..." oninput="carrierAC(this.value)" autocomplete="off"><div class="acl" id="ac-carrier"></div></div></div>
@@ -1569,6 +1569,32 @@ function jumpToResult(type, id) {
 }
 
 // ============================
+// EQUIPMENT LOOKUP
+// ============================
+var EQUIP_MAP = {
+  'V':'Van','VAN':'Van',
+  'R':'Reefer','REEFER':'Reefer','RF':'Reefer',
+  'F':'Flat','FLAT':'Flatbed','FB':'Flatbed',
+  'SD':'Step Deck','STEP':'Step Deck',
+  'DD':'Dbl Drop',
+  'RGN':'RGN',
+  'SB':'Box Truck','BOX':'Box Truck','BT':'Box Truck',
+  'SB26':'26ft Box','SB16':'16ft Box',
+  'SPR':'Sprinter','SPRINTER':'Sprinter',
+  'HB':'Hot Shot','HS':'Hot Shot','HOTSHOT':'Hot Shot',
+  'LTL':'LTL',
+  'CONESTOGA':'Conestoga','CON':'Conestoga',
+  'AUTO':'Auto Carrier',
+  'TANK':'Tanker','TK':'Tanker',
+  'BULK':'Bulk',
+  'FV':'Flatbed Van'
+};
+function resolveEquipCode(raw){
+  if(!raw) return '';
+  return EQUIP_MAP[raw.trim().toUpperCase()]||raw;
+}
+
+// ============================
 // BOARD KPIs
 // ============================
 function updateBKPIs() {
@@ -2097,30 +2123,8 @@ function renderDetailInto(panel,l){
 
 <script>
 // ============================
-// EQUIPMENT
+// EQUIPMENT UI HELPERS
 // ============================
-var EQUIP_MAP = {
-  'V':'Van','VAN':'Van',
-  'R':'Reefer','REEFER':'Reefer','RF':'Reefer',
-  'F':'Flat','FLAT':'Flatbed','FB':'Flatbed',
-  'SD':'Step Deck','STEP':'Step Deck',
-  'DD':'Dbl Drop',
-  'RGN':'RGN',
-  'SB':'Box Truck','BOX':'Box Truck','BT':'Box Truck',
-  'SB26':'26ft Box','SB16':'16ft Box',
-  'SPR':'Sprinter','SPRINTER':'Sprinter',
-  'HB':'Hot Shot','HS':'Hot Shot','HOTSHOT':'Hot Shot',
-  'LTL':'LTL',
-  'CONESTOGA':'Conestoga','CON':'Conestoga',
-  'AUTO':'Auto Carrier',
-  'TANK':'Tanker','TK':'Tanker',
-  'BULK':'Bulk',
-  'FV':'Flatbed Van'
-};
-function resolveEquipCode(raw){
-  if(!raw)return '';
-  return EQUIP_MAP[raw.trim().toUpperCase()]||raw;
-}
 function equipAC(q){
   var list=document.getElementById('ac-equip');
   if(!q||q.length<1){list.style.display='none';return;}
@@ -2869,6 +2873,13 @@ function openLoadModal(load, mode) {
 
   document.getElementById('m-load-title').textContent = mode==='header' ? 'Edit Load Info' : mode==='stops' ? 'Edit Stops' : (load ? 'Edit Load' : 'Add Load');
   var fv=function(id){return document.getElementById(id);};
+  // Load # — admins can override, standard users see it read-only
+  var numEl = fv('lf-num');
+  var numHint = document.getElementById('lf-num-hint');
+  numEl.readOnly = !isAdmin();
+  numEl.style.background = isAdmin() ? '' : 'var(--sur2)';
+  numEl.style.color = isAdmin() ? '' : 'var(--tx2)';
+  if(numHint) numHint.textContent = isAdmin() ? '(editable)' : '';
   // Dispatcher: preserve original on edit, set to current user only for new loads
   fv('lf-disp').value = load ? (load.dispatcher||cap(currentUser||'')) : cap(currentUser||'');
   fv('lf-disp').disabled = !isAdmin();
@@ -2925,7 +2936,19 @@ function saveLoad(){
       locations.push({id:nLoc++,name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
   });
   var isNew=!editingLoad;
-  var loadNum=isNew?getNextLoadNum():editingLoad.loadNum;
+  var typedNum = fv('lf-num').trim ? fv('lf-num').trim() : fv('lf-num');
+  // Admin can override load number; for new loads use typed value if non-empty, else auto-generate
+  var loadNum;
+  if(isNew) {
+    var enteredNum = document.getElementById('lf-num').value.trim();
+    if(isAdmin() && enteredNum && enteredNum !== peekNextLoadNum()) {
+      loadNum = enteredNum; // admin override — don't consume counter
+    } else {
+      loadNum = getNextLoadNum();
+    }
+  } else {
+    loadNum = isAdmin() ? document.getElementById('lf-num').value.trim() || editingLoad.loadNum : editingLoad.loadNum;
+  }
   // Determine effective custR: use per-stop sum if any delivery stops have rates, else use the top-level field
   var dels=fs.filter(function(s){return s.type==='delivery';});
   var stopCustRSum=dels.reduce(function(a,s){return a+(s.custR||0);},0);
