@@ -20,7 +20,7 @@
   --tx:#1a202c;--tx2:#374151;--tx3:#6b7280;
   --bd:#e2e8f0;--bd2:#cbd5e1;
   --red:#dc2626;--amber:#d97706;--purple:#7c3aed;
-  --F:"DM Sans",system-ui,sans-serif;--M:"DM Mono","Courier New",monospace;
+  --F:"DM Sans",system-ui,sans-serif;--M:"Roboto Mono","Courier New",monospace;
   --r:8px;--rxl:14px;
   --sh:0 1px 3px rgba(0,0,0,.08);--shm:0 4px 16px rgba(0,0,0,.12);
 }
@@ -418,6 +418,8 @@ tr.psel td{background:#eef9ee!important}
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
       <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
+      <button class="tbtn" id="tb-zip-state" onclick="toggleZip()" title="Toggle ZIP in board">👁 ZIP: <span id="zip-state-lbl">ON</span></button>
+      <button class="tbtn" id="tb-margin-state" onclick="toggleMarginMode()" title="Toggle Margin $/%%">Margin: <span id="margin-state-lbl">$</span></button>
       <div class="upill" style="cursor:pointer" onclick="openChangePassword()" title="Change Password"><span class="ugreen"></span><span id="cur-user">-</span></div>
       <button class="tbtn" onclick="logout()">Sign Out</button>
     </div>
@@ -1128,11 +1130,11 @@ tr.psel td{background:#eef9ee!important}
         <div style="display:flex;flex-direction:column;gap:9px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <span style="font-size:12px;color:var(--tx2)">Show/hide ZIP</span>
-            <span style="font-size:11px;color:var(--tx3)">👁 button in PU St column header</span>
+            <span style="font-size:11px;color:var(--tx3)">👁 in PU St column header</span>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
             <span style="font-size:12px;color:var(--tx2)">Margin % / $</span>
-            <span style="font-size:11px;color:var(--tx3)">% button in Margin column header</span>
+            <span style="font-size:11px;color:var(--tx3)">% button in Margin column or Margin pill</span>
           </div>
         </div>
 
@@ -1460,6 +1462,11 @@ document.querySelectorAll('.overlay').forEach(function(m) {
 // INIT & NAV
 // ============================
 function initApp() {
+  // Init toggle state labels
+  var zl=document.getElementById('zip-state-lbl');
+  if(zl) zl.textContent=localStorage.getItem('bdf_showZip')==='0'?'OFF':'ON';
+  var ml=document.getElementById('margin-state-lbl');
+  if(ml) ml.textContent=localStorage.getItem('bdf_marginPct')==='1'?'%':'$';
   renderDealer(); updateDKPIs();
   renderBoard(); updateBKPIs();
   renderDashboard();
@@ -2109,7 +2116,7 @@ function renderDetailInto(panel,l){
     // ── Header ──
     +'<div style="padding:10px 16px 8px;border-bottom:1px solid var(--bd)">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px">'
-        +'<span style="font-size:24px;font-weight:800;color:var(--navy);font-family:var(--M);letter-spacing:-1px">'+esc(l.loadNum)+'</span>'
+        +'<span style="font-size:24px;font-weight:800;color:var(--navy)">'+esc(l.loadNum)+'</span>'
         +'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+l.id+';}),\'header\')" style="background:var(--sur);color:var(--navy);border:2.5px solid var(--green);font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);display:inline-flex;align-items:center">Edit Info</button>'
         +'<button onclick="popoutLoad('+l.id+')" title="Open in new window" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);font-size:12px;padding:0 10px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)" title="Pop out">⧉</button>'
         +'<span style="'+curStyle+'">'+l.status+'</span>'
@@ -2229,12 +2236,18 @@ function pickEquip(code){
 }
 function toggleZip(){
   var cur=localStorage.getItem('bdf_showZip');
-  localStorage.setItem('bdf_showZip',cur==='0'?'1':'0');
+  var next=cur==='0'?'1':'0';
+  localStorage.setItem('bdf_showZip',next);
+  var lbl=document.getElementById('zip-state-lbl');
+  if(lbl) lbl.textContent=next==='0'?'OFF':'ON';
   renderBoard();
 }
 function toggleMarginMode(){
   var cur=localStorage.getItem('bdf_marginPct');
-  localStorage.setItem('bdf_marginPct',cur==='1'?'0':'1');
+  var next=cur==='1'?'0':'1';
+  localStorage.setItem('bdf_marginPct',next);
+  var lbl=document.getElementById('margin-state-lbl');
+  if(lbl) lbl.textContent=next==='1'?'%':'$';
   renderBoard();
 }
 function updateDetailMarginPill(){
@@ -2251,25 +2264,20 @@ function popoutLoad(lid) {
   if(!l) return;
   var _pp = document.createElement('div');
   renderDetailInto(_pp, l);
-  // Use only the main app <style> block (first one) — avoids huge inline manifest styles
-  var _mainStyle = document.querySelector('style') ? document.querySelector('style').textContent : '';
-  var _ph = '<!DOCTYPE html><html><head>'
+  var _css = document.querySelector('style') ? document.querySelector('style').textContent : '';
+  var _out = '<!DOCTYPE html><html><head>'
     +'<meta charset="UTF-8">'
     +'<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">'
     +'<title>'+l.loadNum+' — BoxDrop Freight</title>'
-    +'<style>'+_mainStyle+'</style>'
+    +'<style>'+_css+'</style>'
     +'<style>body{margin:0;padding:16px;background:#f4f6f9}.dempty{padding:40px;text-align:center;color:#94a3b8}</style>'
     +'</head><body>'
-    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0;font-family:var(--F)">BoxDrop Freight — '+l.loadNum+'</div>'
+    +'<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0">BoxDrop Freight — '+l.loadNum+'</div>'
     +_pp.innerHTML
     +'</body></html>';
-  var _pw = window.open('','bdf_'+lid,'width=1100,height=700,resizable=yes,scrollbars=yes');
-  if(!_pw){alert('Please allow popups for this site.');return;}
-  setTimeout(function(){
-    _pw.document.open();
-    _pw.document.write(_ph);
-    _pw.document.close();
-  },50);
+  var _w = window.open('','bdf_'+lid,'width=1100,height=700,resizable=yes,scrollbars=yes');
+  if(!_w){alert('Please allow popups for this site.');return;}
+  setTimeout(function(){_w.document.open();_w.document.write(_out);_w.document.close();},50);
 }
 
 
