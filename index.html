@@ -1639,11 +1639,19 @@ function applyRemoteState(d) {
   if(!d) return;
   _fbLoaded = true; // Firebase has responded — saveState is now safe
   function withSel(arr) {
-    // Firebase stores JS arrays as objects with integer keys — normalize back to array
-    if(arr && !Array.isArray(arr) && typeof arr === 'object') {
-      arr = Object.values(arr);
-    }
-    return (arr||[]).map(function(x){ return Object.assign({sel:false}, x); });
+    if(arr && !Array.isArray(arr) && typeof arr === 'object') arr = Object.values(arr);
+    return (arr||[]).filter(function(x){ return x != null; }).map(function(x){
+      var o = Object.assign({sel:false}, x);
+      if(o.stops && !Array.isArray(o.stops)) o.stops = Object.values(o.stops).filter(function(s){ return s != null; });
+      if(!o.stops) o.stops = [];
+      if(o.contacts && !Array.isArray(o.contacts)) o.contacts = Object.values(o.contacts).filter(function(c){ return c != null; });
+      if(!o.contacts) o.contacts = [];
+      if(o.incidents && !Array.isArray(o.incidents)) o.incidents = Object.values(o.incidents).filter(function(i){ return i != null; });
+      if(!o.incidents) o.incidents = [];
+      if(o.callinLog && !Array.isArray(o.callinLog)) o.callinLog = Object.values(o.callinLog).filter(function(i){ return i != null; });
+      if(!o.callinLog) o.callinLog = [];
+      return o;
+    });
   }
   // Merge strategy: for collections with IDs, merge remote into local
   // so a locally-created record never gets lost by a concurrent remote write
