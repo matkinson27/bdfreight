@@ -190,7 +190,8 @@ tr.psel td{background:#eef9ee!important}
 .info-field a{font-size:11px;color:var(--navy);text-decoration:none;font-weight:500;word-break:break-all}
 .info-field a:hover{text-decoration:underline}
 .cie{border-radius:var(--r);padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--navyl);background:var(--sur2)}
-.cie.req{border-left-color:var(--green)}.cie.inc{border-left-color:var(--amber)}.cie.created{border-left-color:var(--navy)}
+.cie.req{border-left-color:var(--green)}.cie.inc{border-left-color:var(--amber)}
+.cie.late{border-left-color:#f59e0b;background:#fffbeb}.cie.created{border-left-color:var(--navy)}
 .cim{display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap}
 .cist{font-size:10px;font-weight:600;font-family:var(--M)}
 .cit{font-size:10px;color:var(--tx2)}
@@ -227,12 +228,11 @@ tr.psel td{background:#eef9ee!important}
 .tlempty{text-align:center;padding:32px;color:var(--tx3);font-size:13px}
 /* Carrier scorecard */
 .tier{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.tier-A{background:#dcfce7;color:#14532d}.tier-B{background:#dbeafe;color:#1e40af}
-.tier-C{background:#fef9c3;color:#854d0e}.tier-P{background:#fee2e2;color:#991b1b}
+.tier-S{background:#fef9c3;color:#713f12;border:1px solid #ca8a04}.tier-Ap,.tier-A,.tier-Am{background:#dcfce7;color:#14532d}.tier-Bp,.tier-B,.tier-Bm{background:#dbeafe;color:#1e40af}.tier-Cp,.tier-C,.tier-Cm{background:#fef9c3;color:#854d0e}.tier-Dp,.tier-D,.tier-Dm,.tier-F{background:#ffedd5;color:#9a3412}.tier-P{background:#fee2e2;color:#991b1b}
 .sc-panel{background:var(--sur);padding:16px 18px}
-.sc-grade-big{font-size:48px;font-weight:700;line-height:1;cursor:pointer}
+.sc-grade-big{font-size:36px;font-weight:800;line-height:1;cursor:pointer;font-family:var(--F)}
 .sc-grade-big:hover{opacity:.8}
-.sc-grade-big.gA{color:#14532d}.sc-grade-big.gB{color:#1e40af}.sc-grade-big.gC{color:#854d0e}.sc-grade-big.gP{color:#991b1b}
+.sc-grade-big.gS{color:#b45309}.sc-grade-big.gA{color:#14532d}.sc-grade-big.gB{color:#1e40af}.sc-grade-big.gC{color:#854d0e}.sc-grade-big.gD{color:#9a3412}.sc-grade-big.gF{color:#7f1d1d}.sc-grade-big.gP{color:#991b1b}
 .sc-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
 .sc-stat{background:var(--sur2);border-radius:var(--r);padding:10px 12px}
 .sc-stat-l{font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
@@ -363,10 +363,10 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 .appt-cal-day.sel{background:var(--navy);color:#fff;font-weight:700}
 .appt-cal-day.other{color:var(--tx3)}
 .appt-cal-day.empty{cursor:default}
-.appt-date-inp{height:28px;width:96px;font-size:11px;padding:0 6px 0 26px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)}
+.appt-date-inp{height:28px;width:88px;font-size:11px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)}
 .appt-date-inp:focus{border-color:var(--green)}
-.appt-cal-wrap{position:relative;display:inline-flex;align-items:center}
-.appt-cal-icon{position:absolute;left:6px;pointer-events:none;color:var(--tx3);font-size:12px}
+.appt-cal-wrap{display:none}
+.appt-cal-icon{display:none}
 
 /* ═══════════════════════════════════════════
    MOBILE RESPONSIVE  (≤ 900px)
@@ -773,6 +773,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="stab" onclick="setBF('active',this)">Active</div>
       <div class="stab" onclick="setBF('issue',this)">Issues</div>
       <div class="stab" onclick="setBF('claim',this)">Claims</div>
+      <div class="stab" onclick="setBF('late',this)" id="stab-late">Late <span class="cnt" id="late-cnt" style="display:none">0</span></div>
     </div>
     <div class="tbar">
       <input type="text" id="b-search" placeholder="Search LD#, vendor, carrier..." oninput="renderBoard()">
@@ -837,13 +838,14 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="kpis c4" id="kpi-sc"></div>
     <div class="tbar">
       <input type="text" id="sc-search" placeholder="Search carrier..." oninput="renderSC()">
-      <select id="sc-tier" onchange="renderSC()"><option value="">All Tiers</option><option value="A">Tier A</option><option value="B">Tier B</option><option value="C">Tier C</option><option value="P">Probation</option></select>
+      <select id="sc-tier" onchange="renderSC()"><option value="">All Grades</option><option value="S">S</option><option value="A+">A+</option><option value="A">A</option><option value="A-">A-</option><option value="B+">B+</option><option value="B">B</option><option value="B-">B-</option><option value="C+">C+</option><option value="C">C</option><option value="C-">C-</option><option value="D+">D+</option><option value="D">D</option><option value="D-">D-</option><option value="F">F</option><option value="P">⚑ On Probation (D+ and below)</option></select>
       <button class="btn p" onclick="openCarrierModal(null)">+ Add Carrier</button>
       <button class="btn" onclick="exportCarriers()">Export CSV</button>
+      <button class="btn" onclick="generateGradingPDF()">Grading Guide PDF</button>
       <button class="btn d" onclick="delSelCarriers()">Delete</button>
     </div>
     <div class="split">
-      <div class="split-top" id="sc-split-top" style="height:260px">
+      <div class="split-top" id="sc-split-top" style="height:260px;min-height:80px">
         <div class="tw"><table id="sc-table">
           <thead><tr>
             <th class="nc" style="width:28px"></th>
@@ -1156,6 +1158,22 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     </div>
       <div class="fi s2"><label>Additional Info <span style="font-size:10px;font-weight:400;color:var(--tx3)">(SO#, PU#, notes — visible in detail view only)</span></label><textarea id="df-addinfo" style="height:48px;resize:none" placeholder="e.g. SO 190768, PU# 12345..."></textarea></div>
     <div class="mfooter"><button class="btn" onclick="closeM('m-dealer')">Cancel</button><button class="btn p" onclick="saveDealer()">Save</button></div>
+  </div>
+</div>
+
+<!-- CARRIER PROBATION WARNING MODAL -->
+<div class="overlay" id="m-carrier-warn">
+  <div class="mbox" style="max-width:440px">
+    <div class="mh" style="color:var(--red)">⚠ Carrier On Probation</div>
+    <div id="carrier-warn-body" style="font-size:13px;margin-bottom:14px;line-height:1.6"></div>
+    <div id="carrier-warn-reason-row" style="margin-bottom:12px">
+      <label style="font-size:12px;font-weight:600;color:var(--navy)">Reason for Override (required)</label>
+      <textarea id="carrier-warn-reason" style="width:100%;height:64px;margin-top:4px;font-size:12px;padding:7px 9px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);resize:none" placeholder="e.g. Last chance load — approved by manager..."></textarea>
+    </div>
+    <div class="mfooter">
+      <button class="btn" onclick="cancelCarrierWarn()">Cancel</button>
+      <button class="btn p" id="carrier-warn-assign-btn" onclick="confirmCarrierWarn()">Assign Anyway</button>
+    </div>
   </div>
 </div>
 
@@ -1906,6 +1924,12 @@ function updateBKPIs() {
   document.getElementById('kpi-board').innerHTML = kpiH('Active',act)+kpiH('Overdue',ovd,ovd>0?'r':'')+kpiH('Issues',iss,iss>0?'r':'')+kpiH('Delivered',del)+kpiH('Archived',arc);
   document.getElementById('tb-active').textContent = act+' Active';
   var ti=document.getElementById('tb-issue');ti.style.display=iss>0?'':'none';ti.textContent=iss+' Issue'+(iss!==1?'s':'');
+  var lateCount=loads.filter(function(l){return l.callins&&l.callins.some(function(c){return c.type==='late';});}).length;
+  var lateCnt=document.getElementById('late-cnt');
+  if(lateCnt){lateCnt.textContent=lateCount;lateCnt.style.display=lateCount>0?'':'none';}
+  var lateCount = loads.filter(function(l){return l.callins&&l.callins.some(function(c){return c.type==='late';});}).length;
+  var lateCnt = document.getElementById('late-cnt');
+  if(lateCnt){lateCnt.textContent=lateCount;lateCnt.style.display=lateCount>0?'':'none';}
   var cf=document.getElementById('b-carrier'),cv=cf.value;
   cf.innerHTML='<option value="">All Carriers</option>';
   [...new Set(loads.map(function(l){return l.carrier;}).filter(Boolean))].sort().forEach(function(c){
@@ -1961,6 +1985,7 @@ function renderBoard() {
     if(boardFilter==='active'&&['Delivered','Closed','Issue','Claim'].includes(l.status))return false;
     if(boardFilter==='issue'&&l.status!=='Issue')return false;
     if(boardFilter==='claim'&&l.status!=='Claim')return false;
+    if(boardFilter==='late'&&!(l.callins&&l.callins.some(function(c){return c.type==='late';})))return false;
     if(sf&&l.status!==sf)return false;
     if(cf&&l.carrier!==cf)return false;
     if(df&&(l.dispatcher||'')!==df)return false;
@@ -2406,8 +2431,8 @@ function renderDetailInto(panel,l){
 
   var ciHTML=(l.callins||[]).slice().reverse().map(function(c, revIdx){
     var realIdx = (l.callins.length - 1) - revIdx;
-    var cls = c.type==='created'?'created':c.req?'req':c.type==='incident'?'inc':'';
-    var badge = c.type==='created'?'<span class="cib cr">Created</span>':c.req&&c.type!=='incident'?'<span class="cib ci">Call-In</span>':c.type==='incident'?'<span class="cib ii">Incident</span>':'';
+    var cls = c.type==='created'?'created':c.req?'req':c.type==='incident'?'inc':c.type==='late'?'late':'';
+    var badge = c.type==='created'?'<span class="cib cr">Created</span>':c.req&&c.type!=='incident'?'<span class="cib ci">Call-In</span>':c.type==='incident'?'<span class="cib ii">Incident</span>':c.type==='late'?'<span class="cib" style="background:#fef3c7;color:#92400e">⚠ Late</span>':'';
     var delBtn = c.type!=='created'
       ? '<button class="btn xs d" style="margin-left:auto;padding:0 6px;height:18px;font-size:10px" onclick="deleteCallin('+l.id+','+realIdx+')">×</button>'
       : '';
@@ -2658,6 +2683,17 @@ function setStopTime(lid, idx, field, val) {
       // In at delivery -> Receiver
       var fi2 = LC.indexOf(l.status);
       if(fi2 <= LC.indexOf('Departed')) autoAdv(l, 'Receiver', 'Driver arrived at '+s.name+'. In: '+val);
+    }
+    // Auto-log late arrival if inT > latestAppt
+    if(s.latestAppt && val > s.latestAppt) {
+      var apptD=new Date(s.latestAppt.replace(' ','T')),inD=new Date(val.replace(' ','T'));
+      if(!isNaN(apptD)&&!isNaN(inD)){
+        var minsLate=Math.round((inD-apptD)/60000);
+        var stopLabel=(s.type==='pickup'?'PU':'DEL')+': '+(s.name||'stop');
+        var lateNote='Late arrival at '+stopLabel+' — '+minsLate+' min late (latest: '+s.latestAppt+', actual: '+val+')';
+        if(!l.callins)l.callins=[];
+        l.callins.push({status:'Late Arrival',time:nowStr(),note:lateNote,req:false,type:'late'});
+      }
     }
   }
   if(field === 'outT' && val) {
@@ -3074,14 +3110,9 @@ function makeApptInput(id, val, cbName, placeholder) {
   }
   var dateDisp = datePart ? (function(){var p=datePart.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
   var ph = placeholder || 'Date';
-  return '<div style="display:flex;gap:4px;align-items:center">'
-    +'<div class="appt-cal-wrap">'
-      +'<span class="appt-cal-icon">&#128197;</span>'
-      +'<input type="text" class="appt-date-inp" id="'+esc(id)+'-date" value="'+esc(dateDisp)+'" placeholder="'+esc(ph)+'" autocomplete="off"'
-        +' onkeydown="apptDateKey(event,\''+esc(id)+'\',\''+esc(cbName)+'\')"'
-        +' onblur="apptDateBlur(\''+esc(id)+'\',\''+esc(cbName)+'\')">'
-      +'<button type="button" onclick="toggleApptCal(\''+esc(id)+'\')" style="position:absolute;right:-22px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--tx3);font-size:14px;padding:0 2px" title="Open calendar">&#9660;</button>'
-    +'</div>'
+  return '<div style="display:flex;gap:3px;align-items:center">'
+    +'<button type="button" onclick="toggleApptCal(\''+esc(id)+'\')" style="height:28px;width:28px;flex-shrink:0;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--tx2)" title="Open calendar">&#128197;</button>'
+    +'<input type="text" class="appt-date-inp" id="'+esc(id)+'-date" value="'+esc(dateDisp)+'" placeholder="'+esc(ph)+'" autocomplete="off" style="padding:0 6px" onkeydown="apptDateKey(event,\''+esc(id)+'\',\''+esc(cbName)+'\')" onblur="apptDateBlur(\''+esc(id)+'\',\''+esc(cbName)+'\')">'
     +'<input type="hidden" id="'+esc(id)+'-iso" value="'+esc(datePart)+'">'
     +'<input type="text" id="'+esc(id)+'-time" value="'+esc(timePart)+'" placeholder="HH:MM" maxlength="5" style="height:28px;width:62px;font-size:11px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="apptTimeChange(\''+esc(id)+'\',\''+esc(cbName)+'\')" onblur="apptTimeBlur(\''+esc(id)+'\',\''+esc(cbName)+'\')">'
   +'</div>';
@@ -3518,7 +3549,68 @@ function carrierAC(q){
   list.innerHTML=m.map(function(c){return '<div class="aci" onclick="pickCarrier(\''+esc(c.name)+'\')"><div>'+esc(c.name)+'</div><div class="acs">'+esc(c.mc)+' - '+esc(c.lanes)+'</div></div>';}).join('');
   list.style.display='block';
 }
-function pickCarrier(n){document.getElementById('lf-carrier').value=n;document.getElementById('ac-carrier').style.display='none';}
+function pickCarrier(n) {
+  document.getElementById('ac-carrier').style.display='none';
+  // Check if carrier is on probation (D+ or below = score < 67)
+  var c = carriers.find(function(x){return x.name.toLowerCase()===n.toLowerCase();});
+  if(c) {
+    var s = calcScore(c);
+    var isProb = s.score < 67; // D+ threshold
+    // Only warn if load is new or status is Schedule/Available/Covered
+    var statusEl = document.getElementById('lf-status');
+    var currentStatus = statusEl ? statusEl.value : 'Schedule';
+    var warningStatuses = ['Schedule','Available','Covered',''];
+    if(isProb && warningStatuses.includes(currentStatus)) {
+      document.getElementById('lf-carrier').value = n; // set it first
+      var lateCount = (c.incidents||[]).filter(function(i){return i.type==='No Contact'||i.type==='No Tracking';}).length;
+      var incCount = (c.incidents||[]).length;
+      var claimCount = (c.claims||[]).length;
+      var warnBody = '<div style="background:#fff5f5;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin-bottom:10px">'
+        + '<div style="font-weight:700;font-size:15px;color:var(--red);margin-bottom:6px">'+esc(c.name)+' — Grade '+s.tier+' ('+s.score+'/100)</div>'
+        + '<div style="color:var(--tx2);font-size:12px">This carrier is on probation and requires admin approval to assign.</div>'
+        + '</div>'
+        + '<div style="font-size:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">'
+        + '<div style="background:var(--sur2);border-radius:6px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--red)">'+incCount+'</div><div style="font-size:10px;color:var(--tx2)">Incidents</div></div>'
+        + '<div style="background:var(--sur2);border-radius:6px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--amber)">'+lateCount+'</div><div style="font-size:10px;color:var(--tx2)">Comm Issues</div></div>'
+        + '<div style="background:var(--sur2);border-radius:6px;padding:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--red)">'+claimCount+'</div><div style="font-size:10px;color:var(--tx2)">Claims</div></div>'
+        + '</div>';
+      document.getElementById('carrier-warn-body').innerHTML = warnBody;
+      var isAdmin = currentUserRole === 'admin';
+      var reasonRow = document.getElementById('carrier-warn-reason-row');
+      var assignBtn = document.getElementById('carrier-warn-assign-btn');
+      if(isAdmin) {
+        reasonRow.style.display = '';
+        assignBtn.style.display = '';
+        assignBtn.textContent = 'Assign Anyway';
+      } else {
+        reasonRow.style.display = 'none';
+        assignBtn.style.display = 'none';
+        // Replace footer with non-admin message
+        document.querySelector('#m-carrier-warn .mfooter').innerHTML = '<div style="font-size:12px;color:var(--red);font-weight:600">Only admins can assign probation carriers.</div><button class="btn" onclick="cancelCarrierWarn()">Cancel</button>';
+      }
+      openM('m-carrier-warn');
+      return;
+    }
+  }
+  document.getElementById('lf-carrier').value = n;
+}
+
+function cancelCarrierWarn() {
+  closeM('m-carrier-warn');
+  var el = document.getElementById('lf-carrier');
+  if(el) el.value = '';
+}
+
+function confirmCarrierWarn() {
+  var reason = (document.getElementById('carrier-warn-reason').value||'').trim();
+  if(!reason) { document.getElementById('carrier-warn-reason').style.borderColor='var(--red)'; return; }
+  // Store override note on the load modal context
+  document.getElementById('carrier-warn-reason').style.borderColor='';
+  // Save override note to a hidden field so saveLoad can pick it up
+  var hidden = document.getElementById('lf-carrier-override');
+  if(hidden) hidden.value = reason;
+  closeM('m-carrier-warn');
+}
 
 document.addEventListener('click',function(e){
   document.querySelectorAll('.acl').forEach(function(l){if(!l.contains(e.target))l.style.display='none';});
@@ -3651,6 +3743,19 @@ function saveLoad(){
   else{obj.id=Date.now();loads.push(obj);}
   if(!obj.carrier && ['Covered','Assigned','Dispatched'].includes(obj.status)) {
     setTimeout(function(){alert('Note: Load '+obj.loadNum+' has no carrier assigned. Consider adding one before advancing status.');},100);
+  }
+  // Auto-advance to Covered when carrier assigned on Schedule/Available load
+  if(obj.carrier && ['Schedule','Available'].includes(obj.status)) {
+    obj.status = 'Covered';
+    if(!obj.callins) obj.callins = [];
+    obj.callins.push({status:'Available to Covered',time:nowStr(),note:'Carrier '+obj.carrier+' assigned.',req:false,type:'note'});
+  }
+  // Store carrier probation override note
+  var overrideNote = (document.getElementById('lf-carrier-override')||{}).value||'';
+  if(overrideNote && obj.carrier) {
+    if(!obj.callins) obj.callins = [];
+    obj.callins.push({status:'Probation Override',time:nowStr(),note:'Admin override for probation carrier: '+overrideNote,req:false,type:'note'});
+    var hidden = document.getElementById('lf-carrier-override'); if(hidden) hidden.value='';
   }
   // Issue 2: if this is a new load built from dealer POs, remove those dealers from the active pool
   if(isNew && pendingFromDealers) {
@@ -4451,8 +4556,9 @@ function calcScore(c) {
   var score = (puPct*0.25 + dlPct*0.25 + commBase*0.20 + conductBase*0.30) * 100;
   score = Math.round(Math.max(0, Math.min(100, score)));
 
-  var tier = score>=90?'A':score>=80?'B':score>=70?'C':'P';
-  return {score:score, tier:tier, puPct:puPct, dlPct:dlPct, commBase:commBase, conductBase:conductBase,
+  var tier = score>=97?'S':score>=93?'A+':score>=90?'A':score>=87?'A-':score>=83?'B+':score>=80?'B':score>=77?'B-':score>=73?'C+':score>=70?'C':score>=67?'C-':score>=63?'D+':score>=60?'D':score>=57?'D-':score>0?'F':'F';
+  var onProbation = score < 67; // D+ and below = probation (internal flag)
+  return {score:score, tier:tier, onProbation:onProbation, puPct:puPct, dlPct:dlPct, commBase:commBase, conductBase:conductBase,
     puTotal:puTotal, puOnTime:puOnTime, dlTotal:dlTotal, dlOnTime:dlOnTime,
     commIncs:commIncs, trackDings:trackDings, conductIncs:conductIncs, claimCount:claimCount,
     loadsCount:cLoads.length};
@@ -4576,7 +4682,7 @@ function renderSC(){
       +'<td>'+(cl>0?'<span style="color:var(--red);font-weight:600;cursor:pointer" onclick="event.stopPropagation();showIncPanel('+c.id+')">'+cl+' claim'+(cl!==1?'s':'')+'</span>':'<span style="color:var(--tx3)">0</span>')+'</td>'
       +'<td>'+s.loadsCount+'</td>'
       +'<td style="color:var(--tx2)">'+esc(c.lanes||'')+'</td>'
-      +'<td><span class="tier tier-'+s.tier+'" style="cursor:pointer" onclick="event.stopPropagation();showGradeBreakdown('+c.id+')">'+(s.tier==='P'?s.tier+' ('+s.score+')':s.tier+' '+s.score)+'</span></td>'
+      +'<td><span class="tier tier-'+s.tier.replace('+','p').replace('-','m')+'" style="cursor:pointer" onclick="event.stopPropagation();showGradeBreakdown('+c.id+')">'+(s.tier==='P'?s.tier+' ('+s.score+')':s.tier+' '+s.score)+'</span></td>'
       +'<td onclick="event.stopPropagation()"><button class="btn xs" onclick="openCarrierModal('+c.id+')">Edit</button></td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--tx3)">No carriers found.</td></tr>';
@@ -4614,20 +4720,38 @@ function renderSCPanel(cid) {
   }).join('')+'<div style="font-size:11px;color:var(--tx2);margin-top:8px">Showing '+Math.min(cLoads.length,20)+' of '+cLoads.length+' loads</div>'
   :'<div style="font-size:12px;color:var(--tx3);padding:10px 0">No loads found for this carrier.</div>';
 
+  var gradeColor = s.tier==='S'?'#b45309':s.tier[0]==='A'?'#14532d':s.tier[0]==='B'?'#1e40af':s.tier[0]==='C'?'#854d0e':'#9a3412';
+  var probBadge = s.onProbation ? '<span style="background:#fee2e2;color:#991b1b;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;vertical-align:middle">PROBATION</span>' : '';
   panel.innerHTML='<div class="sc-panel">'
-    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">'
-      +'<div>'
-        +'<div style="font-size:18px;font-weight:700;margin-bottom:2px">'+esc(c.name)+'</div>'
-        +'<div style="font-size:12px;color:var(--tx2);margin-bottom:10px">'+esc(c.mc)+(c.addr?' - '+esc(c.addr):'')+'</div>'
+    +'<div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px">'
+      +'<div style="flex:1;min-width:200px">'
+        +'<div style="font-size:17px;font-weight:800;color:var(--navy);margin-bottom:3px">'+esc(c.name)+probBadge+'</div>'
+        +'<div style="font-size:12px;color:var(--tx2);margin-bottom:8px">'+esc(c.mc)+(c.addr?' &mdash; '+esc(c.addr):'')+'</div>'
         +(contacts?'<div style="margin-bottom:10px">'+contacts+'</div>':'')
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+          +'<button class="btn sm p" onclick="openCarrierModal('+c.id+')">Edit Carrier</button>'
+          +'<button class="btn sm a" onclick="openIncFromSC('+c.id+')">Log Incident</button>'
+          +(((c.incidents||[]).length+(c.claims||[]).length)>0?'<button class="btn sm" onclick="showIncPanel('+c.id+')">Incidents &amp; Claims</button>':'')
+        +'</div>'
       +'</div>'
-      +'<div style="text-align:center">'
-        +'<div class="sc-grade-big g'+s.tier+'" onclick="showGradeBreakdown('+c.id+')" title="Click for breakdown">'+s.tier+'</div>'
-        +'<div style="font-size:11px;color:var(--tx2);margin-top:2px">Score: '+s.score+' / 100</div>'
-        +'<div style="font-size:10px;color:var(--tx3)">Click for breakdown</div>'
+      +'<div style="text-align:center;min-width:80px">'
+        +'<div class="sc-grade-big g'+s.tier[0]+'" style="color:'+gradeColor+(s.onProbation?';border-bottom:2px solid #dc2626':'')+'">'+s.tier+'</div>'
+        +(s.onProbation?'<div style="font-size:9px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Probation</div>':'')
+        +'<div style="font-size:11px;color:var(--tx2);margin-top:2px">'+s.score+' / 100</div>'
+        +'<div style="font-size:10px;margin-top:2px"><a href="#" onclick="event.preventDefault();showGradeBreakdown('+c.id+')" style="color:var(--green);text-decoration:none;font-weight:600">ⓘ Info</a></div>'
       +'</div>'
     +'</div>'
-    +'<div class="sc-stat-grid">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Load History</div>'
+    +'<div class="sc-load-row sc-load-hdr"><div>Load #</div><div>Status</div><div>Vendor</div><div>Carrier $</div><div>Cust $</div><div>Margin</div></div>'
+    +loadsHTML
+    +'<div style="margin-top:14px">'
+      +'<div style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px" onclick="toggleSCLanes('+c.id+')">'
+        +'<span style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em">Lane History</span>'
+        +'<span id="sc-lanes-arrow-'+c.id+'" style="color:var(--tx3);font-size:12px">▶</span>'
+      +'</div>'
+      +'<div id="sc-lanes-body-'+c.id+'" style="display:none">'+buildLaneHistory(cLoads)+'</div>'
+    +'</div>'
+    +'<div class="sc-stat-grid" style="margin-top:14px">'
       +'<div class="sc-stat"><div class="sc-stat-l">Loads Run</div><div class="sc-stat-v">'+s.loadsCount+'</div></div>'
       +'<div class="sc-stat"><div class="sc-stat-l">Total Paid</div><div class="sc-stat-v">$'+totalPaid.toLocaleString()+'</div></div>'
       +'<div class="sc-stat"><div class="sc-stat-l">Revenue</div><div class="sc-stat-v">$'+totalRev.toLocaleString()+'</div></div>'
@@ -4635,19 +4759,126 @@ function renderSCPanel(cid) {
       +'<div class="sc-stat"><div class="sc-stat-l">Incidents</div><div class="sc-stat-v '+(((c.incidents||[]).length)>0?'r':'')+'">'+((c.incidents||[]).length)+'</div></div>'
       +'<div class="sc-stat"><div class="sc-stat-l">Claims</div><div class="sc-stat-v '+(((c.claims||[]).length)>0?'r':'')+'">'+((c.claims||[]).length)+'</div></div>'
     +'</div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-      +'<button class="btn sm p" onclick="openCarrierModal('+c.id+')">Edit Carrier</button>'
-      +'<button class="btn sm a" onclick="openIncFromSC('+c.id+')">Log Incident</button>'
-      +(((c.incidents||[]).length+(c.claims||[]).length)>0?'<button class="btn sm" onclick="showIncPanel('+c.id+')">View All Incidents &amp; Claims</button>':'')
-    +'</div>'
-    +'<div style="font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Load History</div>'
-    +'<div class="sc-load-row sc-load-hdr"><div>Load #</div><div>Status</div><div>Vendor</div><div>Carrier $</div><div>Cust $</div><div>Margin</div></div>'
-    +loadsHTML
-    +buildLaneHistory(cLoads)
   +'</div>';
 }
 
 var laneSort = {col:'loads', asc:false};
+
+// ============================
+// GRADING PDF GENERATOR
+// ============================
+function generateGradingPDF() {
+  var css = document.querySelector('style').textContent;
+  var doc = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    + '<title>BoxDrop Freight — Carrier Grading Guide</title>'
+    + '<style>'
+    + 'body{font-family:system-ui,sans-serif;margin:0;padding:32px 40px;color:#1B2A4A;font-size:13px;line-height:1.5}'
+    + '@media print{body{padding:20px 28px}}'
+    + '.hd{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2ECC40;padding-bottom:14px;margin-bottom:24px}'
+    + '.logo{font-size:22px;font-weight:800}  .logo span{color:#2ECC40}'
+    + '.subtitle{font-size:11px;color:#64748b;text-align:right}'
+    + 'h2{font-size:15px;font-weight:700;color:#1B2A4A;margin:20px 0 8px;text-transform:uppercase;letter-spacing:.06em}'
+    + 'h3{font-size:13px;font-weight:700;color:#1B2A4A;margin:14px 0 6px}'
+    + '.grade-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:20px}'
+    + '.grade-cell{border-radius:8px;padding:8px 10px;text-align:center}'
+    + '.grade-cell .letter{font-size:22px;font-weight:800;line-height:1}'
+    + '.grade-cell .range{font-size:10px;color:#64748b;margin-top:2px}'
+    + '.grade-cell.s{background:#fef9c3;border:1px solid #ca8a04}'
+    + '.grade-cell.a{background:#dcfce7}'
+    + '.grade-cell.b{background:#dbeafe}'
+    + '.grade-cell.c{background:#fef9c3}'
+    + '.grade-cell.d{background:#ffedd5}'
+    + '.grade-cell.f{background:#fee2e2}'
+    + '.grade-cell.prob{background:#fff0f0;border:2px solid #dc2626;grid-column:span 5;text-align:left;display:flex;align-items:center;gap:12px;padding:10px 14px}'
+    + '.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}'
+    + '.cat{background:#f8fafc;border-radius:8px;padding:12px 14px;border:1px solid #e2e8f0}'
+    + '.cat-hd{display:flex;justify-content:space-between;margin-bottom:6px}'
+    + '.cat-name{font-weight:700;font-size:13px}'
+    + '.cat-wt{background:#1B2A4A;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700}'
+    + '.cat-desc{font-size:11px;color:#475569;margin-bottom:6px}'
+    + '.cat-formula{background:#fff;border-radius:6px;padding:6px 10px;font-size:11px;font-family:monospace;border:1px solid #e2e8f0}'
+    + '.ex-table{width:100%;border-collapse:collapse;margin-top:8px}'
+    + '.ex-table th{background:#1B2A4A;color:#fff;padding:5px 8px;font-size:10px;text-align:left}'
+    + '.ex-table td{padding:5px 8px;font-size:11px;border-bottom:1px solid #e2e8f0}'
+    + '.ex-table tr:nth-child(even) td{background:#f8fafc}'
+    + '.note{background:#f0fdf4;border-left:4px solid #2ECC40;border-radius:0 6px 6px 0;padding:10px 14px;font-size:11px;margin:12px 0}'
+    + '.footer{margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;display:flex;justify-content:space-between}'
+    + '</style>'
+    + '</head><body>'
+    // Header
+    + '<div class="hd"><div><div class="logo">Box<span>Drop</span> Freight</div><div style="font-size:12px;color:#64748b;margin-top:2px">Carrier Performance Grading Guide</div></div>'
+    + '<div class="subtitle">Internal Use &amp; Carrier Reference<br>Effective: '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long'})+'</div></div>'
+    // Grade Scale
+    + '<h2>Grade Scale</h2>'
+    + '<div class="grade-grid">'
+    + '<div class="grade-cell s"><div class="letter" style="color:#b45309">S</div><div class="range">97–100</div></div>'
+    + '<div class="grade-cell a"><div class="letter" style="color:#14532d">A+</div><div class="range">93–96</div></div>'
+    + '<div class="grade-cell a"><div class="letter" style="color:#14532d">A</div><div class="range">90–92</div></div>'
+    + '<div class="grade-cell a"><div class="letter" style="color:#14532d">A–</div><div class="range">87–89</div></div>'
+    + '<div class="grade-cell b"><div class="letter" style="color:#1e40af">B+</div><div class="range">83–86</div></div>'
+    + '<div class="grade-cell b"><div class="letter" style="color:#1e40af">B</div><div class="range">80–82</div></div>'
+    + '<div class="grade-cell b"><div class="letter" style="color:#1e40af">B–</div><div class="range">77–79</div></div>'
+    + '<div class="grade-cell c"><div class="letter" style="color:#854d0e">C+</div><div class="range">73–76</div></div>'
+    + '<div class="grade-cell c"><div class="letter" style="color:#854d0e">C</div><div class="range">70–72</div></div>'
+    + '<div class="grade-cell c"><div class="letter" style="color:#854d0e">C–</div><div class="range">67–69</div></div>'
+    + '<div class="grade-cell d"><div class="letter" style="color:#9a3412">D+</div><div class="range">63–66</div></div>'
+    + '<div class="grade-cell d"><div class="letter" style="color:#9a3412">D</div><div class="range">60–62</div></div>'
+    + '<div class="grade-cell d"><div class="letter" style="color:#9a3412">D–</div><div class="range">57–59</div></div>'
+    + '<div class="grade-cell f"><div class="letter" style="color:#7f1d1d">F</div><div class="range">0–56</div></div>'
+    + '<div class="grade-cell" style="background:#fff"></div>'
+    + '<div class="grade-cell prob"><span style="font-size:20px">⚠</span><div><div style="font-weight:700;color:#dc2626;font-size:13px">Probation — D+ and below (score &lt; 67)</div><div style="font-size:11px;color:#64748b;margin-top:2px">Requires admin approval to assign to a load. Admin must provide written reason. All existing active loads continue normally.</div></div></div>'
+    + '</div>'
+    // Scoring Categories
+    + '<h2>Scoring Categories</h2>'
+    + '<div class="cat-grid">'
+    // PU
+    + '<div class="cat"><div class="cat-hd"><span class="cat-name">Pickup Performance</span><span class="cat-wt">25%</span></div>'
+    + '<div class="cat-desc">Measures whether the carrier arrives at pickup locations on or before the latest appointment time.</div>'
+    + '<div class="cat-formula">Score = (On-Time Pickups ÷ Total Pickups) × 25</div>'
+    + '</div>'
+    // DEL
+    + '<div class="cat"><div class="cat-hd"><span class="cat-name">Delivery Performance</span><span class="cat-wt">25%</span></div>'
+    + '<div class="cat-desc">Measures whether the carrier completes deliveries on or before the latest appointment time.</div>'
+    + '<div class="cat-formula">Score = (On-Time Deliveries ÷ Total Deliveries) × 25</div>'
+    + '</div>'
+    // Comm
+    + '<div class="cat"><div class="cat-hd"><span class="cat-name">Communication &amp; Tracking</span><span class="cat-wt">20%</span></div>'
+    + '<div class="cat-desc">Tracks No Contact and No Tracking incidents. Each incident reduces the score proportionally to loads run.</div>'
+    + '<div class="cat-formula">Score = max(0, 1 − (Comm Incidents ÷ Loads)) × 20</div>'
+    + '</div>'
+    // Conduct
+    + '<div class="cat"><div class="cat-hd"><span class="cat-name">General Conduct &amp; Claims</span><span class="cat-wt">30%</span></div>'
+    + '<div class="cat-desc">Accounts for General Conduct incidents and filed claims. Highest weight — claims and conduct are most impactful.</div>'
+    + '<div class="cat-formula">Score = max(0, 1 − (Conduct Issues ÷ Loads)) × 30</div>'
+    + '</div>'
+    + '</div>'
+    // Example
+    + '<h2>Worked Example</h2>'
+    + '<table class="ex-table"><thead><tr><th>Metric</th><th>Data</th><th>Calculation</th><th>Points</th></tr></thead><tbody>'
+    + '<tr><td>Pickup On-Time</td><td>9 of 10 pickups on time</td><td>(9÷10) × 25</td><td>22.5</td></tr>'
+    + '<tr><td>Delivery On-Time</td><td>8 of 10 deliveries on time</td><td>(8÷10) × 25</td><td>20.0</td></tr>'
+    + '<tr><td>Communication</td><td>1 No Contact incident / 10 loads</td><td>max(0, 1−(1÷10)×2) × 20</td><td>16.0</td></tr>'
+    + '<tr><td>General Conduct</td><td>0 conduct incidents, 0 claims / 10 loads</td><td>(1−0) × 30</td><td>30.0</td></tr>'
+    + '<tr style="font-weight:700"><td colspan="3" style="text-align:right;padding-right:12px">Total Score</td><td>88.5 → B</td></tr>'
+    + '</tbody></table>'
+    + '<div class="note">⚑ <strong>New carriers</strong> with no load history default to 100 / S until their first load is completed. Scores update in real time as load data is entered.</div>'
+    // FAQ
+    + '<h2>Common Questions</h2>'
+    + '<h3>Does a late arrival always count against the score?</h3>'
+    + '<p style="font-size:12px;color:#475569">Yes — a stop is considered late if the actual arrival time (In-Time) is recorded after the Latest Appointment. The more loads a carrier runs, the less a single late arrival impacts the overall score.</p>'
+    + '<h3>What triggers a probation flag?</h3>'
+    + '<p style="font-size:12px;color:#475569">Any score below 67 (D+ grade) places a carrier on probation. Existing loads already in progress are not affected. New load assignments require written admin approval.</p>'
+    + '<h3>How do incidents affect the score?</h3>'
+    + '<p style="font-size:12px;color:#475569">Incidents are proportional to loads run. One incident on 2 loads is weighted the same as 5 incidents on 10 loads. Volume is taken into account — carriers with more history have more stability in their score.</p>'
+    + '<div class="footer"><span>BoxDrop Freight — Carrier Grading Guide</span><span>Confidential — Internal Use &amp; Authorized Carriers Only</span></div>'
+    + '</body></html>';
+  var w = window.open('','_blank','width=900,height=750');
+  if(!w){alert('Please allow popups.');return;}
+  setTimeout(function(){
+    w.document.open();w.document.write(doc);w.document.close();
+    setTimeout(function(){w.print();},500);
+  },50);
+}
 
 function buildLaneHistory(cLoads) {
   if(!cLoads.length) return '';
@@ -4723,7 +4954,7 @@ function showGradeBreakdown(cid) {
   var c=carriers.find(function(x){return x.id===cid;});if(!c)return;
   var s=calcScore(c);
   document.getElementById('grade-title').textContent='Grade Breakdown - '+c.name;
-  document.getElementById('grade-sub').textContent='Score: '+s.score+'/100 - Tier '+s.tier;
+  document.getElementById('grade-sub').textContent='Score: '+s.score+'/100 — Grade '+s.tier+(s.onProbation?' — ⚠ On Probation':'');
 
   function bar(label,pct,weight,detail) {
     var w=Math.round(pct*100);
