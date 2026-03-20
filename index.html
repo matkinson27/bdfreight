@@ -739,7 +739,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   <div class="page" id="page-locdb">
     <div class="csvdrop" onclick="document.getElementById('loc-tsv').click()">
       <div class="csvico"><svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg></div>
-      <div class="csvtxt"><strong>Bulk Upload Locations (CSV or Tab-separated)</strong><br>Columns: Type | Address | City | State | Zipcode | Name | Phone Number | Group | Email | Dealer Number &mdash; header row auto-detected &mdash; duplicate Name updates in place</div>
+      <div class="csvtxt"><strong>Bulk Upload Locations (CSV or Tab-separated)</strong><br>Columns: Name | Type | Address | City | State | ZIP | Contact Name | Phone 1 | Phone 2 | Email | Hours | Dock Info | Notes | Dealer # | Coach &mdash; header row auto-detected &mdash; duplicate Name updates in place &mdash; Dealer # and Coach stored in detail panel only</div>
       <input type="file" id="loc-tsv" accept=".tsv,.txt,.csv,.xls,.xlsx" onchange="importLocTSV(this)">
     </div>
     <div class="csvmsg" id="loc-msg"></div>
@@ -3357,7 +3357,7 @@ function saveLoad(){
   });
   fs.forEach(function(s){
     if(s.name&&!locations.find(function(l){return l.name.toLowerCase()===s.name.toLowerCase();}))
-      locations.push({id:nLoc++,name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
+      locations.push({id:nLoc++,name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[],sel:false});
   });
   var isNew=!editingLoad;
   var typedNum = fv('lf-num').trim ? fv('lf-num').trim() : fv('lf-num');
@@ -3499,7 +3499,7 @@ function buildLoadFromPOs(sel) {
   });
   Object.values(dm).forEach(function(g){
     if(!locations.find(function(l){return l.name.toLowerCase()===g.dealer.toLowerCase();}))
-      locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
+      locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[{name:g.dealer,phone1:'',phone2:''}],sel:false});
   });
   openLoadModalWithStops(puStops, dlStops, 'New Load from '+sel.length+' PO'+(sel.length!==1?'s':''), vendors[0]||'', sel);
 }
@@ -3754,7 +3754,7 @@ function convertTL(tlId){
   });
   Object.values(dm).forEach(function(g){
     if(!locations.find(function(l){return l.name.toLowerCase()===g.dealer.toLowerCase();}))
-      locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',sel:false});
+      locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[{name:g.dealer,phone1:'',phone2:''}],sel:false});
   });
   pendingConvertTL=tlId;
   openLoadModalWithStops(puStops, dlStops, 'Convert '+tl.tlNum+' to Load', vendors[0]||'');
@@ -3866,7 +3866,7 @@ function saveDealer(){
     dealers.push(d);
   }
   if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
-    locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',sel:false});
+    locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
   closeM('m-dealer');saveState();renderDealer();
 }
 
@@ -3956,7 +3956,7 @@ function importDealerCSV(input){
         else if(inTL){tempLoads.forEach(function(tl){tl.pos.forEach(function(p){if(p.po===d.po)Object.assign(p,d);});});updated++;}
         else{d.id=nDealer++;d.sel=false;if(!d.zip)d.zip='';dealers.push(d);added++;}
         if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
-          locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',sel:false});
+          locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
       });
       renderDealer();updateDKPIs();
       saveState();
@@ -4675,7 +4675,7 @@ function renderLocContactRows() {
       +'<input value="'+esc(ct.name||'')+'" placeholder="'+(isReceiver&&i===0?'Auto-filled from Name':'Contact name')+'" oninput="locContactRows['+i+'].name=this.value" id="locctn-'+i+'">'
       +'<input value="'+esc(ct.phone1||ct.phone||'')+'" placeholder="Phone 1" oninput="fmtPhone(this);locContactRows['+i+'].phone1=this.value">'
       +'<input value="'+esc(ct.phone2||'')+'" placeholder="Phone 2" oninput="fmtPhone(this);locContactRows['+i+'].phone2=this.value">'
-      +(i>0?'<button class="btn xs" onclick="locContactRows.splice('+i+',1);renderLocContactRows()" style="font-size:16px;line-height:1;padding:0 6px" title="Move up">↑</button>':'<span></span>')
+      +(i>0?'<button class="btn xs" onclick="var t=locContactRows.splice('+i+',1)[0];locContactRows.splice('+(i-1)+',0,t);renderLocContactRows()" style="font-size:16px;line-height:1;padding:0 6px" title="Move up">↑</button>':'<span></span>')
       +'<button class="btn xs d" onclick="locContactRows.splice('+i+',1);renderLocContactRows()">x</button>'
       +'</div>';
   }).join('');
