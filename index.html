@@ -1404,12 +1404,28 @@ function syncUsersFromFirebase() {
   if(!DB) return;
   DB.ref('users').once('value', function(snap) {
     var d = snap.val();
-    if(d && Object.keys(d).length > 0) {
-      // Firebase has users — mirror to localStorage so all machines are in sync
-      localStorage.setItem('bdf_users', JSON.stringify(d));
+    if(d && typeof d === 'object') {
+      // Sanitize: keep only valid user entries (must have pw and role, username must be a non-numeric string)
+      var clean = {};
+      Object.keys(d).forEach(function(k) {
+        var v = d[k];
+        if(typeof k === 'string' && isNaN(k) && v && typeof v === 'object' && v.pw && v.role) {
+          clean[k] = {pw: v.pw, role: v.role};
+        }
+      });
+      if(Object.keys(clean).length > 0) {
+        localStorage.setItem('bdf_users', JSON.stringify(clean));
+        // Write cleaned version back to Firebase to fix any corruption
+        DB.ref('users').set(clean);
+      } else {
+        // Nothing valid — push defaults
+        DB.ref('users').set(DEFAULT_USERS);
+        localStorage.setItem('bdf_users', JSON.stringify(DEFAULT_USERS));
+      }
     } else {
       // First time ever — push defaults up to Firebase
-      DB.ref('users').set(loadUsers());
+      DB.ref('users').set(DEFAULT_USERS);
+      localStorage.setItem('bdf_users', JSON.stringify(DEFAULT_USERS));
     }
   });
 }
@@ -1573,8 +1589,8 @@ var nDealer = 1, nCarrier = 1, nLoc = 1, nRate = 1, nTL = 1;
 var DB = null; // Firebase database reference, set after SDK loads
 var _fbSaving = false; // prevent echo loops
 var _fbLoaded = false; // CRITICAL: never save until Firebase data has been received at least once
-var _fbMaxLoads = 0;     // Highest load count ever seen from Firebase — saveState refuses to write fewer
-var _fbMaxLocs  = 0;     // Same for locations
+var _fbMaxLoads = parseInt(localStorage.getItem('bdf_maxLoads') || '0');
+var _fbMaxLocs  = parseInt(localStorage.getItem('bdf_maxLocs')  || '0');
 
 function saveState() {
   if(!DB) return;
@@ -1652,9 +1668,15 @@ function saveState() {
 function applyRemoteState(d) {
   if(!d) return;
   _fbLoaded = true; // Firebase has responded — saveState is now safe
-  // Track highest counts ever seen so saveState can refuse to overwrite with empty arrays
-  _fbMaxLoads = Math.max(_fbMaxLoads, (d.loads ? Object.keys(d.loads).length : 0));
-  _fbMaxLocs  = Math.max(_fbMaxLocs,  (d.locations ? Object.keys(d.locations).length : 0));
+  // Track highest counts ever seen — persisted to localStorage so all contexts (PWA + browser) share the same floor
+  var incomingLoads = d.loads ? Object.keys(d.loads).length : 0;
+  var incomingLocs  = d.locations ? Object.keys(d.locations).length : 0;
+  var storedMaxLoads = parseInt(localStorage.getItem('bdf_maxLoads') || '0');
+  var storedMaxLocs  = parseInt(localStorage.getItem('bdf_maxLocs')  || '0');
+  _fbMaxLoads = Math.max(_fbMaxLoads, incomingLoads, storedMaxLoads);
+  _fbMaxLocs  = Math.max(_fbMaxLocs,  incomingLocs,  storedMaxLocs);
+  if(_fbMaxLoads > 0) localStorage.setItem('bdf_maxLoads', String(_fbMaxLoads));
+  if(_fbMaxLocs  > 0) localStorage.setItem('bdf_maxLocs',  String(_fbMaxLocs));
   function withSel(arr) {
     if(arr && !Array.isArray(arr) && typeof arr === 'object') arr = Object.values(arr);
     return (arr||[]).filter(function(x){ return x != null; }).map(function(x){
@@ -1667,6 +1689,9 @@ function applyRemoteState(d) {
       if(!o.incidents) o.incidents = [];
       if(o.callinLog && !Array.isArray(o.callinLog)) o.callinLog = Object.values(o.callinLog).filter(function(i){ return i != null; });
       if(!o.callinLog) o.callinLog = [];
+      if(o.claims && !Array.isArray(o.claims)) o.claims = Object.values(o.claims).filter(function(i){ return i != null; });
+      if(!o.claims) o.claims = [];
+      if(o.stops) o.stops.forEach(function(s){ if(s && s.contacts && !Array.isArray(s.contacts)) s.contacts = Object.values(s.contacts).filter(function(c){ return c != null; }); });
       return o;
     });
   }
