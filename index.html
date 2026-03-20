@@ -1639,6 +1639,10 @@ function applyRemoteState(d) {
   if(!d) return;
   _fbLoaded = true; // Firebase has responded — saveState is now safe
   function withSel(arr) {
+    // Firebase stores JS arrays as objects with integer keys — normalize back to array
+    if(arr && !Array.isArray(arr) && typeof arr === 'object') {
+      arr = Object.values(arr);
+    }
     return (arr||[]).map(function(x){ return Object.assign({sel:false}, x); });
   }
   // Merge strategy: for collections with IDs, merge remote into local
@@ -1661,7 +1665,8 @@ function applyRemoteState(d) {
   carriers   = mergeById(carriers, d.carriers);
   locations  = mergeById(locations, d.locations);
   rates      = mergeById(rates, d.rates);
-  tempLoads  = d.tempLoads || [];
+  var tl = d.tempLoads || [];
+  tempLoads = Array.isArray(tl) ? tl : Object.values(tl);
   // Always take the highest counter to avoid ID collisions
   if(d.nDealer)  nDealer  = Math.max(nDealer,  d.nDealer);
   if(d.nCarrier) nCarrier = Math.max(nCarrier, d.nCarrier);
@@ -6216,7 +6221,6 @@ window.addEventListener('beforeunload', function() {
 // BACKUP & RESTORE
 // ============================
 function manualBackup() {
-  if(!DB) { alert('Not connected to database.'); return; }
   function clean(arr) {
     return (arr||[]).map(function(x){ var o=Object.assign({},x); delete o.sel; delete o._prevCarrier; return o; });
   }
@@ -6232,20 +6236,22 @@ function manualBackup() {
     nDealer:nDealer, nCarrier:nCarrier, nLoc:nLoc, nRate:nRate, nTL:nTL
   };
   var key = new Date().toISOString().slice(0,19).replace(/:/g,'-');
-  DB.ref('backups/'+key).set(snap, function(err) {
-    if(err) { alert('Backup failed: '+err.message); }
-    else {
-      // Also download as JSON
-      var blob = new Blob([JSON.stringify(snap, null, 2)], {type:'application/json'});
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'bdfreight-backup-'+key+'.json';
-      a.click();
-      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
-      localStorage.setItem('bdf_last_backup', new Date().toISOString().slice(0,10));
-      alert('Backup saved to Firebase and downloaded as JSON.');
-    }
-  });
+  // Download locally first — always works regardless of Firebase
+  try {
+    var blob = new Blob([JSON.stringify(snap, null, 2)], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bdfreight-backup-'+key+'.json';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+    localStorage.setItem('bdf_last_backup', new Date().toISOString().slice(0,10));
+  } catch(e) { alert('Local download failed: ' + e.message); return; }
+  // Also write to Firebase backups/
+  if(DB) {
+    DB.ref('backups/'+key).set(snap, function(err) {
+      if(err) { alert('Firebase backup write failed: '+err.message+'\n(Local JSON was still downloaded.)'); }
+    });
+  }
 }
 
 function restoreFromBackup() {
