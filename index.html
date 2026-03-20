@@ -325,6 +325,10 @@ tr.psel td{background:#eef9ee!important}
 .score-bar-fill.warn{background:var(--amber)}
 .score-bar-fill.bad{background:var(--red)}
 .score-bar-pct{font-size:11px;font-weight:600;color:var(--tx);width:38px;text-align:right}
+/* ── Column resize ── */
+th.resizable{position:relative;user-select:none}
+th.resizable .col-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10}
+th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:var(--green);opacity:.5}
 /* ── Staging Loads ── */
 #stg-table th{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--tx2)}
 #stg-table td{font-size:13px;padding:8px 10px}
@@ -575,6 +579,7 @@ tr.psel td{background:#eef9ee!important}
   <!-- DEALER ORDERS -->
   <div class="page" id="page-dealer">
     <div id="kpi-dealer" style="display:none"></div>
+    <div onclick="document.getElementById('dealer-csv').click()" style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--sur);border:1.5px dashed var(--green);border-radius:var(--r);cursor:pointer;margin-bottom:8px"><svg width="13" height="13" viewBox="0 0 20 20" fill="var(--green)"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg><div><strong style="font-size:12px;color:var(--navy)">Import Dealer Orders CSV</strong><span style="font-size:11px;color:var(--tx2);margin-left:8px">Columns: PO# | Vendor | Pieces | Seats | Ready Date | Dealer Name | Phone # | Address | City | State — duplicate PO# updates in place</span></div><input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this)" style="display:none"></div>
     <div class="csvmsg" id="dealer-msg"></div>
     <div id="dv-active">
       <div class="tbar">
@@ -586,7 +591,7 @@ tr.psel td{background:#eef9ee!important}
         <button class="btn g" onclick="createLoadFromSelected()">Create Load from Selected</button>
         <button class="btn d" onclick="delSelDealers()">Delete</button>
       </div>
-      <div class="tw" style="overflow-y:auto;max-height:calc(100vh - 220px)"><table>
+      <div class="tw" style="overflow-y:auto;max-height:calc(100vh - 220px)"><table id="dealer-table">
         <thead style="position:sticky;top:0;z-index:2"><tr>
           <th class="nc" style="width:28px"></th>
           <th>PO #</th><th>Vendor</th><th>Pieces</th><th>Seats</th><th>Ready Date</th>
@@ -655,7 +660,7 @@ tr.psel td{background:#eef9ee!important}
     </div>
     <div class="split">
       <div class="split-top" id="split-top" style="height:240px">
-        <div class="tw"><table>
+        <div class="tw"><table id="board-table">
           <colgroup><col style="width:28px"><col style="width:90px"><col style="width:96px"><col style="width:100px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:50px"><col style="width:62px"><col style="width:120px"><col style="width:105px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
           <thead><tr>
             <th class="nc" style="width:28px"></th>
@@ -696,7 +701,7 @@ tr.psel td{background:#eef9ee!important}
     </div>
     <div class="split">
       <div class="split-top" id="sc-split-top" style="height:260px">
-        <div class="tw"><table>
+        <div class="tw"><table id="sc-table">
           <thead><tr>
             <th class="nc" style="width:28px"></th>
             <th onclick="sortSC('name')">Carrier</th><th>MC #</th>
@@ -729,7 +734,7 @@ tr.psel td{background:#eef9ee!important}
     </div>
     <div class="split">
       <div class="split-top" id="loc-split-top" style="height:260px">
-        <div class="tw"><table>
+        <div class="tw"><table id="loc-table">
           <thead><tr>
             <th class="nc" style="width:28px"></th>
             <th>Name</th><th>Type</th><th>Address</th><th>City/State</th><th>ZIP</th><th>Phone</th><th>Email</th><th>Dealer #</th><th>Coach</th><th>Hours</th><th>Dock Info</th><th>Notes</th><th class="nc">Actions</th>
@@ -752,7 +757,7 @@ tr.psel td{background:#eef9ee!important}
       <button class="btn" onclick="exportRates()">Export CSV</button>
       <button class="btn d" onclick="delSelRates()">Delete</button>
     </div>
-    <div class="tw"><table>
+    <div class="tw"><table id="rate-table">
       <thead><tr>
         <th class="nc" style="width:28px"></th>
         <th>Origin</th><th>Destination</th><th>Carrier</th><th>Flat Rate</th><th>Rate/Mile</th><th>Miles</th><th>Fuel Sur.</th><th>Total</th><th>Date</th><th>Trend</th>
@@ -777,7 +782,7 @@ tr.psel td{background:#eef9ee!important}
       <button class="btn" onclick="exportAccounting()">Export CSV</button>
       <button class="btn a" onclick="openArchivedView()" style="margin-left:auto">&#128196; View Archived</button>
     </div>
-    <div class="tw"><table>
+    <div class="tw"><table id="acct-table">
       <thead><tr>
         <th onclick="sortAcct('loadNum')" id="acth-loadNum">Load #</th>
         <th onclick="sortAcct('status')" id="acth-status">Status</th>
@@ -806,7 +811,7 @@ tr.psel td{background:#eef9ee!important}
       </div>
       <div class="split">
         <div class="split-top" id="arch-split-top" style="height:300px">
-          <div class="tw"><table>
+          <div class="tw"><table id="arch-table">
             <thead><tr>
               <th class="nc" style="width:28px"></th>
               <th onclick="sortArch('loadNum')" id="ah-loadNum">Load #</th>
@@ -1544,6 +1549,8 @@ function goPage(p, el) {
   if(p==='rates'){renderRates();updateRatesKPIs();}
   if(p==='accounting'){renderAccounting();updateAcctKPIs();}
   if(p==='staging'){renderStaging();}
+  // Re-init resizable cols for the newly visible table
+  setTimeout(function(){initAllResizableCols();},50);
 }
 function setBF(f,el) {
   boardFilter=f;
@@ -5128,6 +5135,86 @@ function renderDashboard() {
 }
 
 // ============================
+// RESIZABLE COLUMNS
+// ============================
+var RESIZABLE_TABLES = ['board-table','dealer-table','stg-table','sc-table','loc-table','rate-table','acct-table','arch-table'];
+
+function initResizableCols(tableId) {
+  var table = document.getElementById(tableId);
+  if(!table) return;
+  var ths = table.querySelectorAll('thead th');
+  var storageKey = 'bdf_colw_' + tableId + '_' + (currentUser||'default');
+  // Restore saved widths
+  try {
+    var saved = JSON.parse(localStorage.getItem(storageKey)||'{}');
+    ths.forEach(function(th, i) {
+      if(saved[i]) {
+        th.style.width = saved[i]+'px';
+        th.style.minWidth = saved[i]+'px';
+      }
+    });
+  } catch(e){}
+
+  // Add resizer handles
+  ths.forEach(function(th, i) {
+    // Skip checkbox/action columns (nc class)
+    if(th.classList.contains('nc')) return;
+    th.classList.add('resizable');
+    // Remove existing resizer if any
+    var existing = th.querySelector('.col-resizer');
+    if(existing) existing.remove();
+    var resizer = document.createElement('div');
+    resizer.className = 'col-resizer';
+    th.appendChild(resizer);
+
+    var startX, startW;
+    resizer.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      startX = e.clientX;
+      startW = th.offsetWidth;
+      resizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      function onMove(e) {
+        var newW = Math.max(40, startW + (e.clientX - startX));
+        th.style.width = newW+'px';
+        th.style.minWidth = newW+'px';
+      }
+      function onUp() {
+        resizer.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        // Save widths for all cols in this table
+        var widths = {};
+        table.querySelectorAll('thead th').forEach(function(t, j) {
+          if(t.offsetWidth) widths[j] = t.offsetWidth;
+        });
+        try { localStorage.setItem(storageKey, JSON.stringify(widths)); } catch(e){}
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+function initAllResizableCols() {
+  RESIZABLE_TABLES.forEach(function(id){ initResizableCols(id); });
+}
+
+// Reset column widths for a table
+function resetColWidths(tableId) {
+  var storageKey = 'bdf_colw_' + tableId + '_' + (currentUser||'default');
+  localStorage.removeItem(storageKey);
+  var table = document.getElementById(tableId);
+  if(table) table.querySelectorAll('thead th').forEach(function(th){ th.style.width=''; th.style.minWidth=''; });
+  initResizableCols(tableId);
+}
+
+// ============================
 // BOOT
 // ============================
 document.addEventListener('keydown', function(e) {
@@ -5254,6 +5341,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
         renderRates(); updateRatesKPIs();
         renderStaging();
         renderAccounting(); updateAcctKPIs();
+        setTimeout(function(){initAllResizableCols();},150);
       }
     } else {
       // Real-time update from another user — re-render current page only
