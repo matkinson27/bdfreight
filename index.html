@@ -4794,7 +4794,7 @@ function renderSCPanel(cid) {
   var loadsHTML=cLoads.length?cLoads.slice(0,20).map(function(l){
     var m=getEffectiveCustR(l)-(l.cr||0);
     return '<div class="sc-load-row" style="cursor:pointer" onclick="jumpToLoad('+l.id+')">'
-      +'<div style="font-weight:700;font-family:var(--M);font-size:12px;color:var(--navy)">'+esc(l.loadNum)+'</div>'
+      +'<div style="font-weight:800;font-size:13px;color:var(--navy)">'+esc(l.loadNum)+'</div>'
       +'<div><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span></div>'
       +'<div style="color:var(--tx2)">'+esc(l.vendor||'')+'</div>'
       +'<div>$'+(l.cr||0).toLocaleString()+'</div>'
@@ -4809,7 +4809,17 @@ function renderSCPanel(cid) {
   panel.innerHTML='<div class="sc-panel">'
     +'<div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px">'
       +'<div style="flex:1;min-width:200px">'
-        +'<div style="font-size:17px;font-weight:800;color:var(--navy);margin-bottom:3px">'+esc(c.name)+probBadge+'</div>'
+        +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:3px">'
+          +'<span style="font-size:17px;font-weight:800;color:var(--navy)">'+esc(c.name)+probBadge+'</span>'
+          +'<div style="display:flex;align-items:center;gap:6px">'
+            +'<div class="sc-grade-big g'+s.tier[0]+'" style="color:'+gradeColor+(s.onProbation?';border-bottom:2px solid #dc2626':'')+';font-size:28px">'+s.tier+'</div>'
+            +'<div>'
+              +(s.onProbation?'<div style="font-size:9px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.04em">Probation</div>':'')
+              +'<div style="font-size:10px;color:var(--tx2)">'+s.score+' / 100</div>'
+              +'<div style="font-size:10px"><a href="#" onclick="event.preventDefault();showGradeBreakdown('+c.id+')" style="color:var(--green);text-decoration:none;font-weight:600">ⓘ Info</a></div>'
+            +'</div>'
+          +'</div>'
+        +'</div>'
         +'<div style="font-size:12px;color:var(--tx2);margin-bottom:8px">'+esc(c.mc)+(c.addr?' &mdash; '+esc(c.addr):'')+'</div>'
         +(contacts?'<div style="margin-bottom:10px">'+contacts+'</div>':'')
         +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
@@ -4817,12 +4827,6 @@ function renderSCPanel(cid) {
           +'<button class="btn sm a" onclick="openIncFromSC('+c.id+')">Log Incident</button>'
           +(((c.incidents||[]).length+(c.claims||[]).length)>0?'<button class="btn sm" onclick="showIncPanel('+c.id+')">Incidents &amp; Claims</button>':'')
         +'</div>'
-      +'</div>'
-      +'<div style="text-align:center;min-width:80px">'
-        +'<div class="sc-grade-big g'+s.tier[0]+'" style="color:'+gradeColor+(s.onProbation?';border-bottom:2px solid #dc2626':'')+'">'+s.tier+'</div>'
-        +(s.onProbation?'<div style="font-size:9px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Probation</div>':'')
-        +'<div style="font-size:11px;color:var(--tx2);margin-top:2px">'+s.score+' / 100</div>'
-        +'<div style="font-size:10px;margin-top:2px"><a href="#" onclick="event.preventDefault();showGradeBreakdown('+c.id+')" style="color:var(--green);text-decoration:none;font-weight:600">ⓘ Info</a></div>'
       +'</div>'
     +'</div>'
     +'<div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Load History</div>'
@@ -4847,6 +4851,15 @@ function renderSCPanel(cid) {
 }
 
 var laneSort = {col:'loads', asc:false};
+
+function toggleSCLanes(cid) {
+  var body = document.getElementById('sc-lanes-body-'+cid);
+  var arrow = document.getElementById('sc-lanes-arrow-'+cid);
+  if(!body) return;
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  if(arrow) arrow.textContent = open ? '▶' : '▼';
+}
 
 // ============================
 // GRADING PDF GENERATOR
@@ -5057,11 +5070,33 @@ function showGradeBreakdown(cid) {
   var commDetail = s.commIncs+' No Contact / No Tracking incidents, '+s.trackDings+' auto tracking dings';
   var conductDetail = s.conductIncs+' General Conduct incidents, '+s.claimCount+' claims';
 
+  // Build late arrivals list for this carrier
+  var allLoads2 = loads.concat(loads.filter(function(l){return l.archived;}));
+  var cLoads2 = allLoads2.filter(function(l){return l.carrier&&l.carrier.toLowerCase()===c.name.toLowerCase()&&!l.deleted;});
+  var lateEntries = [];
+  cLoads2.forEach(function(l){
+    (l.callins||[]).filter(function(ci){return ci.type==='late';}).forEach(function(ci){
+      lateEntries.push({loadNum:l.loadNum,lid:l.id,note:ci.note,time:ci.time});
+    });
+  });
+  var lateHTML = lateEntries.length
+    ? '<div style="margin-top:14px">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Late Arrivals ('+lateEntries.length+')</div>'
+        +lateEntries.map(function(e){
+          return '<div style="background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 6px 6px 0;padding:7px 10px;margin-bottom:5px;font-size:12px;cursor:pointer" onclick="jumpToLoad('+e.lid+')" title="Go to load">'
+            +'<div style="font-weight:700;color:var(--navy);font-size:12px">'+esc(e.loadNum)+'</div>'
+            +'<div style="color:var(--tx2);font-size:11px;margin-top:2px">'+esc(e.note)+'</div>'
+            +'<div style="color:var(--tx3);font-size:10px;margin-top:1px">'+esc(e.time)+'</div>'
+          +'</div>';
+        }).join('')
+      +'</div>'
+    : '';
   document.getElementById('grade-body').innerHTML=
     bar('Pickup Performance',s.puPct,25,puDetail)+
     bar('Delivery Performance',s.dlPct,25,dlDetail)+
     bar('Communication & Tracking',s.commBase,20,commDetail)+
-    bar('General Conduct & Claims',s.conductBase,30,conductDetail);
+    bar('General Conduct & Claims',s.conductBase,30,conductDetail)
+    +lateHTML;
   openM('m-grade');
 }
 
