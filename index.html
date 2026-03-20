@@ -371,7 +371,10 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 /* ═══════════════════════════════════════════
    MOBILE RESPONSIVE  (≤ 900px)
    ═══════════════════════════════════════════ */
+/* Hide mobile-only elements on desktop */
+#mobile-detail { display: none !important; }
 @media (max-width: 900px) {
+  #mobile-detail.open { display: block !important; overflow-y: auto; }
   /* ── Topbar ── */
   .topbar { flex-wrap: nowrap; padding: 0 8px; gap: 4px; }
   .topbar-l { gap: 4px; }
@@ -425,8 +428,12 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     inset: 0;
     background: var(--sur);
     z-index: 5000;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 0;
+  }
+  #mobile-detail.open {
+    display: block;
+    overflow-y: auto;
   }
   #mobile-detail.open { display: block; }
   #mobile-detail-inner { padding: 12px; }
@@ -575,6 +582,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
       <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
+      <button class="tbtn" id="backup-btn" onclick="manualBackup()" title="Download JSON backup" style="display:none">💾 Backup</button>
+      <button class="tbtn" id="restore-btn" onclick="restoreFromBackup()" title="Restore from JSON backup" style="display:none;color:var(--amber)">↩ Restore</button>
       <button class="tbtn" id="tb-zip-state" onclick="toggleZip()" title="Toggle ZIP">👁 ZIP: <span id="zip-state-lbl">ON</span></button>
       <button class="tbtn" id="tb-margin-state" onclick="toggleMarginMode()" title="Toggle Margin $/%%">Margin: <span id="margin-state-lbl">$</span></button>
       <div class="upill" style="cursor:pointer" onclick="openChangePassword()" title="Change Password"><span class="ugreen"></span><span id="cur-user">-</span></div>
@@ -826,7 +835,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   </div>
   <!-- Mobile load detail overlay -->
   <div id="mobile-detail">
-    <div id="mobile-detail-close">
+    <div id="mobile-detail-close" style="display:none">
       <button onclick="closeMobileDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--navy);padding:0">&#8592;</button>
       <span id="mobile-detail-title" style="font-size:15px;font-weight:700;color:var(--navy)"></span>
     </div>
@@ -1576,19 +1585,53 @@ function saveState() {
       return arr.map(function(x){
         var o = Object.assign({}, x);
         delete o.sel;
+        delete o._prevCarrier;
         return o;
       });
     }
-    DB.ref('appstate').set({
-      loads: clean(loads),
-      dealers: clean(dealers),
-      carriers: clean(carriers),
-      locations: clean(locations),
-      rates: clean(rates),
-      tempLoads: tempLoads,
-      nDealer: nDealer, nCarrier: nCarrier,
-      nLoc: nLoc, nRate: nRate, nTL: nTL
-    });
+    // Granular writes — each collection written separately to avoid
+    // one full-state overwrite racing with another user's concurrent save
+    var updates = {};
+    updates['appstate/loads']     = clean(loads);
+    updates['appstate/dealers']   = clean(dealers);
+    updates['appstate/carriers']  = clean(carriers);
+    updates['appstate/locations'] = clean(locations);
+    updates['appstate/rates']     = clean(rates);
+    updates['appstate/tempLoads'] = tempLoads;
+    updates['appstate/nDealer']   = nDealer;
+    updates['appstate/nCarrier']  = nCarrier;
+    updates['appstate/nLoc']      = nLoc;
+    updates['appstate/nRate']     = nRate;
+    updates['appstate/nTL']       = nTL;
+    DB.ref().update(updates);
+    // Queue audit entry (batched every 10s to reduce writes)
+    try {
+      var auditKey = new Date().toISOString().slice(0,10);
+      queueAudit('audit/'+auditKey, {
+        t: Date.now(),
+        u: currentUser||'unknown',
+        l: loads.filter(function(x){return !x.deleted&&!x.archived;}).length,
+        d: dealers.length
+      });
+    } catch(ae) {}
+    // Daily backup — once per day, snapshot to backups/YYYY-MM-DD
+    try {
+      var today = new Date().toISOString().slice(0,10);
+      var lastBackup = localStorage.getItem('bdf_last_backup');
+      if(lastBackup !== today) {
+        localStorage.setItem('bdf_last_backup', today);
+        DB.ref('backups/'+today).set({
+          ts: Date.now(),
+          by: currentUser||'system',
+          loads: clean(loads),
+          dealers: clean(dealers),
+          carriers: clean(carriers),
+          locations: clean(locations),
+          rates: clean(rates),
+          tempLoads: tempLoads
+        });
+      }
+    } catch(be) {}
   } catch(e) { console.error('Firebase save error', e); }
 }
 
@@ -1598,17 +1641,33 @@ function applyRemoteState(d) {
   function withSel(arr) {
     return (arr||[]).map(function(x){ return Object.assign({sel:false}, x); });
   }
-  loads      = withSel(d.loads);
-  dealers    = withSel(d.dealers);
-  carriers   = withSel(d.carriers);
-  locations  = withSel(d.locations);
-  rates      = withSel(d.rates);
+  // Merge strategy: for collections with IDs, merge remote into local
+  // so a locally-created record never gets lost by a concurrent remote write
+  function mergeById(local, remote) {
+    var remoteArr = withSel(remote);
+    if(!local || !local.length) return remoteArr;
+    // Build remote lookup by id
+    var remoteById = {};
+    remoteArr.forEach(function(x){ if(x.id!==undefined) remoteById[x.id]=x; });
+    // Keep local records not yet in remote (just created, not synced)
+    var localOnlyIds = local.filter(function(x){
+      return x.id!==undefined && remoteById[x.id]===undefined;
+    });
+    // Union: remote wins for existing IDs, local-only records preserved
+    return remoteArr.concat(localOnlyIds);
+  }
+  loads      = mergeById(loads, d.loads);
+  dealers    = mergeById(dealers, d.dealers);
+  carriers   = mergeById(carriers, d.carriers);
+  locations  = mergeById(locations, d.locations);
+  rates      = mergeById(rates, d.rates);
   tempLoads  = d.tempLoads || [];
-  if(d.nDealer)  nDealer  = d.nDealer;
-  if(d.nCarrier) nCarrier = d.nCarrier;
-  if(d.nLoc)     nLoc     = d.nLoc;
-  if(d.nRate)    nRate    = d.nRate;
-  if(d.nTL)      nTL      = d.nTL;
+  // Always take the highest counter to avoid ID collisions
+  if(d.nDealer)  nDealer  = Math.max(nDealer,  d.nDealer);
+  if(d.nCarrier) nCarrier = Math.max(nCarrier, d.nCarrier);
+  if(d.nLoc)     nLoc     = Math.max(nLoc,     d.nLoc);
+  if(d.nRate)    nRate    = Math.max(nRate,     d.nRate);
+  if(d.nTL)      nTL      = Math.max(nTL,       d.nTL);
 }
 var boardFilter = 'all', bSort = {col:'loadNum', asc:true}, selLoad = null;
 var scSort = {col:'name', asc:true}, selCarrier = null;
@@ -1675,6 +1734,11 @@ document.querySelectorAll('.overlay').forEach(function(m) {
 // ============================
 function initApp() {
   var zl=document.getElementById('zip-state-lbl');
+  // Show backup button for admins
+  var bb=document.getElementById('backup-btn');
+  if(bb) bb.style.display=isAdmin()?'':'none';
+  var rb=document.getElementById('restore-btn');
+  if(rb) rb.style.display=isAdmin()?'':'none';
   if(zl)zl.textContent=localStorage.getItem('bdf_showZip')==='0'?'OFF':'ON';
   var ml=document.getElementById('margin-state-lbl');
   if(ml)ml.textContent=localStorage.getItem('bdf_marginPct')==='1'?'%':'$';
@@ -2084,6 +2148,7 @@ function renderBoardCards() {
   var q = (document.getElementById('b-search').value||'').toLowerCase();
   var sf = document.getElementById('b-status').value;
   var filtered = loads.filter(function(l) {
+    if(l.deleted) return false; // soft-deleted
     if(l.archived) return false;
     if(sf && l.status!==sf) return false;
     if(q && !([l.loadNum,l.vendor||'',l.carrier||'',l.dispatcher||''].join(' ').toLowerCase().includes(q))) return false;
@@ -2130,6 +2195,8 @@ function openMobileDetail(lid) {
   if(panel) renderDetailInto(panel, l);
   var overlay = document.getElementById('mobile-detail');
   if(overlay) overlay.classList.add('open');
+  var closeBar = document.getElementById('mobile-detail-close');
+  if(closeBar) closeBar.style.display = '';
   // Highlight selected card
   document.querySelectorAll('.bcard').forEach(function(c){c.classList.remove('sel');});
   var card = document.getElementById('bcard-'+lid);
@@ -2160,8 +2227,16 @@ function clickLoad(id){selLoad=selLoad===id?null:id;renderBoard();}
 function toggleLoad(id,v){var l=loads.find(function(x){return x.id===id;});if(l)l.sel=v;}
 function selAllLoads(v){loads.forEach(function(l){l.sel=v;});}
 function delSelLoads(){
-  var deleted=loads.filter(function(l){return l.sel;});
-  deleted.forEach(function(l){
+  var toDelete = loads.filter(function(l){return l.sel;});
+  if(!toDelete.length) return;
+  if(!confirm('Delete '+toDelete.length+' load'+(toDelete.length!==1?'s':'')+' permanently? This cannot be undone.')) return;
+  // Soft-delete: mark deleted, keep in DB for audit trail
+  toDelete.forEach(function(l){
+    l.deleted = true;
+    l.deletedAt = Date.now();
+    l.deletedBy = cap(currentUser||'unknown');
+    l.sel = false;
+    // Return POs to dealer pool
     l.stops.filter(function(s){return s.type==='pickup';}).forEach(function(s){
       (s.pos||[]).forEach(function(p){
         if(p.po){
@@ -2170,9 +2245,10 @@ function delSelLoads(){
         }
       });
     });
+    // Write deletion audit
+    try { if(DB) DB.ref('audit/deletions').push({t:Date.now(),u:currentUser,loadNum:l.loadNum,id:l.id,by:cap(currentUser||'')}); } catch(e){}
   });
-  loads=loads.filter(function(l){return !l.sel;});
-  if(selLoad&&!loads.find(function(l){return l.id===selLoad;}))selLoad=null;
+  if(selLoad && loads.find(function(l){return l.id===selLoad&&l.deleted;})) selLoad=null;
   saveState();
   renderBoard();updateBKPIs();renderDealer();updateDKPIs();
 }
@@ -2714,7 +2790,7 @@ function setStopTime(lid, idx, field, val) {
       }
     }
   }
-  saveState();
+  saveStateDebounced(); // debounced — coalesces rapid stop time entries
   renderBoard();
   renderDetail();
 }
@@ -3739,13 +3815,22 @@ function saveLoad(){
     rateConfirmation:editingLoad?editingLoad.rateConfirmation:null,
     ratesVerified:editingLoad?editingLoad.ratesVerified:false
   };
-  if(editingLoad){Object.assign(editingLoad,obj);}
+  if(editingLoad){
+    editingLoad._prevCarrier = editingLoad.carrier||''; // snapshot before overwrite
+    Object.assign(editingLoad,obj);
+    obj = editingLoad; // ensure obj and editingLoad are same ref
+  }
   else{obj.id=Date.now();loads.push(obj);}
   if(!obj.carrier && ['Covered','Assigned','Dispatched'].includes(obj.status)) {
     setTimeout(function(){alert('Note: Load '+obj.loadNum+' has no carrier assigned. Consider adding one before advancing status.');},100);
   }
-  // Auto-advance to Covered when carrier assigned on Schedule/Available load
-  if(obj.carrier && ['Schedule','Available'].includes(obj.status)) {
+  // Auto-advance to Covered when carrier assigned on NEW Schedule/Available load
+  if(!editingLoad && obj.carrier && ['Schedule','Available'].includes(obj.status)) {
+    obj.status = 'Covered';
+    if(!obj.callins) obj.callins = [];
+    obj.callins.push({status:'Available to Covered',time:nowStr(),note:'Carrier '+obj.carrier+' assigned.',req:false,type:'note'});
+  } else if(editingLoad && obj.carrier && obj.carrier !== (editingLoad._prevCarrier||'') && ['Schedule','Available'].includes(obj.status)) {
+    // Also advance on EDIT if carrier was just added (wasn't set before)
     obj.status = 'Covered';
     if(!obj.callins) obj.callins = [];
     obj.callins.push({status:'Available to Covered',time:nowStr(),note:'Carrier '+obj.carrier+' assigned.',req:false,type:'note'});
@@ -4068,8 +4153,7 @@ function saveStagingField(tlId, field, val) {
   var tl = tempLoads.find(function(t){return t.id===tlId;});
   if(!tl) return;
   tl[field] = val;
-  saveState();
-  // Update footer count without full re-render
+  saveStateDebounced(); // debounced — inline field edits
   var footer = document.getElementById('stg-footer');
   if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
 }
@@ -4390,7 +4474,7 @@ function parseCSV(t){
 // ============================
 function renderArchived(){
   var q=(document.getElementById('arch-search').value||'').toLowerCase();
-  var rows=loads.filter(function(l){return l.archived&&(!q||[l.loadNum,l.vendor,l.carrier,l.dispatcher||''].join(' ').toLowerCase().includes(q));});
+  var rows=loads.filter(function(l){return !l.deleted&&l.archived&&(!q||[l.loadNum,l.vendor,l.carrier,l.dispatcher||''].join(' ').toLowerCase().includes(q));});
   rows.sort(function(a,b){
     var sa=getStopSum(a),sb=getStopSum(b);
     var av,bv;
@@ -4682,7 +4766,7 @@ function renderSC(){
       +'<td>'+(cl>0?'<span style="color:var(--red);font-weight:600;cursor:pointer" onclick="event.stopPropagation();showIncPanel('+c.id+')">'+cl+' claim'+(cl!==1?'s':'')+'</span>':'<span style="color:var(--tx3)">0</span>')+'</td>'
       +'<td>'+s.loadsCount+'</td>'
       +'<td style="color:var(--tx2)">'+esc(c.lanes||'')+'</td>'
-      +'<td><span class="tier tier-'+s.tier.replace('+','p').replace('-','m')+'" style="cursor:pointer" onclick="event.stopPropagation();showGradeBreakdown('+c.id+')">'+(s.tier==='P'?s.tier+' ('+s.score+')':s.tier+' '+s.score)+'</span></td>'
+      +'<td><span class="tier tier-'+s.tier.replace('+','p').replace('-','m')+'" style="cursor:pointer" onclick="event.stopPropagation();showGradeBreakdown('+c.id+')">'+s.tier+'</span></td>'
       +'<td onclick="event.stopPropagation()"><button class="btn xs" onclick="openCarrierModal('+c.id+')">Edit</button></td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--tx3)">No carriers found.</td></tr>';
@@ -4709,8 +4793,8 @@ function renderSCPanel(cid) {
 
   var loadsHTML=cLoads.length?cLoads.slice(0,20).map(function(l){
     var m=getEffectiveCustR(l)-(l.cr||0);
-    return '<div class="sc-load-row">'
-      +'<div style="font-weight:600;font-family:var(--M);font-size:11px">'+esc(l.loadNum)+'</div>'
+    return '<div class="sc-load-row" style="cursor:pointer" onclick="jumpToLoad('+l.id+')">'
+      +'<div style="font-weight:700;font-family:var(--M);font-size:12px;color:var(--navy)">'+esc(l.loadNum)+'</div>'
       +'<div><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span></div>'
       +'<div style="color:var(--tx2)">'+esc(l.vendor||'')+'</div>'
       +'<div>$'+(l.cr||0).toLocaleString()+'</div>'
@@ -5665,6 +5749,7 @@ function renderAccounting() {
   dd.value = dv;
 
   var rows = loads.filter(function(l){
+    if(l.deleted) return false;
     if(!(['Delivered','Closed'].includes(l.status)||l.archived)) return false;
     if(filter==='confirmed' && !l.rateConfirmation) return false;
     if(filter==='discrepancy' && !(l.rateConfirmation&&(l.rateConfirmation.crDiscrepancy||l.rateConfirmation.customerDiscrepancy))) return false;
@@ -6051,6 +6136,130 @@ function resetColWidths(tableId) {
   var table = document.getElementById(tableId);
   if(table) table.querySelectorAll('thead th').forEach(function(th){ th.style.width=''; th.style.minWidth=''; });
   initResizableCols(tableId);
+}
+
+// ============================
+// SAVE DEBOUNCE
+// ============================
+var _saveDebounceTimer = null;
+var _auditQueue = [];
+var _auditFlushTimer = null;
+
+// Debounced save — waits 1.5s after last call before writing to Firebase
+// Use for high-frequency blur/change events (stop times, staging fields)
+function saveStateDebounced() {
+  clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer = setTimeout(function() {
+    saveState();
+  }, 1500);
+}
+
+// Batch audit writes — collect entries and flush every 10 seconds
+// Reduces Firebase write count from ~1/action to ~1/10s
+function queueAudit(path, entry) {
+  _auditQueue.push({path: path, entry: entry});
+  clearTimeout(_auditFlushTimer);
+  _auditFlushTimer = setTimeout(flushAuditQueue, 10000);
+}
+
+function flushAuditQueue() {
+  if(!_auditQueue.length || !DB) return;
+  var batch = _auditQueue.splice(0);
+  batch.forEach(function(item) {
+    try { DB.ref(item.path).push(item.entry); } catch(e) {}
+  });
+}
+
+// Flush audit on page unload so nothing is lost
+window.addEventListener('beforeunload', function() {
+  clearTimeout(_saveDebounceTimer);
+  if(_saveDebounceTimer) saveState(); // flush any pending debounced save
+  flushAuditQueue();
+});
+
+// ============================
+// BACKUP & RESTORE
+// ============================
+function manualBackup() {
+  if(!DB) { alert('Not connected to database.'); return; }
+  function clean(arr) {
+    return (arr||[]).map(function(x){ var o=Object.assign({},x); delete o.sel; delete o._prevCarrier; return o; });
+  }
+  var snap = {
+    ts: Date.now(),
+    by: cap(currentUser||'system'),
+    loads: clean(loads),
+    dealers: clean(dealers),
+    carriers: clean(carriers),
+    locations: clean(locations),
+    rates: clean(rates),
+    tempLoads: tempLoads,
+    nDealer:nDealer, nCarrier:nCarrier, nLoc:nLoc, nRate:nRate, nTL:nTL
+  };
+  var key = new Date().toISOString().slice(0,19).replace(/:/g,'-');
+  DB.ref('backups/'+key).set(snap, function(err) {
+    if(err) { alert('Backup failed: '+err.message); }
+    else {
+      // Also download as JSON
+      var blob = new Blob([JSON.stringify(snap, null, 2)], {type:'application/json'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'bdfreight-backup-'+key+'.json';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+      localStorage.setItem('bdf_last_backup', new Date().toISOString().slice(0,10));
+      alert('Backup saved to Firebase and downloaded as JSON.');
+    }
+  });
+}
+
+function restoreFromBackup() {
+  if(!isAdmin()) { alert('Admin only.'); return; }
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    var file = e.target.files[0]; if(!file) return;
+    var r = new FileReader();
+    r.onload = function(ev) {
+      try {
+        var snap = JSON.parse(ev.target.result);
+        if(!snap.loads || !snap.carriers) { alert('Invalid backup file.'); return; }
+        var restoreDate=snap.ts?new Date(snap.ts).toLocaleString():'unknown'; if(!confirm('Restore from backup dated: '+restoreDate+' — This will overwrite all current data. Ensure others are logged out first.')) return;
+        // Apply locally
+        function withSel(arr){ return (arr||[]).map(function(x){ return Object.assign({sel:false},x); }); }
+        loads = withSel(snap.loads);
+        dealers = withSel(snap.dealers);
+        carriers = withSel(snap.carriers);
+        locations = withSel(snap.locations);
+        rates = withSel(snap.rates);
+        tempLoads = snap.tempLoads || [];
+        if(snap.nDealer) nDealer = snap.nDealer;
+        if(snap.nCarrier) nCarrier = snap.nCarrier;
+        if(snap.nLoc) nLoc = snap.nLoc;
+        if(snap.nRate) nRate = snap.nRate;
+        if(snap.nTL) nTL = snap.nTL;
+        // Write audit event
+        try { if(DB) DB.ref('audit/restores').push({t:Date.now(),u:currentUser,from:snap.ts}); } catch(ae){}
+        saveState();
+        renderDashboard(); renderBoard(); updateBKPIs(); renderDealer(); renderSC(); renderLocDB();
+        alert('Restore complete.');
+      } catch(err) { alert('Error restoring: '+err.message); }
+    };
+    r.readAsText(file);
+  };
+  input.click();
+}
+
+function viewDeletedLoads() {
+  var deleted = loads.filter(function(l){ return l.deleted; });
+  if(!deleted.length) { alert('No deleted loads found.'); return; }
+  var msg = 'Deleted loads ('+deleted.length+'):\n\n';
+  deleted.forEach(function(l){
+    msg += l.loadNum + ' — deleted ' + (l.deletedAt ? new Date(l.deletedAt).toLocaleString() : 'unknown') + ' by ' + (l.deletedBy||'unknown') + '\n';
+  });
+  msg += '\nTo restore a load, contact your admin or use Firebase console.';
+  alert(msg);
 }
 
 // ============================
