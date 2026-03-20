@@ -1573,11 +1573,25 @@ var nDealer = 1, nCarrier = 1, nLoc = 1, nRate = 1, nTL = 1;
 var DB = null; // Firebase database reference, set after SDK loads
 var _fbSaving = false; // prevent echo loops
 var _fbLoaded = false; // CRITICAL: never save until Firebase data has been received at least once
+var _fbMaxLoads = 0;     // Highest load count ever seen from Firebase — saveState refuses to write fewer
+var _fbMaxLocs  = 0;     // Same for locations
 
 function saveState() {
   if(!DB) return;
   if(!_fbLoaded) {
     console.warn('saveState blocked — Firebase not yet loaded');
+    return;
+  }
+  // Safety net: never overwrite Firebase with fewer loads/locations than we have ever seen.
+  // This prevents a race condition where saveState fires before applyRemoteState finishes.
+  var activeLoads = loads.filter(function(x){ return !x.deleted; }).length;
+  var activeLocs  = locations.length;
+  if(_fbMaxLoads > 0 && activeLoads === 0 && _fbMaxLoads > 5) {
+    console.warn('saveState blocked — loads empty but Firebase previously had ' + _fbMaxLoads);
+    return;
+  }
+  if(_fbMaxLocs > 0 && activeLocs === 0 && _fbMaxLocs > 5) {
+    console.warn('saveState blocked — locations empty but Firebase previously had ' + _fbMaxLocs);
     return;
   }
   try {
@@ -1638,6 +1652,9 @@ function saveState() {
 function applyRemoteState(d) {
   if(!d) return;
   _fbLoaded = true; // Firebase has responded — saveState is now safe
+  // Track highest counts ever seen so saveState can refuse to overwrite with empty arrays
+  _fbMaxLoads = Math.max(_fbMaxLoads, (d.loads ? Object.keys(d.loads).length : 0));
+  _fbMaxLocs  = Math.max(_fbMaxLocs,  (d.locations ? Object.keys(d.locations).length : 0));
   function withSel(arr) {
     if(arr && !Array.isArray(arr) && typeof arr === 'object') arr = Object.values(arr);
     return (arr||[]).filter(function(x){ return x != null; }).map(function(x){
