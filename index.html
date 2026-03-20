@@ -151,7 +151,7 @@ tr.psel td{background:#eef9ee!important}
 .dcol::-webkit-scrollbar-track{background:transparent}
 .dcol::-webkit-scrollbar-thumb{background:var(--navy);border-radius:3px}
 .dcol::-webkit-scrollbar-thumb:hover{background:var(--navyl)}
-.dct{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.08em;padding-bottom:7px;border-bottom:2px solid var(--green);margin-bottom:10px;position:sticky;top:0;background:var(--sur);z-index:1}
+.dct{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.08em;padding-bottom:7px;border-bottom:2px solid var(--green);margin-bottom:10px;position:sticky;top:0;background:var(--sur);z-index:1;padding-top:2px}
 /* Action buttons - styled properly */
 .abtn{height:30px;padding:0 13px;font-size:11px;font-weight:600;border-radius:20px;cursor:pointer;border:none;font-family:var(--F);display:inline-flex;align-items:center;gap:5px;transition:opacity .15s;letter-spacing:.01em}
 .abtn:hover{opacity:.82}
@@ -367,6 +367,120 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 .appt-date-inp:focus{border-color:var(--green)}
 .appt-cal-wrap{position:relative;display:inline-flex;align-items:center}
 .appt-cal-icon{position:absolute;left:6px;pointer-events:none;color:var(--tx3);font-size:12px}
+
+/* ═══════════════════════════════════════════
+   MOBILE RESPONSIVE  (≤ 900px)
+   ═══════════════════════════════════════════ */
+@media (max-width: 900px) {
+  /* ── Topbar ── */
+  .topbar { flex-wrap: nowrap; padding: 0 8px; gap: 4px; }
+  .topbar-l { gap: 4px; }
+  .logo { font-size: 14px; }
+  .gsearch { width: 160px; }
+  .gsearch input { font-size: 11px; }
+  /* Hide lower-priority topbar buttons */
+  #install-btn, #tb-zip-state, #tb-margin-state { display: none !important; }
+  .tbtn { font-size: 10px; padding: 3px 6px; }
+  .upill { font-size: 10px; padding: 2px 6px; }
+
+  /* ── Nav ── */
+  .nav { gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .ntab { font-size: 11px; padding: 8px 10px; white-space: nowrap; }
+
+  /* ── Pages ── */
+  .page { padding: 0; }
+
+  /* ── Board: hide table, show cards ── */
+  #split-top { height: auto !important; overflow: visible; }
+  #split-top .tw { overflow-x: auto; }
+  #board-table { display: none; }
+  #board-cards { display: block; }
+  .split-handle { display: none; }
+  .split-bot { display: none; }
+
+  /* ── Board cards ── */
+  #board-cards { padding: 8px; }
+  .bcard {
+    background: var(--sur);
+    border: 1px solid var(--bd);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: box-shadow .15s;
+  }
+  .bcard:active { box-shadow: 0 0 0 2px var(--green); }
+  .bcard.sel { border-color: var(--green); border-width: 2px; }
+  .bcard-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .bcard-num { font-size: 15px; font-weight: 800; color: var(--navy); }
+  .bcard-meta { font-size: 11px; color: var(--tx2); margin-bottom: 4px; }
+  .bcard-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .bcard-route { font-size: 12px; color: var(--tx); font-weight: 500; }
+  .bcard-margin { font-size: 12px; font-weight: 700; }
+
+  /* ── Detail panel on mobile: full-screen overlay ── */
+  #mobile-detail {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--sur);
+    z-index: 5000;
+    overflow-y: auto;
+    padding: 0;
+  }
+  #mobile-detail.open { display: block; }
+  #mobile-detail-inner { padding: 12px; }
+  #mobile-detail-close {
+    position: sticky;
+    top: 0;
+    background: var(--sur);
+    border-bottom: 1px solid var(--bd);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+  }
+
+  /* ── Other tables: horizontal scroll ── */
+  .tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── Staging table on mobile: hide less important cols ── */
+  #stg-table th:nth-child(6),
+  #stg-table td:nth-child(6),
+  #stg-table th:nth-child(7),
+  #stg-table td:nth-child(7),
+  #stg-table th:nth-child(9),
+  #stg-table td:nth-child(9) { display: none; }
+
+  /* ── Customer Orders table: hide addr/zip ── */
+  #dealer-table th:nth-child(9),
+  #dealer-table td:nth-child(9),
+  #dealer-table th:nth-child(11),
+  #dealer-table td:nth-child(11) { display: none; }
+
+  /* ── Modals ── */
+  .mbox { width: 96vw !important; max-height: 90vh; overflow-y: auto; }
+  .mbox.w { width: 96vw !important; }
+  .fg { grid-template-columns: 1fr !important; }
+  .fi.s2 { grid-column: span 1 !important; }
+
+  /* ── Load modal stop rows ── */
+  .sr1 { grid-template-columns: 1fr 1fr !important; }
+  .sr2 { grid-template-columns: 1fr 1fr !important; }
+
+  /* ── KPI bars ── */
+  .kpis { gap: 0; }
+  .kpi { padding: 8px 12px; min-width: 80px; }
+  .kpi-v { font-size: 20px; }
+
+  /* ── Tbar ── */
+  .tbar { flex-wrap: wrap; gap: 4px; padding: 6px 8px; }
+  .tbar input[type=text] { width: 100% !important; }
+  .tbar select { font-size: 11px; }
+  .tbar input[type=date] { font-size: 11px; padding: 0 4px; }
+}
+
 </style></head>
 <body>
 
@@ -605,6 +719,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <select id="d-state" onchange="renderDealer()"><option value="">All States</option></select>
         <select id="d-vendor" onchange="renderDealer()"><option value="">All Vendors</option></select>
         <button class="btn p" onclick="openDealerModal(null)">+ Add Order</button>
+        <button class="btn" onclick="matchDealerNames()" title="Auto-match blank dealer names from Location DB">Match Dealers</button>
         <button class="btn a" onclick="stageTempLoad()">Stage as Temp Load</button>
         <button class="btn g" onclick="createLoadFromSelected()">Create Load from Selected</button>
         <button class="btn d" onclick="delSelDealers()">Delete</button>
@@ -677,6 +792,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <button class="btn d" onclick="delSelLoads()">Delete</button>
     </div>
     <div class="split">
+      <!-- Mobile card view (shown ≤900px, board-table hidden) -->
+      <div id="board-cards" style="display:none"></div>
       <div class="split-top" id="split-top" style="height:240px">
         <div class="tw"><table id="board-table">
           <colgroup><col style="width:28px"><col style="width:90px"><col style="width:96px"><col style="width:100px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:100px"><col style="width:80px"><col style="width:75px"><col style="width:50px"><col style="width:62px"><col style="width:120px"><col style="width:105px"><col style="width:78px"><col style="width:78px"><col style="width:68px"></colgroup>
@@ -705,6 +822,14 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="split-handle" id="split-handle"></div>
       <div class="split-bot"><div id="detail-panel"><div class="dempty">Select a load to view details</div></div></div>
     </div>
+  </div>
+  <!-- Mobile load detail overlay -->
+  <div id="mobile-detail">
+    <div id="mobile-detail-close">
+      <button onclick="closeMobileDetail()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--navy);padding:0">&#8592;</button>
+      <span id="mobile-detail-title" style="font-size:15px;font-weight:700;color:var(--navy)"></span>
+    </div>
+    <div id="mobile-detail-inner"></div>
   </div>
 
   <!-- CARRIER SCORECARD (formerly Carrier DB) -->
@@ -1029,6 +1154,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi"><label>State</label><input id="df-state" maxlength="2"></div>
       <div class="fi"><label>Zip Code</label><input id="df-zip" maxlength="5" placeholder="00000"></div>
     </div>
+      <div class="fi s2"><label>Additional Info <span style="font-size:10px;font-weight:400;color:var(--tx3)">(SO#, PU#, notes — visible in detail view only)</span></label><textarea id="df-addinfo" style="height:48px;resize:none" placeholder="e.g. SO 190768, PU# 12345..."></textarea></div>
     <div class="mfooter"><button class="btn" onclick="closeM('m-dealer')">Cancel</button><button class="btn p" onclick="saveDealer()">Save</button></div>
   </div>
 </div>
@@ -1539,17 +1665,20 @@ function initApp() {
   renderDashboard();
   setInterval(function(){
     var now = Date.now();
+    var changed = false;
     loads.forEach(function(l) {
       if(l.status==='Delivered' && l.deliveredAt && !l.archived) {
+        // Only auto-close if: 72hr passed AND BOL+POD uploaded AND rates confirmed
         if(now - l.deliveredAt >= 72*3600000) {
-          if(l.docs && l.docs.bol && l.docs.pod) {
-            l.status = 'Closed'; l.archived = true;
+          if(l.docs && l.docs.bol && l.docs.pod && l.rateConfirmation) {
+            l.status = 'Closed'; l.archived = true; changed = true;
           }
         }
       }
     });
+    if(changed){ saveState(); renderBoard(); }
     updateBKPIs();
-  }, 30000);
+  }, 300000); // 5 minutes
 }
 
 function goPage(p, el) {
@@ -1566,7 +1695,15 @@ function goPage(p, el) {
   if(el) el.classList.add('on');
   if(p==='dashboard'){renderDashboard();}
   if(p==='dealer'){renderDealer();updateDKPIs();}
-  if(p==='board'){renderBoard();updateBKPIs();}
+  if(p==='board'){
+    renderBoard();updateBKPIs();
+    if(window.innerWidth<=900){
+      document.getElementById('board-table').style.display='none';
+      renderBoardCards();
+    } else {
+      var bc=document.getElementById('board-cards'); if(bc) bc.style.display='none';
+    }
+  }
   if(p==='scorecard'){renderSC();updateSCKPIs();}
   if(p==='locdb'){selLoc=null;renderLocDB();}
   if(p==='rates'){renderRates();updateRatesKPIs();}
@@ -1907,7 +2044,92 @@ function renderBoard() {
       +'</tr>';
   }).join('')||'<tr><td colspan="17" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
   renderDetail();
+  if(window.innerWidth<=900) renderBoardCards();
 }
+
+// ============================
+// MOBILE BOARD CARDS
+// ============================
+function renderBoardCards() {
+  var container = document.getElementById('board-cards');
+  if(!container) return;
+  if(window.innerWidth > 900) { container.style.display='none'; return; }
+  container.style.display = 'block';
+
+  var q = (document.getElementById('b-search').value||'').toLowerCase();
+  var sf = document.getElementById('b-status').value;
+  var filtered = loads.filter(function(l) {
+    if(l.archived) return false;
+    if(sf && l.status!==sf) return false;
+    if(q && !([l.loadNum,l.vendor||'',l.carrier||'',l.dispatcher||''].join(' ').toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  if(!filtered.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--tx3);font-size:13px">No loads found.</div>';
+    return;
+  }
+
+  var marginPct = localStorage.getItem('bdf_marginPct')==='1';
+  container.innerHTML = filtered.map(function(l) {
+    var s = getStopSum(l);
+    var mar = getEffectiveCustR(l) - (l.cr||0);
+    var marStr = marginPct
+      ? (getEffectiveCustR(l)>0 ? Math.round(mar/getEffectiveCustR(l)*100)+'%' : '0%')
+      : '$'+mar.toLocaleString();
+    var marCls = mar >= 0 ? 'mpos' : 'mneg';
+    var route = (s.fCity||'—') + (s.fState?', '+s.fState:'') + ' → ' + (s.lCity||'—') + (s.lState?', '+s.lState:'');
+    return '<div class="bcard'+(l.id===selLoad?' sel':'')+'" onclick="openMobileDetail('+l.id+')" id="bcard-'+l.id+'">'
+      + '<div class="bcard-top">'
+        + '<span class="bcard-num">'+esc(l.loadNum)+'</span>'
+        + '<span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'
+        + (l.status==='Issue'||l.status==='Claim'?'<span style="color:var(--red);font-size:12px">⚠</span>':'')
+      + '</div>'
+      + '<div class="bcard-meta">'+esc(l.vendor||'—')+(l.carrier?' · '+esc(l.carrier):'')+(l.dispatcher?' · '+esc(l.dispatcher):'')+'</div>'
+      + '<div class="bcard-row">'
+        + '<span class="bcard-route">'+esc(route)+'</span>'
+        + '<span class="bcard-margin '+marCls+'">'+marStr+'</span>'
+      + '</div>'
+      + (s.fAppt?'<div style="font-size:10px;color:var(--tx3);margin-top:4px">PU: '+esc(s.fAppt.substring(0,10))+(s.lAppt?' · DEL: '+esc(s.lAppt.substring(0,10)):'')+'</div>':'')
+      + '</div>';
+  }).join('');
+}
+
+function openMobileDetail(lid) {
+  selLoad = lid;
+  var l = loads.find(function(x){return x.id===lid;});
+  if(!l) return;
+  var panel = document.getElementById('mobile-detail-inner');
+  var title = document.getElementById('mobile-detail-title');
+  if(title) title.textContent = l.loadNum;
+  if(panel) renderDetailInto(panel, l);
+  var overlay = document.getElementById('mobile-detail');
+  if(overlay) overlay.classList.add('open');
+  // Highlight selected card
+  document.querySelectorAll('.bcard').forEach(function(c){c.classList.remove('sel');});
+  var card = document.getElementById('bcard-'+lid);
+  if(card) card.classList.add('sel');
+}
+
+function closeMobileDetail() {
+  var overlay = document.getElementById('mobile-detail');
+  if(overlay) overlay.classList.remove('open');
+}
+
+// Re-render cards on window resize
+window.addEventListener('resize', function(){
+  if(document.getElementById('page-board').classList.contains('on')) {
+    if(window.innerWidth <= 900) {
+      document.getElementById('board-table').style.display = 'none';
+      renderBoardCards();
+    } else {
+      document.getElementById('board-table').style.display = '';
+      var c = document.getElementById('board-cards');
+      if(c) c.style.display = 'none';
+    }
+  }
+});
+
 function sortBoard(c){bSort.asc=bSort.col===c?!bSort.asc:true;bSort.col=c;renderBoard();}
 function clickLoad(id){selLoad=selLoad===id?null:id;renderBoard();}
 function toggleLoad(id,v){var l=loads.find(function(x){return x.id===id;});if(l)l.sel=v;}
@@ -2894,7 +3116,9 @@ function _openApptCal(id, year, month) {
   var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var html = '<div class="appt-cal-hd">'
     +'<button class="appt-cal-nav" onclick="_openApptCal(\''+id+'\','+(month===0?year-1:year)+','+(month===0?11:month-1)+')">&#8249;</button>'
-    +'<span class="appt-cal-title">'+months[month]+' '+year+'</span>'
+    +'<span class="appt-cal-title">'+months[month]+' '
+    +'<button class="appt-cal-nav" style="font-size:11px;padding:1px 4px" onclick="_openApptCalYear(\''+id+'\','+year+','+month+')">'+year+'</button>'
+    +'</span>'
     +'<button class="appt-cal-nav" onclick="_openApptCal(\''+id+'\','+(month===11?year+1:year)+','+(month===11?0:month+1)+')">&#8250;</button>'
     +'</div>'
     +'<div class="appt-cal-grid">';
@@ -2949,6 +3173,37 @@ function _pickApptDay(id, year, month, day) {
   var cbName = dateInp ? dateInp.getAttribute('data-cb') : null;
   // Get cbName from the input's context - stored as data attr
   _fireApptCb(id, iso+'T'+timePart);
+}
+
+function _openApptCalYear(id, year, month) {
+  var existing = document.getElementById('appt-cal-popup');
+  if(existing) existing.remove();
+  var cal = document.createElement('div');
+  cal.id = 'appt-cal-popup';
+  cal.className = 'appt-cal';
+  var startYear = year - 3;
+  var html = '<div class="appt-cal-hd"><span class="appt-cal-title">Select Year</span></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px">';
+  for(var y = startYear; y <= startYear+11; y++) {
+    var cls = y===year ? 'appt-cal-day sel' : 'appt-cal-day';
+    html += '<div class="'+cls+'" style="padding:6px 2px" onclick="_openApptCal(\''+id+'\','+y+','+month+')">'+y+'</div>';
+  }
+  html += '</div>';
+  cal.innerHTML = html;
+  document.body.appendChild(cal);
+  var inp = document.getElementById(id+'-date');
+  if(inp) {
+    var r = inp.getBoundingClientRect();
+    cal.style.top = (r.bottom + window.scrollY + 4)+'px';
+    var left = r.left + window.scrollX;
+    if(left + 224 > window.innerWidth) left = window.innerWidth - 230;
+    cal.style.left = left+'px';
+  }
+  setTimeout(function(){
+    document.addEventListener('click', function _yClose(e){
+      if(!cal.contains(e.target)){cal.remove();_calTarget=null;document.removeEventListener('click',_yClose);}
+    });
+  }, 50);
 }
 
 function _fireApptCb(id, internal) {
@@ -3494,7 +3749,16 @@ function buildLoadFromPOs(sel) {
     dm[k].pos.push({po:d.po,pieces:Number(d.pieces)||0,seats:Number(d.seats)||0,dealer:dealerName,ri:dm[k].pos.length});
   });
   var dlStops=Object.values(dm).map(function(g){
-    return {type:'delivery',name:g.dealer,addr:g.addr,city:g.city,state:g.state,zip:g.zip||'',
+    var stopName=g.dealer;
+    if(!stopName||stopName===(g.city+(g.state?', '+g.state:''))){
+      var lm=locations.find(function(l){
+        var lc=(l.city||'').toLowerCase(),ls='';
+        if(lc.indexOf(',')!==-1){var p=lc.split(',');lc=p[0].trim();ls=p[1].trim();}
+        return lc===(g.city||'').toLowerCase()&&(ls===(g.state||'').toLowerCase()||!g.state);
+      });
+      if(lm) stopName=lm.name;
+    }
+    return {type:'delivery',name:stopName,addr:g.addr,city:g.city,state:g.state,zip:g.zip||'',
       appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:g.pos};
   });
   Object.values(dm).forEach(function(g){
@@ -3809,14 +4073,20 @@ function renderDealer(){
   var vf=document.getElementById('d-vendor').value;
   var rows=dealers.filter(function(d){return (!sf||d.state===sf)&&(!vf||d.vendor===vf)&&(!q||(d.po+' '+d.dealer+' '+d.vendor+' '+d.city).toLowerCase().includes(q));});
   document.getElementById('dealer-body').innerHTML=rows.length?rows.map(function(d){
+        var hasExtra = d.addinfo && d.addinfo.trim();
     return '<tr class="'+(d.sel?'psel':'')+'">'
       +'<td><input type="checkbox"'+(d.sel?' checked':'')+' onchange="toggleDealer('+d.id+',this.checked)"></td>'
-      +'<td style="font-weight:700">'+esc(d.po||'')+'</td>'
+      +'<td style="font-weight:700">'+esc(d.po||'')
+        +(hasExtra?'<span style="margin-left:5px;font-size:9px;background:var(--navy);color:#fff;border-radius:3px;padding:1px 4px">info</span>':'')
+        +'</td>'
       +'<td>'+esc(d.vendor||'')+'</td><td>'+esc(d.pieces||'')+'</td><td>'+esc(d.seats||'')+'</td>'
       +'<td>'+esc(fmtDate(d.ready||''))+'</td><td>'+esc(d.dealer||'')+'</td><td>'+esc(d.phone||'')+'</td>'
       +'<td>'+esc(d.addr||'')+'</td><td>'+esc(d.city||'')+'</td><td>'+esc(d.state||'')+'</td>'
       +'<td><button class="btn xs" onclick="openDealerModal('+d.id+')">Edit</button></td>'
-      +'</tr>';
+      +'</tr>'
+      +(hasExtra?'<tr style="background:#fefce8"><td colspan="12" style="padding:5px 14px 8px 36px;font-size:11px;color:var(--tx2)">'
+        +'<span style="font-weight:600;color:var(--navy)">Additional Info:</span> '+esc(d.addinfo)
+        +'</td></tr>':'');
   }).join(''):'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--tx3)">No dealer orders. Import a CSV or add manually.</td></tr>';
   updateDKPIs();
 }
@@ -3835,9 +4105,9 @@ function openDealerModal(id) {
     fv('df-ready').value=d.ready?toInputDate(d.ready):'';
     fv('df-dealer').value=d.dealer||'';fv('df-phone').value=d.phone||'';
     fv('df-addr').value=d.addr||'';fv('df-city').value=d.city||'';
-    fv('df-state').value=d.state||'';fv('df-zip').value=d.zip||'';
+    fv('df-state').value=d.state||'';fv('df-zip').value=d.zip||'';fv('df-addinfo').value=d.addinfo||'';
   } else {
-    ['df-po','df-vendor','df-pieces','df-seats','df-ready','df-dealer','df-phone','df-addr','df-city','df-state','df-zip'].forEach(function(i){fv(i).value='';});
+    ['df-po','df-vendor','df-pieces','df-seats','df-ready','df-dealer','df-phone','df-addr','df-city','df-state','df-zip','df-addinfo'].forEach(function(i){fv(i).value='';});
   }
   openM('m-dealer');
 }
@@ -3857,7 +4127,7 @@ function saveDealer(){
   var readyDisp = ready ? (function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
   var d={po:f('df-po'),vendor:f('df-vendor'),pieces:f('df-pieces'),seats:f('df-seats'),
     ready:readyDisp,dealer:f('df-dealer'),phone:f('df-phone'),addr:f('df-addr'),
-    city:f('df-city'),state:f('df-state'),zip:f('df-zip'),sel:false};
+    city:f('df-city'),state:f('df-state'),zip:f('df-zip'),addinfo:f('df-addinfo'),sel:false};
   if(editingDealerId) {
     var ex=dealers.find(function(x){return x.id===editingDealerId;});
     if(ex) Object.assign(ex,d);
@@ -3868,6 +4138,24 @@ function saveDealer(){
   if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
     locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
   closeM('m-dealer');saveState();renderDealer();
+}
+
+function matchDealerNames(){
+  var matched=0;
+  dealers.forEach(function(d){
+    if(d.dealer&&d.dealer.trim())return;
+    var cityL=(d.city||"").trim().toLowerCase();
+    var stateL=(d.state||"").trim().toLowerCase();
+    if(!cityL)return;
+    var loc=locations.find(function(l){
+      var lc=(l.city||"").toLowerCase(),ls="";
+      if(lc.indexOf(",")!==-1){var p=lc.split(",");lc=p[0].trim();ls=p[1].trim();}
+      return lc===cityL&&(ls===stateL||stateL==="");
+    });
+    if(loc){d.dealer=loc.name;d.phone=d.phone||loc.phone||"";matched++;}
+  });
+  if(matched){saveState();renderDealer();showMsg("dealer-msg",matched+" dealer name"+(matched!==1?"s":"")+" matched.","ok");}
+  else showMsg("dealer-msg","No unmatched dealers found (or no matching Location DB entries).","ok");
 }
 
 // Dealer modal autocomplete
@@ -3920,6 +4208,7 @@ function importDealerCSV(input){
           else if(n==='city')d.city=row[k];
           else if(n==='state')d.state=row[k];
           else if(n==='zip'||n==='zipcode')d.zip=row[k];
+          else if(n==='additionalinfo'||n==='addinfo'||n==='notes'||n==='sono'||n==='sono')d.addinfo=row[k];
         });
         // ── City+State → Location DB lookup ──────────────────────────
         // If dealer name is blank but city+state are present,
@@ -3958,9 +4247,24 @@ function importDealerCSV(input){
         if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
           locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
       });
+      // Auto-match blank dealer names to Location DB by city+state
+      var matched = 0;
+      dealers.forEach(function(d){
+        if(d.dealer && d.dealer.trim()) return; // already has name
+        var cityL = (d.city||'').trim().toLowerCase();
+        var stateL = (d.state||'').trim().toLowerCase();
+        if(!cityL) return;
+        var loc = locations.find(function(l){
+          var lc = (l.city||'').toLowerCase();
+          var ls = '';
+          if(lc.indexOf(',')!==-1){var p=lc.split(',');lc=p[0].trim();ls=p[1].trim();}
+          return lc===cityL && (ls===stateL||stateL==='');
+        });
+        if(loc){ d.dealer=loc.name; d.phone=d.phone||loc.phone||''; matched++; }
+      });
       renderDealer();updateDKPIs();
       saveState();
-      showMsg('dealer-msg','Imported: '+added+' new, '+updated+' updated.','ok');
+      showMsg('dealer-msg','Imported: '+added+' new, '+updated+' updated'+(matched?' ('+matched+' dealer names auto-matched)':'')+'.','ok');
     }catch(err){showMsg('dealer-msg','Error: '+err.message,'err');}
     input.value='';
   };r.readAsText(file);
@@ -5451,6 +5755,27 @@ function initResizableCols(tableId) {
     th.appendChild(resizer);
 
     var startX, startW;
+    // Double-click to fit header text width
+    resizer.addEventListener('dblclick', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      th.style.width = ''; th.style.minWidth = '';
+      // Measure header text naturally
+      var tmp = document.createElement('span');
+      tmp.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font-size:'
+        + getComputedStyle(th).fontSize + ';font-weight:' + getComputedStyle(th).fontWeight
+        + ';font-family:' + getComputedStyle(th).fontFamily + ';padding:0 8px';
+      // Get text without the resizer child
+      var txt = th.innerText.replace(/[▲▼]/g,'').trim();
+      tmp.textContent = txt;
+      document.body.appendChild(tmp);
+      var w = Math.max(tmp.offsetWidth + 20, 40);
+      document.body.removeChild(tmp);
+      th.style.width = w+'px'; th.style.minWidth = w+'px';
+      // Save
+      var widths = {};
+      table.querySelectorAll('thead th').forEach(function(t,j){if(t.offsetWidth)widths[j]=t.offsetWidth;});
+      try{localStorage.setItem(storageKey,JSON.stringify(widths));}catch(e){}
+    });
     resizer.addEventListener('mousedown', function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -5461,7 +5786,7 @@ function initResizableCols(tableId) {
       document.body.style.userSelect = 'none';
 
       function onMove(e) {
-        var newW = Math.max(40, startW + (e.clientX - startX));
+        var newW = Math.max(20, startW + (e.clientX - startX));
         th.style.width = newW+'px';
         th.style.minWidth = newW+'px';
       }
