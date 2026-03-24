@@ -4564,40 +4564,52 @@ function parsePasteOrders() {
 
 function parseFreeTextOrder(line) {
   var d = {po:'', vendor:'', pieces:'0', seats:'0', ready:'', dealer:'', phone:'', addr:'', city:'', state:'', zip:'', addinfo:'', sel:false};
+  var working = line.replace(/\s+/g,' ').trim();
 
-  // SO# — strip first so it doesn't interfere with other patterns
-  var soM = line.match(/(?:^|\s)SO[# ]*(\w+)/i);
-  if(soM) { d.addinfo = 'SO ' + soM[1]; line = line.replace(soM[0].trim(), '').trim(); }
+  // SO# — capture and strip
+  var soM = working.match(/(?:^|\s)SO[# ]*(\w+)/i);
+  if(soM) { d.addinfo = 'SO ' + soM[1]; working = working.replace(soM[0].trim(), ' ').replace(/\s+/g,' ').trim(); }
 
-  // PO#
-  var poM = line.match(/(?:^|\s)PO[# ]*(\w+)/i);
-  if(poM) { d.po = poM[1]; line = line.replace(poM[0].trim(), '').trim(); }
+  // PO# — allow suffixes like -BO
+  var poM = working.match(/(?:^|\s)PO[# ]*(\w[\w-]*)/i);
+  if(poM) { d.po = poM[1]; working = working.replace(poM[0].trim(), ' ').replace(/\s+/g,' ').trim(); }
   if(!d.po) return null;
 
-  // Pieces
-  var pcsM = line.match(/(\d+)\s*pcs?/i);
-  if(pcsM) { d.pieces = pcsM[1]; line = line.replace(pcsM[0], '').trim(); }
+  // Pieces (1 pc or 12 pcs)
+  var pcsM = working.match(/(\d+)\s*pcs?/i);
+  if(pcsM) { d.pieces = pcsM[1]; working = working.replace(pcsM[0], ' ').replace(/\s+/g,' ').trim(); }
 
-  // Seats
-  var seatsM = line.match(/(\d+)\s*seats?/i);
-  if(seatsM) { d.seats = seatsM[1]; line = line.replace(seatsM[0], '').trim(); }
+  // Seats (1 seat or 12 seats)
+  var seatsM = working.match(/(\d+)\s*seats?/i);
+  if(seatsM) { d.seats = seatsM[1]; working = working.replace(seatsM[0], ' ').replace(/\s+/g,' ').trim(); }
 
-  // Phone — strip before city/state so numbers don't confuse it
-  var phoneM = line.match(/[(]?(\d{3})[-. ](\d{3})[-. ](\d{4})[)]?/);
-  if(phoneM) { d.phone = phoneM[1]+'-'+phoneM[2]+'-'+phoneM[3]; line = line.replace(phoneM[0], '').trim(); }
-
-  // Ready date — strip before city/state
-  var readyM = line.match(/ready\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/i);
-  if(readyM) { d.ready = readyM[1]; line = line.replace(readyM[0], '').trim(); }
-
-  // City + State — safe now that noise is stripped
-  line = line.replace(/\s+/g, ' ').trim();
-  var cityStateM = line.match(/([A-Za-z][A-Za-z ]+?)\s+([A-Z]{2})(?:\s|$)/);
-  if(cityStateM) {
-    d.city = cityStateM[1].trim();
-    d.state = cityStateM[2];
-    line = line.replace(cityStateM[0].trim(), '').trim();
+  // Phone — grab just the 10 digits, ignore any trailing notes
+  var phoneM = working.match(/(\d{3})[-. ](\d{3})[-. ](\d{4})/);
+  if(phoneM) {
+    d.phone = phoneM[1]+'-'+phoneM[2]+'-'+phoneM[3];
+    // Strip from the opening paren (or phone start) to end of parens / notes
+    working = working.replace(/[(]?\d{3}[-. ]\d{3}[-. ]\d{4}[^)]*[)]?/, ' ').replace(/\s+/g,' ').trim();
   }
+
+  // Ready date
+  var readyM = working.match(/ready\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/i);
+  if(readyM) { d.ready = readyM[1]; working = working.replace(readyM[0], ' ').replace(/\s+/g,' ').trim(); }
+
+  // City + State — strip all known tokens first, then match what remains
+  // At this point working should be just "City ST" or "Multi Word City ST"
+  working = working.replace(/\s+/g,' ').trim();
+  var csM = working.match(/^([A-Za-z][A-Za-z ]+?)\s+([A-Z]{2})(?:\s|$)/);
+  if(csM) {
+    d.city = csM[1].trim();
+    d.state = csM[2];
+    working = working.replace(csM[0].trim(), ' ').replace(/\s+/g,' ').trim();
+  }
+
+  // Anything remaining = vendor
+  if(working) d.vendor = working;
+
+  return d;
+}
 
   // Remaining = vendor
   var remaining = line.replace(/\s+/g,' ').trim();
