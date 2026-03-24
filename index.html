@@ -4537,9 +4537,9 @@ var _pasteQueueIdx = 0;
 
 function parsePasteOrders() {
   var txt = document.getElementById('paste-orders-txt').value;
-  var lines = txt.split(/
-?
-/).map(function(l){return l.trim();}).filter(Boolean);
+  var lines = txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+
+
   if(!lines.length) { showMsg('paste-orders-msg','Nothing to import.','err'); return; }
 
   _pasteQueue = [];
