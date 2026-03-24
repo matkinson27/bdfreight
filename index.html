@@ -721,7 +721,10 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   <!-- DEALER ORDERS -->
   <div class="page" id="page-dealer">
     <div class="kpis c4" id="kpi-dealer"></div>
-    <div onclick="document.getElementById('dealer-csv').click()" style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--sur);border:1.5px dashed var(--green);border-radius:var(--r);cursor:pointer;margin-bottom:8px"><svg width="13" height="13" viewBox="0 0 20 20" fill="var(--green)"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg><div><strong style="font-size:12px;color:var(--navy)">Import Dealer Orders CSV</strong><span style="font-size:11px;color:var(--tx2);margin-left:8px">Columns: PO# | Vendor | Pieces | Seats | Ready Date | Dealer Name | Phone # | Address | City | State — duplicate PO# updates in place</span></div><input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this)" style="display:none"></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+    <div onclick="document.getElementById('dealer-csv').click()" style="flex:1;display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--sur);border:1.5px dashed var(--green);border-radius:var(--r);cursor:pointer"><svg width="13" height="13" viewBox="0 0 20 20" fill="var(--green)"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg><div><strong style="font-size:12px;color:var(--navy)">Import Dealer Orders CSV</strong><span style="font-size:11px;color:var(--tx2);margin-left:8px">Columns: PO# | Vendor | Pieces | Seats | Ready Date | Dealer Name | Phone # | Address | City | State — duplicate PO# updates in place</span></div><input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this)" style="display:none"></div>
+    <div onclick="openM('m-paste-orders')" style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--sur);border:1.5px dashed var(--navy);border-radius:var(--r);cursor:pointer;white-space:nowrap"><svg width="13" height="13" viewBox="0 0 20 20" fill="var(--navy)"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg><div><strong style="font-size:12px;color:var(--navy)">Paste Free-Text Orders</strong><span style="font-size:11px;color:var(--tx2);margin-left:8px">e.g. SO 194158 PO 55273 12 pcs 31 seats Lindon UT ready 3/11 (801-405-9766)</span></div></div>
+    </div>
     <div class="csvmsg" id="dealer-msg"></div>
     <div id="dv-active">
       <div class="tbar">
@@ -1168,6 +1171,32 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     </div>
       <div class="fi s2"><label>Additional Info <span style="font-size:10px;font-weight:400;color:var(--tx3)">(SO#, PU#, notes — visible in detail view only)</span></label><textarea id="df-addinfo" style="height:48px;resize:none" placeholder="e.g. SO 190768, PU# 12345..."></textarea></div>
     <div class="mfooter"><button class="btn" onclick="closeM('m-dealer')">Cancel</button><button class="btn p" onclick="saveDealer()">Save</button></div>
+  </div>
+</div>
+
+<!-- PASTE FREE-TEXT ORDERS MODAL -->
+<div class="overlay" id="m-paste-orders">
+  <div class="mbox w" style="max-width:600px">
+    <div class="mh">Paste Free-Text Orders</div>
+    <div style="font-size:12px;color:var(--tx2);margin-bottom:10px">One order per line. Supports format: <code style="background:var(--sur2);padding:1px 5px;border-radius:3px">SO 194158 PO 55273 12 pcs 31 seats Lindon UT ready 3/11 (801-405-9766)</code></div>
+    <textarea id="paste-orders-txt" style="width:100%;height:180px;font-size:12px;font-family:var(--M);padding:8px;border:1px solid var(--bd2);border-radius:var(--r);resize:vertical" placeholder="SO 194158 PO 55273 12 pcs 31 seats Lindon UT ready 3/11 (801-405-9766)&#10;SO 194159 PO 55274 8 pcs 22 seats Provo UT ready 3/14 (801-555-1234)"></textarea>
+    <div class="csvmsg" id="paste-orders-msg" style="margin-top:6px"></div>
+    <div class="mfooter">
+      <button class="btn" onclick="closeM('m-paste-orders');document.getElementById('paste-orders-txt').value=''">Cancel</button>
+      <button class="btn p" onclick="parsePasteOrders()">Import Orders</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOCATION PICKER MODAL (for ambiguous paste import matches) -->
+<div class="overlay" id="m-loc-picker">
+  <div class="mbox" style="max-width:480px">
+    <div class="mh">Multiple Locations Found</div>
+    <div id="loc-picker-sub" style="font-size:12px;color:var(--tx2);margin-bottom:12px"></div>
+    <div id="loc-picker-list" style="max-height:260px;overflow-y:auto"></div>
+    <div class="mfooter">
+      <button class="btn" onclick="skipLocPicker()">Skip — Leave Blank</button>
+    </div>
   </div>
 </div>
 
@@ -4499,6 +4528,190 @@ function pickDealerName(name,addr,cityState,phone){
 }
 
 // CSV Import
+// ============================
+// FREE-TEXT ORDER PASTE PARSER
+// ============================
+var _pasteQueue = []; // orders pending location disambiguation
+var _pasteResults = []; // fully resolved orders
+var _pasteQueueIdx = 0;
+
+function parsePasteOrders() {
+  var txt = document.getElementById('paste-orders-txt').value;
+  var lines = txt.split(/
+?
+/).map(function(l){return l.trim();}).filter(Boolean);
+  if(!lines.length) { showMsg('paste-orders-msg','Nothing to import.','err'); return; }
+
+  _pasteQueue = [];
+  _pasteResults = [];
+  _pasteQueueIdx = 0;
+
+  var parseErrors = [];
+  lines.forEach(function(line, i) {
+    var d = parseFreeTextOrder(line);
+    if(!d) { parseErrors.push('Line '+(i+1)+': could not parse'); return; }
+    _pasteQueue.push(d);
+  });
+
+  if(!_pasteQueue.length) {
+    showMsg('paste-orders-msg', parseErrors.join(' | ') || 'No valid orders found.', 'err');
+    return;
+  }
+
+  // Start resolving location matches
+  resolveNextPasteOrder();
+}
+
+function parseFreeTextOrder(line) {
+  var d = {po:'', vendor:'', pieces:'0', seats:'0', ready:'', dealer:'', phone:'', addr:'', city:'', state:'', zip:'', addinfo:'', sel:false};
+
+  // SO# — strip first so it doesn't interfere with other patterns
+  var soM = line.match(/(?:^|\s)SO[# ]*(\w+)/i);
+  if(soM) { d.addinfo = 'SO ' + soM[1]; line = line.replace(soM[0].trim(), '').trim(); }
+
+  // PO#
+  var poM = line.match(/(?:^|\s)PO[# ]*(\w+)/i);
+  if(poM) { d.po = poM[1]; line = line.replace(poM[0].trim(), '').trim(); }
+  if(!d.po) return null;
+
+  // Pieces
+  var pcsM = line.match(/(\d+)\s*pcs?/i);
+  if(pcsM) { d.pieces = pcsM[1]; line = line.replace(pcsM[0], '').trim(); }
+
+  // Seats
+  var seatsM = line.match(/(\d+)\s*seats?/i);
+  if(seatsM) { d.seats = seatsM[1]; line = line.replace(seatsM[0], '').trim(); }
+
+  // Phone — strip before city/state so numbers don't confuse it
+  var phoneM = line.match(/[(]?(\d{3})[-. ](\d{3})[-. ](\d{4})[)]?/);
+  if(phoneM) { d.phone = phoneM[1]+'-'+phoneM[2]+'-'+phoneM[3]; line = line.replace(phoneM[0], '').trim(); }
+
+  // Ready date — strip before city/state
+  var readyM = line.match(/ready\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/i);
+  if(readyM) { d.ready = readyM[1]; line = line.replace(readyM[0], '').trim(); }
+
+  // City + State — safe now that noise is stripped
+  line = line.replace(/\s+/g, ' ').trim();
+  var cityStateM = line.match(/([A-Za-z][A-Za-z ]+?)\s+([A-Z]{2})(?:\s|$)/);
+  if(cityStateM) {
+    d.city = cityStateM[1].trim();
+    d.state = cityStateM[2];
+    line = line.replace(cityStateM[0].trim(), '').trim();
+  }
+
+  // Remaining = vendor
+  var remaining = line.replace(/\s+/g,' ').trim();
+  if(remaining) d.vendor = remaining;
+
+  return d;
+}
+
+  // Remaining text = vendor (if present before city/state was stripped, it might be here)
+  // Try to get vendor from what remains
+  var remaining = line.replace(/\s+/g,' ').trim();
+  if(remaining) d.vendor = remaining;
+
+  return d;
+}
+
+function resolveNextPasteOrder() {
+  if(_pasteQueueIdx >= _pasteQueue.length) {
+    // All resolved — commit
+    commitPasteOrders();
+    return;
+  }
+
+  var d = _pasteQueue[_pasteQueueIdx];
+
+  // Try location DB match by city+state
+  if(d.city && d.state) {
+    var cityL = d.city.toLowerCase();
+    var stateL = d.state.toLowerCase();
+    var matches = locations.filter(function(l) {
+      var lc = (l.city||'').toLowerCase();
+      var ls = '';
+      if(lc.indexOf(',')!==-1){ var p=lc.split(','); lc=p[0].trim(); ls=p[1].trim(); }
+      if(l.state) ls=l.state.trim().toLowerCase();
+      return lc===cityL && (ls===stateL||stateL==='');
+    });
+
+    if(matches.length === 1) {
+      // Exact match
+      d.dealer = matches[0].name;
+      d.addr = d.addr || matches[0].addr || '';
+      d.phone = d.phone || matches[0].phone || '';
+      _pasteQueueIdx++;
+      resolveNextPasteOrder();
+    } else if(matches.length > 1) {
+      // Ambiguous — show picker
+      showLocPicker(d, matches);
+    } else {
+      // No match — leave dealer blank
+      _pasteQueueIdx++;
+      resolveNextPasteOrder();
+    }
+  } else {
+    _pasteQueueIdx++;
+    resolveNextPasteOrder();
+  }
+}
+
+function showLocPicker(d, matches) {
+  document.getElementById('loc-picker-sub').textContent =
+    'PO ' + d.po + ' — ' + d.city + ', ' + d.state + ' matched ' + matches.length + ' locations. Pick one:';
+  document.getElementById('loc-picker-list').innerHTML = matches.map(function(loc) {
+    return '<div onclick="pickLocForPaste('+loc.id+')" style="padding:10px 12px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;cursor:pointer;background:var(--sur)" onmouseover="this.style.background='var(--sur2)'" onmouseout="this.style.background='var(--sur)'">'
+      +'<div style="font-weight:700;font-size:13px;color:var(--navy)">'+esc(loc.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--tx2)">'+esc(loc.addr||'')+' — '+esc(loc.city||'')+'</div>'
+      +(loc.phone?'<div style="font-size:11px;color:var(--tx2)">'+esc(loc.phone)+'</div>':'')
+      +'</div>';
+  }).join('');
+  openM('m-loc-picker');
+}
+
+function pickLocForPaste(locId) {
+  var loc = locations.find(function(l){return l.id===locId;});
+  if(loc && _pasteQueueIdx < _pasteQueue.length) {
+    var d = _pasteQueue[_pasteQueueIdx];
+    d.dealer = loc.name;
+    d.addr = d.addr || loc.addr || '';
+    d.phone = d.phone || loc.phone || '';
+  }
+  closeM('m-loc-picker');
+  _pasteQueueIdx++;
+  resolveNextPasteOrder();
+}
+
+function skipLocPicker() {
+  closeM('m-loc-picker');
+  _pasteQueueIdx++;
+  resolveNextPasteOrder();
+}
+
+function commitPasteOrders() {
+  var added=0, updated=0;
+  _pasteQueue.forEach(function(d) {
+    var ei = d.po ? dealers.findIndex(function(x){return x.po===d.po;}) : -1;
+    if(ei>=0) { Object.assign(dealers[ei], d); saveRecord('dealers', dealers[ei]); updated++; }
+    else {
+      d.id = nDealer++;
+      dealers.push(d);
+      saveRecord('dealers', d);
+      added++;
+      // Auto-add to location DB if dealer name found
+      if(d.dealer && !locations.find(function(l){return l.name.toLowerCase()===d.dealer.toLowerCase();})) {
+        var newLoc = {id:nLoc++,name:d.dealer,type:'Receiver',addr:d.addr||'',city:d.city+(d.state?', '+d.state:''),zip:d.zip||'',phone:d.phone||'',email:'',hours:'',dock:'',notes:'',dealerNum:'',coach:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false};
+        locations.push(newLoc);
+        saveRecord('locations', newLoc);
+      }
+    }
+  });
+  renderDealer(); updateDKPIs();
+  closeM('m-paste-orders');
+  document.getElementById('paste-orders-txt').value = '';
+  showMsg('dealer-msg', 'Pasted: '+added+' new, '+updated+' updated.', 'ok');
+}
+
 function importDealerCSV(input){
   var file=input.files[0];if(!file)return;
   var r=new FileReader();r.onload=function(e){
