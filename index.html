@@ -2672,15 +2672,15 @@ function renderDetailInto(panel,l){
           +'<div style="display:flex;flex-direction:column;gap:5px">'
             // Vendor searchable
             +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Vendor</span>'
-              +'<div class="acw" style="flex:1"><input id="di-vendor-'+l.id+'" value="'+esc(l.vendor||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diVendorAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.vendor=v;saveRecord('loads',ld);renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-vendor-ac-'+l.id+'"></div></div>'
+              +'<div class="acw" style="flex:1"><input id="di-vendor-'+l.id+'" value="'+esc(l.vendor||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diVendorAC(this.value,'+l.id+')" onchange="diSetVendor('+l.id+',this.value)" autocomplete="off"><div class="acl" id="di-vendor-ac-'+l.id+'"></div></div>'
             +'</div>'
             // Carrier searchable
             +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Carrier</span>'
-              +'<div class="acw" style="flex:1"><input id="di-carrier-'+l.id+'" value="'+esc(l.carrier||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diCarrierAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.carrier=v;saveRecord('loads',ld);renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-carrier-ac-'+l.id+'"></div></div>'
+              +'<div class="acw" style="flex:1"><input id="di-carrier-'+l.id+'" value="'+esc(l.carrier||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diCarrierAC(this.value,'+l.id+')" onchange="diSetCarrier('+l.id+',this.value)" autocomplete="off"><div class="acl" id="di-carrier-ac-'+l.id+'"></div></div>'
             +'</div>'
             // Dispatcher
             +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Dispatcher</span>'
-              +'<input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="(function(v){if(!'+isAdmin()+')return;var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.dispatcher=v;saveRecord('loads',ld);renderBoard();}})(this.value)">'
+              +'<input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="diSetDispatcher('+l.id+',this.value)">'
             +'</div>'
           +'</div>'
         +'</div>'
@@ -2805,6 +2805,9 @@ function popoutLoad(lid) {
   if(!_w){alert('Please allow popups for this site.');return;}
   setTimeout(function(){_w.document.open();_w.document.write(_out);_w.document.close();},50);
 }
+function diSetVendor(lid,v){var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.vendor=v;saveRecord('loads',ld);renderBoard();}}
+function diSetCarrier(lid,v){var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.carrier=v;saveRecord('loads',ld);renderBoard();}}
+function diSetDispatcher(lid,v){if(!isAdmin())return;var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.dispatcher=v;saveRecord('loads',ld);renderBoard();}}
 function diVendorAC(q,lid){
   var list=document.getElementById('di-vendor-ac-'+lid);if(!list)return;
   if(!q||q.length<1){list.style.display='none';return;}
@@ -6693,4 +6696,4 @@ window.addEventListener('appinstalled', function() {
 });
 </script>
 </body>
-</html>v
+</html>
