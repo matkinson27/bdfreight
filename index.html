@@ -1599,6 +1599,7 @@ function saveState() {
     return;
   }
   // Safety net: never overwrite Firebase with fewer loads/locations than we have ever seen.
+  // This prevents a race condition where saveState fires before applyRemoteState finishes.
   var activeLoads = loads.filter(function(x){ return !x.deleted; }).length;
   var activeLocs  = locations.length;
   if(_fbMaxLoads > 0 && activeLoads === 0 && _fbMaxLoads > 5) {
@@ -1609,9 +1610,6 @@ function saveState() {
     console.warn('saveState blocked — locations empty but Firebase previously had ' + _fbMaxLocs);
     return;
   }
-  // saveState is now a LAST RESORT for bulk ops only.
-  // For single-record changes, saveRecord() is preferred.
-  // This writes entire collections — only safe for bulk import/restore/archive.
   try {
     function clean(arr) {
       return arr.map(function(x){
@@ -1621,6 +1619,8 @@ function saveState() {
         return o;
       });
     }
+    // Granular writes — each collection written separately to avoid
+    // one full-state overwrite racing with another user's concurrent save
     var updates = {};
     updates['appstate/loads']     = clean(loads);
     updates['appstate/dealers']   = clean(dealers);
@@ -1663,46 +1663,6 @@ function saveState() {
       }
     } catch(be) {}
   } catch(e) { console.error('Firebase save error', e); }
-}
-
-// ============================
-// TARGETED RECORD WRITES
-// ============================
-// Write a single record to Firebase — safe, cannot wipe other records
-function cleanRecord(obj) {
-  var o = Object.assign({}, obj);
-  delete o.sel;
-  delete o._prevCarrier;
-  // Normalize sub-arrays back to plain arrays for Firebase
-  if(o.stops && Array.isArray(o.stops)) o.stops = o.stops.map(function(s){ var x=Object.assign({},s); delete x.sel; return x; });
-  if(o.contacts && Array.isArray(o.contacts)) o.contacts = o.contacts.map(function(c){ return Object.assign({},c); });
-  if(o.incidents && Array.isArray(o.incidents)) o.incidents = o.incidents.map(function(i){ return Object.assign({},i); });
-  if(o.callinLog && Array.isArray(o.callinLog)) o.callinLog = o.callinLog.map(function(i){ return Object.assign({},i); });
-  if(o.callins && Array.isArray(o.callins)) o.callins = o.callins.map(function(i){ return Object.assign({},i); });
-  return o;
-}
-
-function saveRecord(collection, record) {
-  if(!DB || !_fbLoaded) { console.warn('saveRecord blocked — DB not ready'); return; }
-  if(record.id === undefined || record.id === null) { console.warn('saveRecord: record has no id', collection); return; }
-  try {
-    DB.ref('appstate/' + collection + '/' + record.id).set(cleanRecord(record));
-    // Update counters
-    var updates = {};
-    if(collection === 'loads')     updates['appstate/nTL']      = nTL;
-    if(collection === 'dealers')   updates['appstate/nDealer']  = nDealer;
-    if(collection === 'carriers')  updates['appstate/nCarrier'] = nCarrier;
-    if(collection === 'locations') updates['appstate/nLoc']     = nLoc;
-    if(collection === 'rates')     updates['appstate/nRate']    = nRate;
-    if(Object.keys(updates).length) DB.ref().update(updates);
-  } catch(e) { console.error('saveRecord error', e); }
-}
-
-function deleteRecord(collection, id) {
-  if(!DB || !_fbLoaded) { console.warn('deleteRecord blocked — DB not ready'); return; }
-  try {
-    DB.ref('appstate/' + collection + '/' + id).remove();
-  } catch(e) { console.error('deleteRecord error', e); }
 }
 
 function applyRemoteState(d) {
@@ -1853,7 +1813,7 @@ function initApp() {
         }
       }
     });
-    if(changed){ loads.filter(function(l){return l.archived&&l.status==='Closed';}).forEach(function(l){saveRecord('loads',l);}); renderBoard(); }
+    if(changed){ saveState(); renderBoard(); }
     updateBKPIs();
   }, 300000); // 5 minutes
 }
@@ -2344,8 +2304,7 @@ function delSelLoads(){
     try { if(DB) DB.ref('audit/deletions').push({t:Date.now(),u:currentUser,loadNum:l.loadNum,id:l.id,by:cap(currentUser||'')}); } catch(e){}
   });
   if(selLoad && loads.find(function(l){return l.id===selLoad&&l.deleted;})) selLoad=null;
-  // Write each soft-deleted load individually — never wipe the collection
-  toDelete.forEach(function(l){ saveRecord('loads', l); });
+  saveState();
   renderBoard();updateBKPIs();renderDealer();updateDKPIs();
 }
 
@@ -2672,15 +2631,15 @@ function renderDetailInto(panel,l){
           +'<div style="display:flex;flex-direction:column;gap:5px">'
             // Vendor searchable
             +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Vendor</span>'
-              +'<div class="acw" style="flex:1"><input id="di-vendor-'+l.id+'" value="'+esc(l.vendor||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diVendorAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.vendor=v;saveRecord('loads',ld);renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-vendor-ac-'+l.id+'"></div></div>'
+              +'<div class="acw" style="flex:1"><input id="di-vendor-'+l.id+'" value="'+esc(l.vendor||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diVendorAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.vendor=v;saveState();renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-vendor-ac-'+l.id+'"></div></div>'
             +'</div>'
             // Carrier searchable
             +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Carrier</span>'
-              +'<div class="acw" style="flex:1"><input id="di-carrier-'+l.id+'" value="'+esc(l.carrier||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diCarrierAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.carrier=v;saveRecord('loads',ld);renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-carrier-ac-'+l.id+'"></div></div>'
+              +'<div class="acw" style="flex:1"><input id="di-carrier-'+l.id+'" value="'+esc(l.carrier||'')+'" style="width:100%;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;color:var(--tx)" oninput="diCarrierAC(this.value,'+l.id+')" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.carrier=v;saveState();renderBoard();}})(this.value)" autocomplete="off"><div class="acl" id="di-carrier-ac-'+l.id+'"></div></div>'
             +'</div>'
             // Dispatcher
             +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--tx2);width:72px;flex-shrink:0">Dispatcher</span>'
-              +'<input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="(function(v){if(!'+isAdmin()+')return;var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.dispatcher=v;saveRecord('loads',ld);renderBoard();}})(this.value)">'
+              +'<input value="'+esc(l.dispatcher||'')+'" '+(isAdmin()?'':'readonly ')+' style="flex:1;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);background:'+(isAdmin()?'var(--sur)':'var(--sur2)')+';font-family:var(--F);outline:none;color:'+(isAdmin()?'var(--tx)':'var(--tx2)')+'" onchange="(function(v){if(!'+isAdmin()+')return;var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.dispatcher=v;saveState();renderBoard();}})(this.value)">'
             +'</div>'
           +'</div>'
         +'</div>'
@@ -2816,7 +2775,7 @@ function diVendorAC(q,lid){
 function pickDIVendor(name,lid){
   var el=document.getElementById('di-vendor-'+lid);if(el)el.value=name;
   var list=document.getElementById('di-vendor-ac-'+lid);if(list)list.style.display='none';
-  var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.vendor=name;saveRecord('loads',ld);renderBoard();}
+  var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.vendor=name;saveState();renderBoard();}
 }
 function diCarrierAC(q,lid){
   var list=document.getElementById('di-carrier-ac-'+lid);if(!list)return;
@@ -2829,7 +2788,7 @@ function diCarrierAC(q,lid){
 function pickDICarrier(name,lid){
   var el=document.getElementById('di-carrier-'+lid);if(el)el.value=name;
   var list=document.getElementById('di-carrier-ac-'+lid);if(list)list.style.display='none';
-  var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.carrier=name;saveRecord('loads',ld);renderBoard();}
+  var ld=loads.find(function(x){return x.id===lid;});if(ld){ld.carrier=name;saveState();renderBoard();}
 }
 </script>
 
@@ -2886,9 +2845,7 @@ function setStopTime(lid, idx, field, val) {
       }
     }
   }
-  // Debounced single-record save for rapid stop time edits
-  clearTimeout(_saveDebounceTimer);
-  (function(load){ _saveDebounceTimer = setTimeout(function(){ saveRecord('loads', load); }, 1500); })(l);
+  saveStateDebounced(); // debounced — coalesces rapid stop time entries
   renderBoard();
   renderDetail();
 }
@@ -2901,7 +2858,7 @@ function autoAdv(l, to, note) {
   // Check tracking ding
   if(to==='Dispatched'&&!l.tracking&&l.carrier) logTrackingDing(l,'Dispatched');
   if(to==='Delivered'&&!l.tracking&&l.carrier) logTrackingDing(l,'Delivered');
-  saveRecord('loads',l);
+  saveState();
   updateBKPIs();
 }
 
@@ -2923,7 +2880,7 @@ function setDoc(lid, key, input) {
     if(!l.docs)l.docs={bol:null,bolUrl:null,pod:null,podUrl:null,rc:null,rcUrl:null};
     l.docs[key]=fileName;
     l.docs[key+'Url']=e.target.result;
-    saveRecord('loads',l);
+    saveState();
     renderDetail();
   };
   reader.readAsDataURL(file);
@@ -3077,7 +3034,7 @@ function deleteCallin(lid, idx) {
   if(!entry||entry.type==='created'){return;}
   if(!confirm('Delete this entry?'))return;
   l.callins.splice(idx,1);
-  saveRecord('loads',l);
+  saveState();
   renderDetail();
 }
 
@@ -3092,7 +3049,7 @@ function confirmCallin() {
   if(to===null){
     l.callins.push({status:'Note — '+from,time:nowStr(),note:note||'(no note)',loc:loc,req:false,type:'note'});
     closeM('m-callin');pendingCallin=null;
-    saveRecord('loads',l);renderDetail();
+    saveState();renderDetail();
     return;
   }
 
@@ -3105,7 +3062,7 @@ function confirmCallin() {
     if(from==='Delivered') l.deliveredAt=null;
     l.callins.push({status:from+' → '+to+' (Reverted)',time:nowStr(),note:note,loc:loc,req:true,type:'callin'});
     closeM('m-callin');pendingCallin=null;
-    saveRecord('loads',l);renderBoard();updateBKPIs();renderDetail();
+    saveState();renderBoard();updateBKPIs();renderDetail();
     return;
   }
   if(to==='Delivered'){
@@ -3122,7 +3079,7 @@ function confirmCallin() {
   if(to==='Claim' && l.carrier) logClaimToCarrier(l, note);
   if(to==='Dispatched'&&!l.tracking&&l.carrier) logTrackingDing(l,'Dispatched');
   closeM('m-callin');pendingCallin=null;
-  saveRecord('loads',l);
+  saveState();
   renderBoard();updateBKPIs();
 }
 
@@ -3132,7 +3089,7 @@ function verifyRates(lid) {
   if(!confirm('Confirm that rates for '+l.loadNum+' are correct and unchanged?'))return;
   l.ratesVerified=true;
   l.callins.push({status:'Rates Confirmed',time:nowStr(),note:'Rates verified by '+cap(currentUser),req:false,type:'note'});
-  saveRecord('loads',l);
+  saveState();
   renderBoard();renderDetail();
 }
 
@@ -3176,14 +3133,8 @@ function confirmIncident() {
     var l=loads.find(function(x){return x.id===pendingInc.lid;});
     if(l)l.callins.push({status:'Incident - '+type,time:nowStr(),note:note+'\n- '+cap(currentUser),req:false,type:'incident'});
   }
-  // Save the carrier record (incident was added to it)
-  saveRecord('carriers',c);
-  // Also save the load if this incident came from a load
-  if(pendingInc && pendingInc.lid) {
-    var incLoad=loads.find(function(x){return x.id===pendingInc.lid;});
-    if(incLoad) saveRecord('loads',incLoad);
-  }
   closeM('m-incident');pendingInc=null;
+  saveState();
   renderSC();updateSCKPIs();renderDetail();
 }
 function delIncident(cid, idx) {
@@ -3191,7 +3142,7 @@ function delIncident(cid, idx) {
   var c=carriers.find(function(x){return x.id===cid;});if(!c)return;
   if(!confirm('Delete this incident?'))return;
   c.incidents.splice(idx,1);
-  saveRecord('carriers',c);
+  saveState();
   renderSC();updateSCKPIs();
   // Re-render the carrier panel if open
   if(selCarrier===cid) renderSCPanel(cid);
@@ -3957,15 +3908,7 @@ function saveLoad(){
     pendingConvertTL=null;
     renderStaging();
   }
-  // Write the load record
-  saveRecord('loads', obj);
-  // Write any new locations created during save
-  fs.forEach(function(s){
-    if(s.name){
-      var loc=locations.find(function(l){return l.name.toLowerCase()===s.name.toLowerCase();});
-      if(loc) saveRecord('locations', loc);
-    }
-  });
+  saveState();
   closeM('m-load');renderBoard();updateBKPIs();renderDealer();updateDKPIs();
 }
 </script>
@@ -4118,7 +4061,7 @@ function confirmStage(){
   var ids=sel.map(function(d){return d.id;});
   dealers=dealers.filter(function(d){return !ids.includes(d.id);});
   closeM('m-stage');pendingStage=null;
-  saveState(); // bulk: tempLoads + multiple dealers changed
+  saveState();
   renderDealer();updateDKPIs();
   goPage('staging',document.getElementById('ntab-staging'));
 }
@@ -4265,9 +4208,7 @@ function saveStagingField(tlId, field, val) {
   var tl = tempLoads.find(function(t){return t.id===tlId;});
   if(!tl) return;
   tl[field] = val;
-  // Debounced single-record save for rapid staging field edits
-  clearTimeout(_saveDebounceTimer);
-  (function(tload){ _saveDebounceTimer = setTimeout(function(){ saveState(); }, 1500); })(tl);
+  saveStateDebounced(); // debounced — inline field edits
   var footer = document.getElementById('stg-footer');
   if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
 }
@@ -4288,8 +4229,7 @@ function removePOFromTL(tlId,po){
   dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
   tl.pos=tl.pos.filter(function(x){return x.po!==po;});
   if(!tl.pos.length)tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
-  saveState(); // bulk: tempLoads + dealers changed
-  renderStaging();updateDKPIs();
+  saveState();renderStaging();updateDKPIs();
 }
 function dissolveTL(tlId){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
@@ -4298,8 +4238,7 @@ function dissolveTL(tlId){
     dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
   });
   tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
-  saveState(); // bulk: tempLoads + multiple dealers changed
-  renderStaging();updateDKPIs();
+  saveState();renderStaging();updateDKPIs();
 }
 function convertTL(tlId){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
@@ -4355,7 +4294,7 @@ function confirmAddPOs(){
   var ids=toAdd.map(function(d){return d.id;});
   dealers=dealers.filter(function(d){return !ids.includes(d.id);});
   closeM('m-addpo');pendingAddTL=null;
-  saveState(); // bulk: tempLoads + multiple dealers changed
+  saveState();
   renderStaging();updateDKPIs();
 }
 </script>
@@ -4397,12 +4336,7 @@ function renderDealer(){
 }
 function toggleDealer(id,v){var x=dealers.find(function(d){return d.id===id;});if(x){x.sel=v;renderDealer();}}
 function selAllDealers(v){dealers.forEach(function(d){d.sel=v;});renderDealer();}
-function delSelDealers(){
-  var toRemove=dealers.filter(function(d){return d.sel;});
-  dealers=dealers.filter(function(d){return !d.sel;});
-  toRemove.forEach(function(d){ deleteRecord('dealers', d.id); });
-  renderDealer();
-}
+function delSelDealers(){dealers=dealers.filter(function(d){return !d.sel;});saveState();renderDealer();}
 
 function openDealerModal(id) {
   editingDealerId = id||null;
@@ -4447,14 +4381,7 @@ function saveDealer(){
   }
   if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
     locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
-  // Write dealer record + any new location created
-  var dealerToSave = editingDealerId ? dealers.find(function(x){return x.id===editingDealerId;}) : dealers[dealers.length-1];
-  if(dealerToSave) saveRecord('dealers', dealerToSave);
-  if(d.dealer){
-    var newLoc=locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();});
-    if(newLoc) saveRecord('locations', newLoc);
-  }
-  closeM('m-dealer');renderDealer();
+  closeM('m-dealer');saveState();renderDealer();
 }
 
 function matchDealerNames(){
@@ -4471,8 +4398,7 @@ function matchDealerNames(){
     });
     if(loc){d.dealer=loc.name;d.phone=d.phone||loc.phone||"";matched++;}
   });
-  if(matched){saveState(); // bulk: multiple dealers updated
-  renderDealer();showMsg("dealer-msg",matched+" dealer name"+(matched!==1?"s":"")+" matched.","ok");}
+  if(matched){saveState();renderDealer();showMsg("dealer-msg",matched+" dealer name"+(matched!==1?"s":"")+" matched.","ok");}
   else showMsg("dealer-msg","No unmatched dealers found (or no matching Location DB entries).","ok");
 }
 
@@ -4903,12 +4829,7 @@ function renderSC(){
 
 function sortSC(col){scSort.asc=scSort.col===col?!scSort.asc:true;scSort.col=col;renderSC();}
 function clickCarrier(id){selCarrier=selCarrier===id?null:id;renderSC();if(selCarrier)renderSCPanel(id);}
-function delSelCarriers(){
-  var toRemove=carriers.filter(function(c){return c.sel;});
-  carriers=carriers.filter(function(c){return !c.sel;});
-  toRemove.forEach(function(c){ deleteRecord('carriers', c.id); });
-  renderSC();updateSCKPIs();
-}
+function delSelCarriers(){carriers=carriers.filter(function(c){return !c.sel;});saveState();renderSC();updateSCKPIs();}
 
 function renderSCPanel(cid) {
   var panel=document.getElementById('sc-panel');
@@ -5299,9 +5220,7 @@ function saveCarrier(){
     obj.id=nCarrier++;obj.incidents=[];obj.claims=[];obj.sel=false;
     carriers.push(obj);
   }
-  var carrierToSave = editingCarrierId ? carriers.find(function(x){return x.id===editingCarrierId;}) : carriers[carriers.length-1];
-  if(carrierToSave) saveRecord('carriers', carrierToSave);
-  closeM('m-carrier');renderSC();updateSCKPIs();
+  closeM('m-carrier');saveState();renderSC();updateSCKPIs();
 }
 </script>
 
@@ -5455,12 +5374,7 @@ function jumpToLoad(id) {
   goPage('board', document.getElementById('ntab-board'));
   setTimeout(function(){renderBoard();renderDetail();}, 50);
 }
-function delSelLocs(){
-  var toRemove=locations.filter(function(l){return l.sel;});
-  locations=locations.filter(function(l){return !l.sel;});
-  toRemove.forEach(function(l){ deleteRecord('locations', l.id); });
-  renderLocDB();
-}
+function delSelLocs(){locations=locations.filter(function(l){return !l.sel;});saveState();renderLocDB();}
 var locContactRows = [];
 
 function renderLocContactRows() {
@@ -5553,12 +5467,7 @@ function saveLoc(){
       dock:f('locf-dock'),notes:f('locf-notes'),contacts:contacts,sel:false});
   }
   editingLocId=null;
-  var locToSave = locations[locations.length-1];
-  // If editing, find by id instead
-  if(editingLocId !== null) locToSave = locations.find(function(x){return x.id===editingLocId;});
-  // fallback: find by name
-  if(!locToSave) locToSave = locations.find(function(l){return l.name===document.getElementById('locf-name').value.trim();});
-  if(locToSave) saveRecord('locations', locToSave);
+  saveState();
   closeM('m-loc');renderLocDB();
 }
 
@@ -5636,7 +5545,7 @@ function importLocTSV(input) {
         }
       });
       renderLocDB();
-      saveState(); // bulk: many locations added/updated
+      saveState();
       showMsg('loc-msg','Imported: '+added+' new, '+updated+' updated'+(skipped?' ('+skipped+' skipped - no name)':'')+'.' ,'ok');
     } catch(err) { showMsg('loc-msg','Error: '+err.message,'err'); }
     input.value='';
@@ -5672,20 +5581,13 @@ function renderRates(){
       +'<td style="font-weight:700">$'+tot.toLocaleString()+'</td><td>'+r.date+'</td><td>'+trend+'</td></tr>';
   }).join('');
 }
-function delSelRates(){
-  var toRemove=rates.filter(function(r){return r.sel;});
-  rates=rates.filter(function(r){return !r.sel;});
-  toRemove.forEach(function(r){ deleteRecord('rates', r.id); });
-  renderRates();updateRatesKPIs();
-}
+function delSelRates(){rates=rates.filter(function(r){return !r.sel;});saveState();renderRates();updateRatesKPIs();}
 function saveRate(){
   var f=function(id){return document.getElementById(id).value;};
   var m=parseFloat(f('rf-miles'))||0,fl=parseFloat(f('rf-flat'))||0;
   var rpm=parseFloat(f('rf-rpm'))||(m>0?parseFloat((fl/m).toFixed(2)):0);
   rates.push({id:nRate++,origin:f('rf-origin'),dest:f('rf-dest'),carrier:f('rf-carrier'),miles:m,flat:fl,rpm:rpm,fuel:parseFloat(f('rf-fuel'))||0,date:f('rf-date'),sel:false});
-  var rateToSave = rates[rates.length-1];
-  if(rateToSave) saveRecord('rates', rateToSave);
-  closeM('m-rate');renderRates();updateRatesKPIs();
+  closeM('m-rate');saveState();renderRates();updateRatesKPIs();
 }
 
 // ============================
@@ -5902,7 +5804,7 @@ function confirmRates() {
 
   closeM('m-rateconfirm');
   pendingCallin = null;
-  saveRecord('loads',l);
+  saveState();
   renderBoard(); updateBKPIs();
 }
 
