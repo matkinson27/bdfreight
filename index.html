@@ -1394,41 +1394,10 @@ function loadUsers() {
 }
 
 // Save to localStorage AND Firebase
-function saveUsersLS(u) {
-  localStorage.setItem('bdf_users', JSON.stringify(u));
-  if(DB) DB.ref('users').set(u);
-}
+// saveUsersLS defined in Supabase block above
 
 // Called once after Firebase connects — pull users from Firebase and mirror locally
-function syncUsersFromFirebase() {
-  if(!DB) return;
-  DB.ref('users').once('value', function(snap) {
-    var d = snap.val();
-    if(d && typeof d === 'object') {
-      // Sanitize: keep only valid user entries (must have pw and role, username must be a non-numeric string)
-      var clean = {};
-      Object.keys(d).forEach(function(k) {
-        var v = d[k];
-        if(typeof k === 'string' && isNaN(k) && v && typeof v === 'object' && v.pw && v.role) {
-          clean[k] = {pw: v.pw, role: v.role};
-        }
-      });
-      if(Object.keys(clean).length > 0) {
-        localStorage.setItem('bdf_users', JSON.stringify(clean));
-        // Write cleaned version back to Firebase to fix any corruption
-        DB.ref('users').set(clean);
-      } else {
-        // Nothing valid — push defaults
-        DB.ref('users').set(DEFAULT_USERS);
-        localStorage.setItem('bdf_users', JSON.stringify(DEFAULT_USERS));
-      }
-    } else {
-      // First time ever — push defaults up to Firebase
-      DB.ref('users').set(DEFAULT_USERS);
-      localStorage.setItem('bdf_users', JSON.stringify(DEFAULT_USERS));
-    }
-  });
-}
+// syncUsersFromSupabase() defined in Supabase block above
 
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 function isAdmin() { return currentUserRole === 'admin'; }
@@ -1441,7 +1410,6 @@ function login() {
     currentUser = u;
     currentUserRole = users[u].role || 'standard';
     sessionStorage.setItem('bdf_u', u);
-    // Reload so Firebase initializes with session already set
     location.reload();
   } else {
     document.getElementById('lerr').style.display = 'block';
@@ -1534,39 +1502,7 @@ function delUser(u) {
   renderUsers();
 }
 
-// ============================
-// LOAD NUMBER COUNTER
-// ============================
-// Counter lives in Firebase (bdf_load_counter) with localStorage as fallback
-function getNextLoadNum() {
-  // Increment localStorage immediately for UI responsiveness
-  var n = parseInt(localStorage.getItem('bdf_load_counter') || '200');
-  localStorage.setItem('bdf_load_counter', String(n + 1));
-  // Mirror to Firebase
-  if(DB) DB.ref('bdf_load_counter').set(n + 1);
-  return 'LD-' + String(n).padStart(6, '0');
-}
-function peekNextLoadNum() {
-  var n = parseInt(localStorage.getItem('bdf_load_counter') || '200');
-  return 'LD-' + String(n).padStart(6, '0');
-}
-// Sync counter from Firebase on connect so all machines stay in sequence
-function syncLoadCounter() {
-  if(!DB) return;
-  DB.ref('bdf_load_counter').once('value', function(snap) {
-    var fbVal = snap.val();
-    if(fbVal && typeof fbVal === 'number') {
-      var local = parseInt(localStorage.getItem('bdf_load_counter') || '200');
-      // Always use the higher of the two to avoid reuse
-      var winner = Math.max(fbVal, local);
-      localStorage.setItem('bdf_load_counter', String(winner));
-    } else {
-      // First time - push local value up to Firebase
-      var local2 = parseInt(localStorage.getItem('bdf_load_counter') || '200');
-      DB.ref('bdf_load_counter').set(local2);
-    }
-  });
-}
+// getNextLoadNum / peekNextLoadNum defined in Supabase block above
 
 // ============================
 // DATA
@@ -1584,186 +1520,239 @@ var tempLoads = [];
 var nDealer = 1, nCarrier = 1, nLoc = 1, nRate = 1, nTL = 1;
 
 // ============================
-// FIREBASE CONFIG & SYNC
-// ============================
-var DB = null; // Firebase database reference, set after SDK loads
-var _fbSaving = false; // prevent echo loops
-var _fbLoaded = false; // CRITICAL: never save until Firebase data has been received at least once
-var _fbMaxLoads = parseInt(localStorage.getItem('bdf_maxLoads') || '0');
-var _fbMaxLocs  = parseInt(localStorage.getItem('bdf_maxLocs')  || '0');
+// ============================================================
+// SUPABASE CONFIG & SYNC
+// ============================================================
+var _sbLoaded = false;
 
-function saveState() {
-  if(!DB) return;
-  if(!_fbLoaded) {
-    console.warn('saveState blocked — Firebase not yet loaded');
-    return;
-  }
-  // Safety net: never overwrite Firebase with fewer loads/locations than we have ever seen.
-  var activeLoads = loads.filter(function(x){ return !x.deleted; }).length;
-  var activeLocs  = locations.length;
-  if(_fbMaxLoads > 0 && activeLoads === 0 && _fbMaxLoads > 5) {
-    console.warn('saveState blocked — loads empty but Firebase previously had ' + _fbMaxLoads);
-    return;
-  }
-  if(_fbMaxLocs > 0 && activeLocs === 0 && _fbMaxLocs > 5) {
-    console.warn('saveState blocked — locations empty but Firebase previously had ' + _fbMaxLocs);
-    return;
-  }
-  // saveState is now a LAST RESORT for bulk ops only.
-  // For single-record changes, saveRecord() is preferred.
-  // This writes entire collections — only safe for bulk import/restore/archive.
+// ── Mappers: DB row (snake_case) → app object (camelCase) ────────────────────
+function sbToLoad(r) {
+  return {
+    id: r.id, loadNum: r.load_num, status: r.status, vendor: r.vendor||'',
+    carrier: r.carrier||'', dispatcher: r.dispatcher||'', cr: r.cr||0,
+    custR: r.cust_r||0, miles: r.miles||0, equip: r.equip||'V',
+    tracking: r.tracking||'', driverName: r.driver_name||'',
+    driverPhone: r.driver_phone||'', truck: r.truck||'', notes: r.notes||'',
+    stops: r.stops||[], callins: r.callins||[], docs: r.docs||{},
+    rateConfirmation: r.rate_confirmation||null,
+    ratesVerified: r.rates_verified||false, archived: r.archived||false,
+    deleted: r.deleted||false, deletedAt: r.deleted_at||null,
+    deletedBy: r.deleted_by||null, deliveredAt: r.delivered_at||null,
+    preIssueStatus: r.pre_issue_status||null, claimInfo: r.claim_info||null,
+    sel: false
+  };
+}
+function sbToCarrier(r) {
+  return {
+    id: r.id, name: r.name||'', mc: r.mc||'', addr: r.addr||'',
+    lanes: r.lanes||'', contacts: r.contacts||[], incidents: r.incidents||[],
+    claims: r.claims||[], probation: r.probation||false,
+    probationReason: r.probation_reason||'', sel: false
+  };
+}
+function sbToLocation(r) {
+  return {
+    id: r.id, name: r.name||'', type: r.type||'Both', addr: r.addr||'',
+    city: r.city||'', zip: r.zip||'', phone: r.phone||'', email: r.email||'',
+    hours: r.hours||'', dock: r.dock||'', notes: r.notes||'',
+    dealerNum: r.dealer_num||'', coach: r.coach||'', contacts: r.contacts||[],
+    sel: false
+  };
+}
+function sbToDealer(r) {
+  return {
+    id: r.id, po: r.po||'', vendor: r.vendor||'', pieces: r.pieces||'0',
+    seats: r.seats||'0', ready: r.ready||'', dealer: r.dealer||'',
+    phone: r.phone||'', addr: r.addr||'', city: r.city||'',
+    state: r.state||'', zip: r.zip||'', addinfo: r.add_info||'', sel: false
+  };
+}
+function sbToRate(r) {
+  return {
+    id: r.id, origin: r.origin||'', dest: r.dest||'', carrier: r.carrier||'',
+    miles: r.miles||0, flat: r.flat||0, rpm: r.rpm||0, fuel: r.fuel||0,
+    date: r.date||'', sel: false
+  };
+}
+function sbToTempLoad(r) {
+  return {
+    id: r.id, tlNum: r.tl_num||'', notes: r.notes||'',
+    createdAt: r.created_at_str||'', createdBy: r.created_by||'',
+    pos: r.pos||[]
+  };
+}
+
+// ── Mapper: app object → DB row (camelCase → snake_case) ──────────────────────
+function loadToSb(l) {
+  var o = Object.assign({}, l);
+  delete o.sel; delete o._prevCarrier;
+  return {
+    id: o.id, load_num: o.loadNum, status: o.status, vendor: o.vendor||'',
+    carrier: o.carrier||'', dispatcher: o.dispatcher||'', cr: o.cr||0,
+    cust_r: o.custR||0, miles: o.miles||0, equip: o.equip||'V',
+    tracking: o.tracking||'', driver_name: o.driverName||'',
+    driver_phone: o.driverPhone||'', truck: o.truck||'', notes: o.notes||'',
+    stops: o.stops||[], callins: o.callins||[], docs: o.docs||{},
+    rate_confirmation: o.rateConfirmation||null,
+    rates_verified: o.ratesVerified||false, archived: o.archived||false,
+    deleted: o.deleted||false, deleted_at: o.deletedAt||null,
+    deleted_by: o.deletedBy||null, delivered_at: o.deliveredAt||null,
+    pre_issue_status: o.preIssueStatus||null, claim_info: o.claimInfo||null
+  };
+}
+function carrierToSb(c) {
+  return {
+    id: c.id, name: c.name||'', mc: c.mc||'', addr: c.addr||'',
+    lanes: c.lanes||'', contacts: c.contacts||[], incidents: c.incidents||[],
+    claims: c.claims||[], probation: c.probation||false,
+    probation_reason: c.probationReason||''
+  };
+}
+function locationToSb(l) {
+  return {
+    id: l.id, name: l.name||'', type: l.type||'Both', addr: l.addr||'',
+    city: l.city||'', zip: l.zip||'', phone: l.phone||'', email: l.email||'',
+    hours: l.hours||'', dock: l.dock||'', notes: l.notes||'',
+    dealer_num: l.dealerNum||'', coach: l.coach||'', contacts: l.contacts||[]
+  };
+}
+function dealerToSb(d) {
+  return {
+    id: d.id, po: d.po||'', vendor: d.vendor||'', pieces: String(d.pieces||'0'),
+    seats: String(d.seats||'0'), ready: d.ready||'', dealer: d.dealer||'',
+    phone: d.phone||'', addr: d.addr||'', city: d.city||'',
+    state: d.state||'', zip: d.zip||'', add_info: d.addinfo||''
+  };
+}
+function rateToSb(r) {
+  return {
+    id: r.id, origin: r.origin||'', dest: r.dest||'', carrier: r.carrier||'',
+    miles: r.miles||0, flat: r.flat||0, rpm: r.rpm||0,
+    fuel: r.fuel||0, date: r.date||''
+  };
+}
+function tempLoadToSb(t) {
+  return {
+    id: t.id, tl_num: t.tlNum||'', notes: t.notes||'',
+    created_at_str: t.createdAt||'', created_by: t.createdBy||'',
+    pos: t.pos||[]
+  };
+}
+
+// ── Single-record upsert ──────────────────────────────────────────────────────
+async function saveRecord(collection, record) {
+  if(!_sbLoaded) { console.warn('saveRecord blocked — not loaded yet'); return; }
   try {
-    function clean(arr) {
-      return arr.map(function(x){
-        var o = Object.assign({}, x);
-        delete o.sel;
-        delete o._prevCarrier;
-        return o;
-      });
-    }
-    var updates = {};
-    updates['appstate/loads']     = clean(loads);
-    updates['appstate/dealers']   = clean(dealers);
-    updates['appstate/carriers']  = clean(carriers);
-    updates['appstate/locations'] = clean(locations);
-    updates['appstate/rates']     = clean(rates);
-    updates['appstate/tempLoads'] = tempLoads;
-    updates['appstate/nDealer']   = nDealer;
-    updates['appstate/nCarrier']  = nCarrier;
-    updates['appstate/nLoc']      = nLoc;
-    updates['appstate/nRate']     = nRate;
-    updates['appstate/nTL']       = nTL;
-    DB.ref().update(updates);
-    // Queue audit entry (batched every 10s to reduce writes)
-    try {
-      var auditKey = new Date().toISOString().slice(0,10);
-      queueAudit('audit/'+auditKey, {
-        t: Date.now(),
-        u: currentUser||'unknown',
-        l: loads.filter(function(x){return !x.deleted&&!x.archived;}).length,
-        d: dealers.length
-      });
-    } catch(ae) {}
-    // Daily backup — once per day, snapshot to backups/YYYY-MM-DD
-    try {
-      var today = new Date().toISOString().slice(0,10);
-      var lastBackup = localStorage.getItem('bdf_last_backup');
-      if(lastBackup !== today) {
-        localStorage.setItem('bdf_last_backup', today);
-        DB.ref('backups/'+today).set({
-          ts: Date.now(),
-          by: currentUser||'system',
-          loads: clean(loads),
-          dealers: clean(dealers),
-          carriers: clean(carriers),
-          locations: clean(locations),
-          rates: clean(rates),
-          tempLoads: tempLoads
-        });
-      }
-    } catch(be) {}
-  } catch(e) { console.error('Firebase save error', e); }
+    var row;
+    if(collection==='loads')     row = loadToSb(record);
+    else if(collection==='carriers')  row = carrierToSb(record);
+    else if(collection==='locations') row = locationToSb(record);
+    else if(collection==='dealers')   row = dealerToSb(record);
+    else if(collection==='rates')     row = rateToSb(record);
+    else if(collection==='temp_loads') row = tempLoadToSb(record);
+    else { console.warn('saveRecord: unknown collection', collection); return; }
+    var res = await window._SB.from(collection).upsert(row);
+    if(res.error) console.error('saveRecord error', collection, res.error);
+    // Update load counter if needed
+    if(collection==='loads') sbSyncCounter();
+  } catch(e) { console.error('saveRecord exception', e); }
 }
 
-// ============================
-// TARGETED RECORD WRITES
-// ============================
-// Write a single record to Firebase — safe, cannot wipe other records
-function cleanRecord(obj) {
-  var o = Object.assign({}, obj);
-  delete o.sel;
-  delete o._prevCarrier;
-  // Normalize sub-arrays back to plain arrays for Firebase
-  if(o.stops && Array.isArray(o.stops)) o.stops = o.stops.map(function(s){ var x=Object.assign({},s); delete x.sel; return x; });
-  if(o.contacts && Array.isArray(o.contacts)) o.contacts = o.contacts.map(function(c){ return Object.assign({},c); });
-  if(o.incidents && Array.isArray(o.incidents)) o.incidents = o.incidents.map(function(i){ return Object.assign({},i); });
-  if(o.callinLog && Array.isArray(o.callinLog)) o.callinLog = o.callinLog.map(function(i){ return Object.assign({},i); });
-  if(o.callins && Array.isArray(o.callins)) o.callins = o.callins.map(function(i){ return Object.assign({},i); });
-  return o;
-}
-
-function saveRecord(collection, record) {
-  if(!DB || !_fbLoaded) { console.warn('saveRecord blocked — DB not ready'); return; }
-  if(record.id === undefined || record.id === null) { console.warn('saveRecord: record has no id', collection); return; }
+async function deleteRecord(collection, id) {
+  if(!_sbLoaded) return;
   try {
-    DB.ref('appstate/' + collection + '/' + record.id).set(cleanRecord(record));
-    // Update counters
-    var updates = {};
-    if(collection === 'loads')     updates['appstate/nTL']      = nTL;
-    if(collection === 'dealers')   updates['appstate/nDealer']  = nDealer;
-    if(collection === 'carriers')  updates['appstate/nCarrier'] = nCarrier;
-    if(collection === 'locations') updates['appstate/nLoc']     = nLoc;
-    if(collection === 'rates')     updates['appstate/nRate']    = nRate;
-    if(Object.keys(updates).length) DB.ref().update(updates);
-  } catch(e) { console.error('saveRecord error', e); }
+    var res = await window._SB.from(collection).delete().eq('id', id);
+    if(res.error) console.error('deleteRecord error', collection, res.error);
+  } catch(e) { console.error('deleteRecord exception', e); }
 }
 
-function deleteRecord(collection, id) {
-  if(!DB || !_fbLoaded) { console.warn('deleteRecord blocked — DB not ready'); return; }
+// Bulk upsert — used for TSV imports, staging ops, restore
+async function saveState() {
+  if(!_sbLoaded) { console.warn('saveState blocked — not loaded'); return; }
   try {
-    DB.ref('appstate/' + collection + '/' + id).remove();
-  } catch(e) { console.error('deleteRecord error', e); }
+    await Promise.all([
+      window._SB.from('loads').upsert(loads.map(loadToSb)),
+      window._SB.from('carriers').upsert(carriers.map(carrierToSb)),
+      window._SB.from('locations').upsert(locations.map(locationToSb)),
+      window._SB.from('dealers').upsert(dealers.map(dealerToSb)),
+      window._SB.from('rates').upsert(rates.map(rateToSb)),
+      window._SB.from('temp_loads').upsert(tempLoads.map(tempLoadToSb))
+    ]);
+    sbSyncCounter();
+  } catch(e) { console.error('saveState error', e); }
 }
 
-function applyRemoteState(d) {
-  if(!d) return;
-  _fbLoaded = true; // Firebase has responded — saveState is now safe
-  // Track highest counts ever seen — persisted to localStorage so all contexts (PWA + browser) share the same floor
-  var incomingLoads = d.loads ? Object.keys(d.loads).length : 0;
-  var incomingLocs  = d.locations ? Object.keys(d.locations).length : 0;
-  var storedMaxLoads = parseInt(localStorage.getItem('bdf_maxLoads') || '0');
-  var storedMaxLocs  = parseInt(localStorage.getItem('bdf_maxLocs')  || '0');
-  _fbMaxLoads = Math.max(_fbMaxLoads, incomingLoads, storedMaxLoads);
-  _fbMaxLocs  = Math.max(_fbMaxLocs,  incomingLocs,  storedMaxLocs);
-  if(_fbMaxLoads > 0) localStorage.setItem('bdf_maxLoads', String(_fbMaxLoads));
-  if(_fbMaxLocs  > 0) localStorage.setItem('bdf_maxLocs',  String(_fbMaxLocs));
-  function withSel(arr) {
-    if(arr && !Array.isArray(arr) && typeof arr === 'object') arr = Object.values(arr);
-    return (arr||[]).filter(function(x){ return x != null; }).map(function(x){
-      var o = Object.assign({sel:false}, x);
-      if(o.stops && !Array.isArray(o.stops)) o.stops = Object.values(o.stops).filter(function(s){ return s != null; });
-      if(!o.stops) o.stops = [];
-      if(o.contacts && !Array.isArray(o.contacts)) o.contacts = Object.values(o.contacts).filter(function(c){ return c != null; });
-      if(!o.contacts) o.contacts = [];
-      if(o.incidents && !Array.isArray(o.incidents)) o.incidents = Object.values(o.incidents).filter(function(i){ return i != null; });
-      if(!o.incidents) o.incidents = [];
-      if(o.callinLog && !Array.isArray(o.callinLog)) o.callinLog = Object.values(o.callinLog).filter(function(i){ return i != null; });
-      if(!o.callinLog) o.callinLog = [];
-      if(o.claims && !Array.isArray(o.claims)) o.claims = Object.values(o.claims).filter(function(i){ return i != null; });
-      if(!o.claims) o.claims = [];
-      if(o.stops) o.stops.forEach(function(s){ if(s && s.contacts && !Array.isArray(s.contacts)) s.contacts = Object.values(s.contacts).filter(function(c){ return c != null; }); });
-      return o;
+function sbSyncCounter() {
+  var n = parseInt(localStorage.getItem('bdf_load_counter')||'200');
+  if(window._SB) window._SB.from('counters').update({n_load: n}).eq('id', 1);
+}
+
+// ── Re-render helper for realtime updates ────────────────────────────────────
+function reRenderCurrent() {
+  try {
+    var activePage = document.querySelector('.page.on');
+    if(!activePage) return;
+    var pid = activePage.id;
+    if(pid==='page-dashboard'){renderDashboard();}
+    else if(pid==='page-dealer'){renderDealer();updateDKPIs();}
+    else if(pid==='page-board'){renderBoard();updateBKPIs();}
+    else if(pid==='page-scorecard'){renderSC();updateSCKPIs();}
+    else if(pid==='page-locdb'){renderLocDB();}
+    else if(pid==='page-rates'){renderRates();updateRatesKPIs();}
+    else if(pid==='page-accounting'){renderAccounting();updateAcctKPIs();}
+    else if(pid==='page-staging'){renderStaging();}
+    updateBKPIs();
+  } catch(e) { console.error('reRenderCurrent error', e); }
+}
+
+// ── Users (stored in Supabase users table) ───────────────────────────────────
+var DEFAULT_USERS = {
+  nick:     {pw:'bdfreight1',  role:'admin'},
+  mackenna: {pw:'bdfreight2',  role:'admin'},
+  preston:  {pw:'bdfreight3',  role:'standard'},
+  accting:  {pw:'bdfreight26', role:'standard'}
+};
+
+function loadUsers() {
+  var s = localStorage.getItem('bdf_users');
+  if(s) { try { return JSON.parse(s); } catch(e){} }
+  localStorage.setItem('bdf_users', JSON.stringify(DEFAULT_USERS));
+  return DEFAULT_USERS;
+}
+
+function saveUsersLS(u) {
+  localStorage.setItem('bdf_users', JSON.stringify(u));
+  // Sync to Supabase users table
+  if(window._SB) {
+    Object.entries(u).forEach(function(e) {
+      window._SB.from('users').upsert({username: e[0], pw: e[1].pw, role: e[1].role});
     });
   }
-  // Merge strategy: for collections with IDs, merge remote into local
-  // so a locally-created record never gets lost by a concurrent remote write
-  function mergeById(local, remote) {
-    var remoteArr = withSel(remote);
-    if(!local || !local.length) return remoteArr;
-    // Build remote lookup by id
-    var remoteById = {};
-    remoteArr.forEach(function(x){ if(x.id!==undefined) remoteById[x.id]=x; });
-    // Keep local records not yet in remote (just created, not synced)
-    var localOnlyIds = local.filter(function(x){
-      return x.id!==undefined && remoteById[x.id]===undefined;
-    });
-    // Union: remote wins for existing IDs, local-only records preserved
-    return remoteArr.concat(localOnlyIds);
-  }
-  loads      = mergeById(loads, d.loads);
-  dealers    = mergeById(dealers, d.dealers);
-  carriers   = mergeById(carriers, d.carriers);
-  locations  = mergeById(locations, d.locations);
-  rates      = mergeById(rates, d.rates);
-  var tl = d.tempLoads || [];
-  tempLoads = Array.isArray(tl) ? tl : Object.values(tl);
-  // Always take the highest counter to avoid ID collisions
-  if(d.nDealer)  nDealer  = Math.max(nDealer,  d.nDealer);
-  if(d.nCarrier) nCarrier = Math.max(nCarrier, d.nCarrier);
-  if(d.nLoc)     nLoc     = Math.max(nLoc,     d.nLoc);
-  if(d.nRate)    nRate    = Math.max(nRate,     d.nRate);
-  if(d.nTL)      nTL      = Math.max(nTL,       d.nTL);
 }
+
+function syncUsersFromSupabase() {
+  if(!window._SB) return;
+  window._SB.from('users').select('username,pw,role').then(function(res) {
+    if(res.error || !res.data || !res.data.length) return;
+    var u = {};
+    res.data.forEach(function(r) { u[r.username] = {pw: r.pw, role: r.role}; });
+    localStorage.setItem('bdf_users', JSON.stringify(u));
+  });
+}
+
+// ── Load counter ─────────────────────────────────────────────────────────────
+function getNextLoadNum() {
+  var n = parseInt(localStorage.getItem('bdf_load_counter')||'200') + 1;
+  localStorage.setItem('bdf_load_counter', String(n));
+  if(window._SB) window._SB.from('counters').update({n_load: n}).eq('id', 1);
+  return 'LD-' + String(n).padStart(6, '0');
+}
+function peekNextLoadNum() {
+  var n = parseInt(localStorage.getItem('bdf_load_counter')||'200') + 1;
+  return 'LD-' + String(n).padStart(6, '0');
+}
+
+// applyRemoteState removed — Supabase handles data loading
 var boardFilter = 'all', bSort = {col:'loadNum', asc:true}, selLoad = null;
 var scSort = {col:'name', asc:true}, selCarrier = null;
 var archSort = {col:'loadNum', asc:true}, selArchLoad = null;
@@ -2341,7 +2330,7 @@ function delSelLoads(){
       });
     });
     // Write deletion audit
-    try { if(DB) DB.ref('audit/deletions').push({t:Date.now(),u:currentUser,loadNum:l.loadNum,id:l.id,by:cap(currentUser||'')}); } catch(e){}
+    // audit deletion logged (no Firebase)
   });
   if(selLoad && loads.find(function(l){return l.id===selLoad&&l.deleted;})) selLoad=null;
   // Write each soft-deleted load individually — never wipe the collection
@@ -6336,14 +6325,7 @@ var _saveDebounceTimer = null;
 var _auditQueue = [];
 var _auditFlushTimer = null;
 
-// Debounced save — waits 1.5s after last call before writing to Firebase
-// Use for high-frequency blur/change events (stop times, staging fields)
-function saveStateDebounced() {
-  clearTimeout(_saveDebounceTimer);
-  _saveDebounceTimer = setTimeout(function() {
-    saveState();
-  }, 1500);
-}
+// saveStateDebounced removed — inline debounce used instead
 
 // Batch audit writes — collect entries and flush every 10 seconds
 // Reduces Firebase write count from ~1/action to ~1/10s
@@ -6354,18 +6336,11 @@ function queueAudit(path, entry) {
 }
 
 function flushAuditQueue() {
-  if(!_auditQueue.length || !DB) return;
-  var batch = _auditQueue.splice(0);
-  batch.forEach(function(item) {
-    try { DB.ref(item.path).push(item.entry); } catch(e) {}
-  });
+  _auditQueue = []; // audit queue cleared (Supabase — no separate audit path)
 }
 
-// Flush audit on page unload so nothing is lost
 window.addEventListener('beforeunload', function() {
   clearTimeout(_saveDebounceTimer);
-  if(_saveDebounceTimer) saveState(); // flush any pending debounced save
-  flushAuditQueue();
 });
 
 // ============================
@@ -6397,12 +6372,7 @@ function manualBackup() {
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
     localStorage.setItem('bdf_last_backup', new Date().toISOString().slice(0,10));
   } catch(e) { alert('Local download failed: ' + e.message); return; }
-  // Also write to Firebase backups/
-  if(DB) {
-    DB.ref('backups/'+key).set(snap, function(err) {
-      if(err) { alert('Firebase backup write failed: '+err.message+'\n(Local JSON was still downloaded.)'); }
-    });
-  }
+  // Local download only — Supabase doesn't need a separate backup node
 }
 
 function restoreFromBackup() {
@@ -6419,23 +6389,32 @@ function restoreFromBackup() {
         if(!snap.loads || !snap.carriers) { alert('Invalid backup file.'); return; }
         var restoreDate=snap.ts?new Date(snap.ts).toLocaleString():'unknown'; if(!confirm('Restore from backup dated: '+restoreDate+' — This will overwrite all current data. Ensure others are logged out first.')) return;
         // Apply locally
-        function withSel(arr){ return (arr||[]).map(function(x){ return Object.assign({sel:false},x); }); }
-        loads = withSel(snap.loads);
-        dealers = withSel(snap.dealers);
-        carriers = withSel(snap.carriers);
+        function withSel(arr){
+          if(arr && !Array.isArray(arr) && typeof arr==='object') arr=Object.values(arr);
+          return (arr||[]).filter(function(x){return x!=null;}).map(function(x){return Object.assign({sel:false},x);});
+        }
+        loads     = withSel(snap.loads);
+        dealers   = withSel(snap.dealers);
+        carriers  = withSel(snap.carriers);
         locations = withSel(snap.locations);
-        rates = withSel(snap.rates);
+        rates     = withSel(snap.rates);
         tempLoads = snap.tempLoads || [];
-        if(snap.nDealer) nDealer = snap.nDealer;
+        if(snap.nDealer)  nDealer  = snap.nDealer;
         if(snap.nCarrier) nCarrier = snap.nCarrier;
-        if(snap.nLoc) nLoc = snap.nLoc;
-        if(snap.nRate) nRate = snap.nRate;
-        if(snap.nTL) nTL = snap.nTL;
-        // Write audit event
-        try { if(DB) DB.ref('audit/restores').push({t:Date.now(),u:currentUser,from:snap.ts}); } catch(ae){}
-        saveState();
-        renderDashboard(); renderBoard(); updateBKPIs(); renderDealer(); renderSC(); renderLocDB();
-        alert('Restore complete.');
+        if(snap.nLoc)     nLoc     = snap.nLoc;
+        if(snap.nRate)    nRate    = snap.nRate;
+        if(snap.nTL)      nTL      = snap.nTL;
+        // Persist counter
+        var maxLN = loads.reduce(function(mx,l){
+          var n=parseInt((l.loadNum||'').replace('LD-',''))||0; return Math.max(mx,n);
+        }, 200);
+        localStorage.setItem('bdf_load_counter', String(maxLN));
+        _sbLoaded = true;
+        // Write all to Supabase
+        saveState().then(function(){
+          renderDashboard(); renderBoard(); updateBKPIs(); renderDealer(); renderSC(); renderLocDB();
+          alert('Restore complete — data written to Supabase.');
+        }).catch(function(e){ alert('Restore error writing to Supabase: '+e.message); });
       } catch(err) { alert('Error restoring: '+err.message); }
     };
     r.readAsText(file);
@@ -6450,7 +6429,7 @@ function viewDeletedLoads() {
   deleted.forEach(function(l){
     msg += l.loadNum + ' — deleted ' + (l.deletedAt ? new Date(l.deletedAt).toLocaleString() : 'unknown') + ' by ' + (l.deletedBy||'unknown') + '\n';
   });
-  msg += '\nTo restore a load, contact your admin or use Firebase console.';
+  msg += '\nTo restore a load, contact your admin or use the Restore button.';
   alert(msg);
 }
 
@@ -6536,79 +6515,107 @@ document.addEventListener('keydown', function(e) {
 if(document.getElementById('app').style.display==='flex') initApp();
 </script>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-(function(){
-  var firebaseConfig = {
-    apiKey: "AIzaSyBOB6U7WuaoWZeTa_D-cuJociq1l72W5zI",
-    authDomain: "bdfreight-96895.firebaseapp.com",
-    databaseURL: "https://bdfreight-96895-default-rtdb.firebaseio.com",
-    projectId: "bdfreight-96895",
-    storageBucket: "bdfreight-96895.firebasestorage.app",
-    messagingSenderId: "1064897618950",
-    appId: "1:1064897618950:web:1049709105ed7e0a970f87"
-  };
+(async function(){
+  const SB = supabase.createClient(
+    'https://nkrjzkkedmupoogubzxu.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5rcmp6a2tlZG11cG9vZ3Vienh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNzM3MzUsImV4cCI6MjA4OTk0OTczNX0.DI8Nw8U4DvVhtLzEVCVSPdaIuefo1_IFq7EZQJwiDcE'
+  );
+  window._SB = SB;
 
-  firebase.initializeApp(firebaseConfig);
-  DB = firebase.database();
-
-  // Sync user list from Firebase so all machines share the same users
-  syncUsersFromFirebase();
-  // Sync load counter from Firebase so it never resets on redeploy
-  syncLoadCounter();
-
-  // Show connecting overlay
   var overlay = document.getElementById('fb-connecting');
   if(overlay) overlay.style.display = 'flex';
 
-  var firstLoad = true;
-  DB.ref('appstate').on('value', function(snap) {
-    try {
-      var d = snap.val();
-      applyRemoteState(d);
-    } catch(applyErr) {
-      console.error('applyRemoteState error', applyErr);
-    }
+  try {
+    // Load all data in parallel
+    const [lRes, cRes, locRes, dRes, rRes, tRes, metaRes] = await Promise.all([
+      SB.from('loads').select('*').eq('deleted', false),
+      SB.from('carriers').select('*'),
+      SB.from('locations').select('*'),
+      SB.from('dealers').select('*'),
+      SB.from('rates').select('*'),
+      SB.from('temp_loads').select('*'),
+      SB.from('counters').select('*').eq('id', 1)
+    ]);
 
-    if(firstLoad) {
-      firstLoad = false;
-      if(overlay) overlay.style.display = 'none';
-      // If app is already showing (session restore), re-render everything
-      if(document.getElementById('app').style.display === 'flex') {
-        try { renderDashboard(); } catch(e) { console.error('renderDashboard',e); }
-        try { renderDealer(); updateDKPIs(); } catch(e) { console.error('renderDealer',e); }
-        try { renderBoard(); updateBKPIs(); } catch(e) { console.error('renderBoard',e); }
-        try { renderSC(); updateSCKPIs(); } catch(e) { console.error('renderSC',e); }
-        try { renderLocDB(); } catch(e) { console.error('renderLocDB',e); }
-        try { renderRates(); updateRatesKPIs(); } catch(e) { console.error('renderRates',e); }
-        try { renderStaging(); } catch(e) { console.error('renderStaging',e); }
-        try { renderAccounting(); updateAcctKPIs(); } catch(e) { console.error('renderAccounting',e); }
-        setTimeout(function(){initAllResizableCols();},150);
-      }
-    } else {
-      // Real-time update from another user — re-render current page only
-      var activePage = document.querySelector('.page.on');
-      if(!activePage) return;
-      var pid = activePage.id;
-      try {
-        if(pid==='page-dashboard'){renderDashboard();}
-        else if(pid==='page-dealer'){renderDealer();updateDKPIs();}
-        else if(pid==='page-board'){renderBoard();updateBKPIs();}
-        else if(pid==='page-scorecard'){renderSC();updateSCKPIs();}
-        else if(pid==='page-locdb')renderLocDB();
-        else if(pid==='page-rates'){renderRates();updateRatesKPIs();}
-        else if(pid==='page-accounting'){renderAccounting();updateAcctKPIs();}
-        else if(pid==='page-staging'){renderStaging();}
-        updateBKPIs();
-      } catch(renderErr) { console.error('render error on realtime update', renderErr); }
-    }
-  }, function(err){
+    if(lRes.error) throw lRes.error;
+    if(cRes.error) throw cRes.error;
+    if(locRes.error) throw locRes.error;
+
+    // Map snake_case DB cols back to camelCase for app compatibility
+    loads     = (lRes.data||[]).map(sbToLoad);
+    carriers  = (cRes.data||[]).map(sbToCarrier);
+    locations = (locRes.data||[]).map(sbToLocation);
+    dealers   = (dRes.data||[]).map(sbToDealer);
+    rates     = (rRes.data||[]).map(sbToRate);
+    tempLoads = (tRes.data||[]).map(sbToTempLoad);
+
+    // Counters
+    var cRow = (metaRes.data||[])[0] || {};
+    var lc = parseInt(cRow.n_load||'200');
+    localStorage.setItem('bdf_load_counter', String(lc));
+    if(cRow.n_dealer) nDealer = cRow.n_dealer;
+    if(cRow.n_carrier) nCarrier = cRow.n_carrier;
+    if(cRow.n_loc) nLoc = cRow.n_loc;
+    if(cRow.n_rate) nRate = cRow.n_rate;
+    if(cRow.n_tl) nTL = cRow.n_tl;
+
+    _sbLoaded = true;
+    syncUsersFromSupabase();
+
+  } catch(err) {
+    console.error('Supabase load error', err);
     if(overlay) overlay.style.display = 'none';
-    console.error('Firebase error', err);
-    alert('Could not connect to database. Check your internet connection and try again.');
-  });
+    alert('Could not load data from database: ' + err.message);
+    return;
+  }
+
+  if(overlay) overlay.style.display = 'none';
+
+  if(document.getElementById('app').style.display === 'flex') {
+    try { renderDashboard(); } catch(e) { console.error('renderDashboard',e); }
+    try { renderDealer(); updateDKPIs(); } catch(e) { console.error('renderDealer',e); }
+    try { renderBoard(); updateBKPIs(); } catch(e) { console.error('renderBoard',e); }
+    try { renderSC(); updateSCKPIs(); } catch(e) { console.error('renderSC',e); }
+    try { renderLocDB(); } catch(e) { console.error('renderLocDB',e); }
+    try { renderRates(); updateRatesKPIs(); } catch(e) { console.error('renderRates',e); }
+    try { renderStaging(); } catch(e) { console.error('renderStaging',e); }
+    try { renderAccounting(); updateAcctKPIs(); } catch(e) { console.error('renderAccounting',e); }
+    setTimeout(function(){initAllResizableCols();},150);
+  }
+
+  // ── Realtime subscriptions ──────────────────────────────────────────────
+  function realtimeHandler(table, mapper, collection) {
+    return SB.channel('realtime:'+table)
+      .on('postgres_changes', {event:'INSERT', schema:'public', table:table}, function(payload) {
+        var rec = mapper(payload.new);
+        var arr = window[collection];
+        if(!arr.find(function(x){return x.id===rec.id;})) arr.push(rec);
+        reRenderCurrent();
+      })
+      .on('postgres_changes', {event:'UPDATE', schema:'public', table:table}, function(payload) {
+        var rec = mapper(payload.new);
+        var arr = window[collection];
+        var idx = arr.findIndex(function(x){return x.id===rec.id;});
+        if(idx>=0) arr[idx] = rec; else arr.push(rec);
+        reRenderCurrent();
+      })
+      .on('postgres_changes', {event:'DELETE', schema:'public', table:table}, function(payload) {
+        var arr = window[collection];
+        window[collection] = arr.filter(function(x){return x.id!==payload.old.id;});
+        reRenderCurrent();
+      })
+      .subscribe();
+  }
+
+  realtimeHandler('loads',     sbToLoad,     'loads');
+  realtimeHandler('carriers',  sbToCarrier,  'carriers');
+  realtimeHandler('locations', sbToLocation, 'locations');
+  realtimeHandler('dealers',   sbToDealer,   'dealers');
+  realtimeHandler('temp_loads',sbToTempLoad, 'tempLoads');
+
 })();
 </script>
 
@@ -6648,10 +6655,8 @@ if('serviceWorker' in navigator) {
       );
     });
     self.addEventListener('fetch', function(e) {
-      // Always pass Firebase through — never cache
-      if(e.request.url.includes('firebaseio.com') ||
-         e.request.url.includes('googleapis.com') ||
-         e.request.url.includes('gstatic.com') ||
+      // Always pass Supabase through — never cache
+      if(e.request.url.includes('supabase.co') ||
          e.request.url.includes('nominatim')) {
         return;
       }
