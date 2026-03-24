@@ -5234,12 +5234,16 @@ function showIncPanel(cid) {
   document.getElementById('cinc-sub').textContent=incs.length+' incident'+(incs.length!==1?'s':'')+', '+claims.length+' claim'+(claims.length!==1?'s':'');
   var html='';
   if(incs.length){
+    var hasLoadNum = incs.some(function(inc){ return inc.loadNum && inc.loadNum !== '-'; });
     html+='<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--tx2);margin-bottom:8px">Incidents</div>';
     html+=incs.slice().reverse().map(function(inc,idx){
       var realIdx=incs.length-1-idx;
-      return '<div class="incentry"><div class="incmeta"><span class="inctype">'+esc(inc.type)+'</span><span>'+esc(inc.time)+'</span><span>Load: '+esc(inc.loadNum)+'</span><span>By: '+esc(inc.user)+'</span>'
+      var hasLN = inc.loadNum && inc.loadNum !== '-';
+      var loadCol = hasLoadNum ? '<div style="min-width:90px;font-weight:800;font-size:13px;color:var(--navy);padding-top:1px">' + (hasLN ? esc(inc.loadNum) : '—') + '</div>' : '';
+      return '<div class="incentry" style="display:flex;gap:10px;align-items:flex-start">' + loadCol
+        + '<div style="flex:1"><div class="incmeta"><span class="inctype">'+esc(inc.type)+'</span><span>'+esc(inc.time)+'</span><span>By: '+esc(inc.user)+'</span>'
         +(isAdmin()?'<button class="btn xs d" onclick="delIncident('+cid+','+realIdx+');closeM(\'m-cinc\');renderSCPanel('+cid+');updateSCKPIs()">Delete</button>':'')
-        +'</div><div style="font-size:12px;line-height:1.5">"'+esc(inc.note)+'"</div></div>';
+        +'</div><div style="font-size:12px;line-height:1.5">&quot;'+esc(inc.note)+'&quot;</div></div></div>';
     }).join('');
   }
   if(claims.length){
