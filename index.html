@@ -578,7 +578,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="gsearch-results" id="g-results"></div>
     </div>
     <div class="topbar-r">
-      <span class="badge" id="tb-active">0 Active</span>
+      
       <span class="badge red" id="tb-issue" style="display:none">0 Issues</span>
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
@@ -2100,7 +2100,7 @@ function updateBKPIs() {
            (preDel.includes(l.status)&&s.lAppt&&s.lAppt<nowStr2);
   }).length;
   document.getElementById('kpi-board').innerHTML = kpiH('Active',act)+kpiH('Overdue',ovd,ovd>0?'r':'')+kpiH('Issues',iss,iss>0?'r':'')+kpiH('Delivered',del)+kpiH('Archived',arc);
-  document.getElementById('tb-active').textContent = act+' Active';
+  
   var ti=document.getElementById('tb-issue');ti.style.display=iss>0?'':'none';ti.textContent=iss+' Issue'+(iss!==1?'s':'');
   var lateCount=loads.filter(function(l){return l.callins&&l.callins.some(function(c){return c.type==='late';});}).length;
   var lateCnt=document.getElementById('late-cnt');
