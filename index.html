@@ -4538,8 +4538,6 @@ var _pasteQueueIdx = 0;
 function parsePasteOrders() {
   var txt = document.getElementById('paste-orders-txt').value;
   var lines = txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
-
-
   if(!lines.length) { showMsg('paste-orders-msg','Nothing to import.','err'); return; }
 
   _pasteQueue = [];
@@ -4607,21 +4605,6 @@ function parseFreeTextOrder(line) {
 
   // Anything remaining = vendor
   if(working) d.vendor = working;
-
-  return d;
-}
-
-  // Remaining = vendor
-  var remaining = line.replace(/\s+/g,' ').trim();
-  if(remaining) d.vendor = remaining;
-
-  return d;
-}
-
-  // Remaining text = vendor (if present before city/state was stripped, it might be here)
-  // Try to get vendor from what remains
-  var remaining = line.replace(/\s+/g,' ').trim();
-  if(remaining) d.vendor = remaining;
 
   return d;
 }
@@ -4701,6 +4684,7 @@ function skipLocPicker() {
 }
 
 function commitPasteOrders() {
+  try {
   var added=0, updated=0;
   _pasteQueue.forEach(function(d) {
     var ei = d.po ? dealers.findIndex(function(x){return x.po===d.po;}) : -1;
@@ -4722,6 +4706,7 @@ function commitPasteOrders() {
   closeM('m-paste-orders');
   document.getElementById('paste-orders-txt').value = '';
   showMsg('dealer-msg', 'Pasted: '+added+' new, '+updated+' updated.', 'ok');
+  } catch(e) { console.error('commitPasteOrders error:', e); alert('Import error: ' + e.message); }
 }
 
 function importDealerCSV(input){
