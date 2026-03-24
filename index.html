@@ -6560,7 +6560,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
     tempLoads = (tRes.data||[]).map(sbToTempLoad);
 
     // Counters
-    var cRow = (metaRes.data||[])[0] || {};
+    var cRow = (cntRes.data||[])[0] || {};
     var lc = parseInt(cRow.n_load||'200');
     localStorage.setItem('bdf_load_counter', String(lc));
     if(cRow.n_dealer) nDealer = cRow.n_dealer;
