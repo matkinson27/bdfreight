@@ -6532,7 +6532,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
   try {
     // Load all data in parallel
     const [lRes, cRes, locRes, dRes, rRes, tRes, cntRes] = await Promise.all([
-      SB.from('loads').select('*').eq('deleted', false),
+      SB.from('loads').select('*').or('deleted.eq.false,deleted.is.null'),
       SB.from('carriers').select('*'),
       SB.from('locations').select('*'),
       SB.from('dealers').select('*'),
