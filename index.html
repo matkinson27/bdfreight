@@ -2993,6 +2993,7 @@ function renderDetailInto(panel,l){
         +'<button onclick="popoutLoad('+l.id+')" title="Open in new window" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);font-size:12px;padding:0 10px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)" title="Pop out">⧉</button>'
         +'<span style="'+curStyle+'">'+l.status+'</span>'
         +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button onclick="initiateStatus('+l.id+',\''+nxt+'\')" style="'+nxtStyle+'">Next: '+nxt+'</button>':'')
+        +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="background:var(--sur);color:#7c3aed;border:2px solid #7c3aed;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);display:inline-flex;align-items:center;gap:4px">✉ RFQ</button>':'')
         +(l.status==='Delivered'&&!l.ratesVerified?'<button onclick="verifyRates('+l.id+')" style="background:#dcfce7;color:#14532d;border:1px solid #86efac;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">✓ Confirm Rates</button>':'')
         +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d;padding:0 10px;height:30px;display:inline-flex;align-items:center;background:#dcfce7;border-radius:20px;border:1px solid #86efac">✓ Rates Confirmed</span>':'')
       +'</div>'
@@ -5001,6 +5002,15 @@ function saveNewStaging() {
 }
 
 
+function openMailto(subject, body) {
+  var a = document.createElement('a');
+  a.href = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ document.body.removeChild(a); }, 100);
+}
+
 function sendRFQFromLoad(lid) {
   var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
   var totalPcs = 0, totalSeats = 0;
@@ -5038,15 +5048,26 @@ function sendRFQFromLoad(lid) {
   if(l.stops.some(function(s){return s.liftgate;})) accessorials.push('Liftgate Required');
 
   var equip = l.equip ? resolveEquipCode(l.equip)+' ('+l.equip+')' : '';
-  var subject = 'RFQ'+(latestReady?' — Ready '+latestReady:'')+(totalPcs?' — '+totalPcs+' pcs':'');
+  var equip = l.equip ? resolveEquipCode(l.equip) : '';
+  // Build subject: Quote Request: LD# | Equip | PU State > DEL State | # stops
+  var puStates = sorted.filter(function(s){return s.type==='pickup'&&s.state;}).map(function(s){return s.state;});
+  var delStates = sorted.filter(function(s){return s.type==='delivery'&&s.state;}).map(function(s){return s.state;});
+  var firstPU = puStates.length ? puStates[0] : '';
+  var lastDEL = delStates.length ? delStates[delStates.length-1] : '';
+  var lane = (firstPU&&lastDEL) ? firstPU+'>'+lastDEL : (firstPU||lastDEL);
+  var stopCount = sorted.length;
+  var subject = 'Quote Request: '+l.loadNum
+    +(equip?' | '+equip:'')
+    +(lane?' | '+lane:'')
+    +' | '+stopCount+' stop'+(stopCount!==1?'s':'');
   var body = 'Hello,\n\nWe are requesting a rate and availability on the following shipment:\n\nSTOPS:\n'+stopLines.join('\n')
-    +'\n\n'+(equip?'Equipment: '+equip+'\n':'')
+    +'\n\n'+(equip?'Equipment: '+equip+(l.equip?' ('+l.equip+')':'')+'\n':'')
     +((totalPcs||totalSeats)?'Pieces: '+totalPcs+' | Seats: '+totalSeats+'\n':'')
     +(latestReady?'Ready Date: '+latestReady+'\n':'')
     +(accessorials.length?'\nRequirements: '+accessorials.join(', ')+'\n':'')
     +'\nThank you,';
 
-  window.location.href = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  openMailto(subject, body);
 }
 
 function sendRFQEmail(tlId) {
@@ -5113,16 +5134,31 @@ function sendRFQEmail(tlId) {
   // Equipment type
   var equip = tl.equip ? resolveEquipCode(tl.equip)+' ('+tl.equip+')' : '';
 
-  var subject = 'RFQ'+(latestReady?' — Ready '+latestReady:'')+(pcs?' — '+pcs+' pcs':'');
+  var equipLabel = tl.equip ? resolveEquipCode(tl.equip) : '';
+  // Build subject: Quote Request: TL# | Equip | PU State > DEL State | # stops
+  var puStatesList = vendors.map(function(v){
+    var loc=locations.find(function(l){return l.name===v;});
+    if(loc&&loc.city){var cs=loc.city.split(',');return (cs[1]||'').trim();}
+    return '';
+  }).filter(Boolean);
+  var delStatesList = Object.keys(delMap).map(function(cs){return cs.split(',')[1]||cs.split(', ')[1]||'';}).filter(Boolean);
+  var firstPUSt = puStatesList.length ? puStatesList[0] : '';
+  var lastDELSt = delStatesList.length ? delStatesList[delStatesList.length-1] : '';
+  var lane = (firstPUSt&&lastDELSt) ? firstPUSt.trim()+'>'+lastDELSt.trim() : (firstPUSt||lastDELSt||'').trim();
+  var totalStops = puStops.length + Object.keys(delMap).length;
+  var subject = 'Quote Request: '+tl.tlNum
+    +(equipLabel?' | '+equipLabel:'')
+    +(lane?' | '+lane:'')
+    +' | '+totalStops+' stop'+(totalStops!==1?'s':'');
   var body = 'Hello,\n\nWe are requesting a rate and availability on the following shipment:\n\nSTOPS:\n'+stopLines.join('\n')
-    +'\n\n'+(equip?'Equipment: '+equip+'\n':'')
+    +'\n\n'+(equipLabel?'Equipment: '+equipLabel+(tl.equip?' ('+tl.equip+')':'')+'\n':'')
     +((pcs||seats)?'Pieces: '+pcs+' | Seats: '+seats+'\n':'')
     +(latestReady?'Ready Date: '+latestReady+'\n':'')
     +(accessorials.length?'\nRequirements: '+accessorials.join(', ')+'\n':'')
     +'\nThank you,';
 
   var mailto = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-  window.location.href = mailto;
+  openMailto(subject, body);
 }
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
   var p=tl.pos.find(function(x){return x.po===po;});if(!p)return;
