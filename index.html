@@ -4525,188 +4525,6 @@ function pickDealerName(name,addr,cityState,phone){
   if(phone) document.getElementById('df-phone').value=phone;
 }
 
-// CSV Import
-// ============================
-// FREE-TEXT ORDER PASTE PARSER
-// ============================
-var _pasteQueue = []; // orders pending location disambiguation
-var _pasteResults = []; // fully resolved orders
-var _pasteQueueIdx = 0;
-
-function parsePasteOrders() {
-  var txt = document.getElementById('paste-orders-txt').value;
-  var lines = txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
-  if(!lines.length) { showMsg('paste-orders-msg','Nothing to import.','err'); return; }
-
-  _pasteQueue = [];
-  _pasteResults = [];
-  _pasteQueueIdx = 0;
-
-  var parseErrors = [];
-  lines.forEach(function(line, i) {
-    var d = parseFreeTextOrder(line);
-    if(!d) { parseErrors.push('Line '+(i+1)+': could not parse'); return; }
-    _pasteQueue.push(d);
-  });
-
-  if(!_pasteQueue.length) {
-    showMsg('paste-orders-msg', parseErrors.join(' | ') || 'No valid orders found.', 'err');
-    return;
-  }
-
-  // Start resolving location matches
-  resolveNextPasteOrder();
-}
-
-function parseFreeTextOrder(line) {
-  var d = {po:'', vendor:'', pieces:'0', seats:'0', ready:'', dealer:'', phone:'', addr:'', city:'', state:'', zip:'', addinfo:'', sel:false};
-  var working = line.replace(/\s+/g,' ').trim();
-
-  // SO# — capture and strip
-  var soM = working.match(/(?:^|\s)SO[# ]*(\w+)/i);
-  if(soM) { d.addinfo = 'SO ' + soM[1]; working = working.replace(soM[0].trim(), ' ').replace(/\s+/g,' ').trim(); }
-
-  // PO# — allow suffixes like -BO
-  var poM = working.match(/(?:^|\s)PO[# ]*(\w[\w-]*)/i);
-  if(poM) { d.po = poM[1]; working = working.replace(poM[0].trim(), ' ').replace(/\s+/g,' ').trim(); }
-  if(!d.po) return null;
-
-  // Pieces (1 pc or 12 pcs)
-  var pcsM = working.match(/(\d+)\s*pcs?/i);
-  if(pcsM) { d.pieces = pcsM[1]; working = working.replace(pcsM[0], ' ').replace(/\s+/g,' ').trim(); }
-
-  // Seats (1 seat or 12 seats)
-  var seatsM = working.match(/(\d+)\s*seats?/i);
-  if(seatsM) { d.seats = seatsM[1]; working = working.replace(seatsM[0], ' ').replace(/\s+/g,' ').trim(); }
-
-  // Phone — grab just the 10 digits, ignore any trailing notes
-  var phoneM = working.match(/(\d{3})[-. ](\d{3})[-. ](\d{4})/);
-  if(phoneM) {
-    d.phone = phoneM[1]+'-'+phoneM[2]+'-'+phoneM[3];
-    // Strip from the opening paren (or phone start) to end of parens / notes
-    working = working.replace(/[(]?\d{3}[-. ]\d{3}[-. ]\d{4}[^)]*[)]?/, ' ').replace(/\s+/g,' ').trim();
-  }
-
-  // Ready date
-  var readyM = working.match(/ready\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/i);
-  if(readyM) { d.ready = readyM[1]; working = working.replace(readyM[0], ' ').replace(/\s+/g,' ').trim(); }
-
-  // City + State — strip all known tokens first, then match what remains
-  // At this point working should be just "City ST" or "Multi Word City ST"
-  working = working.replace(/\s+/g,' ').trim();
-  var csM = working.match(/^([A-Za-z][A-Za-z ]+?)\s+([A-Z]{2})(?:\s|$)/);
-  if(csM) {
-    d.city = csM[1].trim();
-    d.state = csM[2];
-    working = working.replace(csM[0].trim(), ' ').replace(/\s+/g,' ').trim();
-  }
-
-  // Anything remaining = vendor
-  if(working) d.vendor = working;
-
-  return d;
-}
-
-function resolveNextPasteOrder() {
-  if(_pasteQueueIdx >= _pasteQueue.length) {
-    // All resolved — commit
-    commitPasteOrders();
-    return;
-  }
-
-  var d = _pasteQueue[_pasteQueueIdx];
-
-  // Try location DB match by city+state
-  if(d.city && d.state) {
-    var cityL = d.city.toLowerCase();
-    var stateL = d.state.toLowerCase();
-    var matches = locations.filter(function(l) {
-      var lc = (l.city||'').toLowerCase();
-      var ls = '';
-      if(lc.indexOf(',')!==-1){ var p=lc.split(','); lc=p[0].trim(); ls=p[1].trim(); }
-      if(l.state) ls=l.state.trim().toLowerCase();
-      return lc===cityL && (ls===stateL||stateL==='');
-    });
-
-    if(matches.length === 1) {
-      // Exact match
-      d.dealer = matches[0].name;
-      d.addr = d.addr || matches[0].addr || '';
-      d.phone = d.phone || matches[0].phone || '';
-      _pasteQueueIdx++;
-      resolveNextPasteOrder();
-    } else if(matches.length > 1) {
-      // Ambiguous — show picker
-      showLocPicker(d, matches);
-    } else {
-      // No match — leave dealer blank
-      _pasteQueueIdx++;
-      resolveNextPasteOrder();
-    }
-  } else {
-    _pasteQueueIdx++;
-    resolveNextPasteOrder();
-  }
-}
-
-function showLocPicker(d, matches) {
-  document.getElementById('loc-picker-sub').textContent =
-    'PO ' + d.po + ' — ' + d.city + ', ' + d.state + ' matched ' + matches.length + ' locations. Pick one:';
-  document.getElementById('loc-picker-list').innerHTML = matches.map(function(loc) {
-    return '<div onclick="pickLocForPaste('+loc.id+')" style="padding:10px 12px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;cursor:pointer;background:var(--sur)" onmouseover="this.style.background='var(--sur2)'" onmouseout="this.style.background='var(--sur)'">'
-      +'<div style="font-weight:700;font-size:13px;color:var(--navy)">'+esc(loc.name)+'</div>'
-      +'<div style="font-size:11px;color:var(--tx2)">'+esc(loc.addr||'')+' — '+esc(loc.city||'')+'</div>'
-      +(loc.phone?'<div style="font-size:11px;color:var(--tx2)">'+esc(loc.phone)+'</div>':'')
-      +'</div>';
-  }).join('');
-  openM('m-loc-picker');
-}
-
-function pickLocForPaste(locId) {
-  var loc = locations.find(function(l){return l.id===locId;});
-  if(loc && _pasteQueueIdx < _pasteQueue.length) {
-    var d = _pasteQueue[_pasteQueueIdx];
-    d.dealer = loc.name;
-    d.addr = d.addr || loc.addr || '';
-    d.phone = d.phone || loc.phone || '';
-  }
-  closeM('m-loc-picker');
-  _pasteQueueIdx++;
-  resolveNextPasteOrder();
-}
-
-function skipLocPicker() {
-  closeM('m-loc-picker');
-  _pasteQueueIdx++;
-  resolveNextPasteOrder();
-}
-
-function commitPasteOrders() {
-  try {
-  var added=0, updated=0;
-  _pasteQueue.forEach(function(d) {
-    var ei = d.po ? dealers.findIndex(function(x){return x.po===d.po;}) : -1;
-    if(ei>=0) { Object.assign(dealers[ei], d); saveRecord('dealers', dealers[ei]); updated++; }
-    else {
-      d.id = nDealer++;
-      dealers.push(d);
-      saveRecord('dealers', d);
-      added++;
-      // Auto-add to location DB if dealer name found
-      if(d.dealer && !locations.find(function(l){return l.name.toLowerCase()===d.dealer.toLowerCase();})) {
-        var newLoc = {id:nLoc++,name:d.dealer,type:'Receiver',addr:d.addr||'',city:d.city+(d.state?', '+d.state:''),zip:d.zip||'',phone:d.phone||'',email:'',hours:'',dock:'',notes:'',dealerNum:'',coach:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false};
-        locations.push(newLoc);
-        saveRecord('locations', newLoc);
-      }
-    }
-  });
-  renderDealer(); updateDKPIs();
-  closeM('m-paste-orders');
-  document.getElementById('paste-orders-txt').value = '';
-  showMsg('dealer-msg', 'Pasted: '+added+' new, '+updated+' updated.', 'ok');
-  } catch(e) { console.error('commitPasteOrders error:', e); alert('Import error: ' + e.message); }
-}
-
 function importDealerCSV(input){
   var file=input.files[0];if(!file)return;
   var r=new FileReader();r.onload=function(e){
@@ -6925,5 +6743,191 @@ window.addEventListener('appinstalled', function() {
   if(btn) btn.style.display = 'none';
 });
 </script>
+
+<script>
+// CSV Import
+// ============================
+// FREE-TEXT ORDER PASTE PARSER
+// ============================
+var _pasteQueue = []; // orders pending location disambiguation
+var _pasteResults = []; // fully resolved orders
+var _pasteQueueIdx = 0;
+
+function parsePasteOrders() {
+  var txt = document.getElementById('paste-orders-txt').value;
+  var lines = txt.split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean);
+  if(!lines.length) { showMsg('paste-orders-msg','Nothing to import.','err'); return; }
+
+  _pasteQueue = [];
+  _pasteResults = [];
+  _pasteQueueIdx = 0;
+
+  var parseErrors = [];
+  lines.forEach(function(line, i) {
+    var d = parseFreeTextOrder(line);
+    if(!d) { parseErrors.push('Line '+(i+1)+': could not parse'); return; }
+    _pasteQueue.push(d);
+  });
+
+  if(!_pasteQueue.length) {
+    showMsg('paste-orders-msg', parseErrors.join(' | ') || 'No valid orders found.', 'err');
+    return;
+  }
+
+  // Start resolving location matches
+  resolveNextPasteOrder();
+}
+
+function parseFreeTextOrder(line) {
+  var d = {po:'', vendor:'', pieces:'0', seats:'0', ready:'', dealer:'', phone:'', addr:'', city:'', state:'', zip:'', addinfo:'', sel:false};
+  var working = line.replace(/\s+/g,' ').trim();
+
+  // SO# — capture and strip
+  var soM = working.match(/(?:^|\s)SO[# ]*(\w+)/i);
+  if(soM) { d.addinfo = 'SO ' + soM[1]; working = working.replace(soM[0].trim(), ' ').replace(/\s+/g,' ').trim(); }
+
+  // PO# — allow suffixes like -BO
+  var poM = working.match(/(?:^|\s)PO[# ]*(\w[\w-]*)/i);
+  if(poM) { d.po = poM[1]; working = working.replace(poM[0].trim(), ' ').replace(/\s+/g,' ').trim(); }
+  if(!d.po) return null;
+
+  // Pieces (1 pc or 12 pcs)
+  var pcsM = working.match(/(\d+)\s*pcs?/i);
+  if(pcsM) { d.pieces = pcsM[1]; working = working.replace(pcsM[0], ' ').replace(/\s+/g,' ').trim(); }
+
+  // Seats (1 seat or 12 seats)
+  var seatsM = working.match(/(\d+)\s*seats?/i);
+  if(seatsM) { d.seats = seatsM[1]; working = working.replace(seatsM[0], ' ').replace(/\s+/g,' ').trim(); }
+
+  // Phone — grab just the 10 digits, ignore any trailing notes
+  var phoneM = working.match(/(\d{3})[-. ](\d{3})[-. ](\d{4})/);
+  if(phoneM) {
+    d.phone = phoneM[1]+'-'+phoneM[2]+'-'+phoneM[3];
+    // Strip from the opening paren (or phone start) to end of parens / notes
+    working = working.replace(/[(]?\d{3}[-. ]\d{3}[-. ]\d{4}[^)]*[)]?/, ' ').replace(/\s+/g,' ').trim();
+  }
+
+  // Ready date
+  var readyM = working.match(/ready\s*(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)/i);
+  if(readyM) { d.ready = readyM[1]; working = working.replace(readyM[0], ' ').replace(/\s+/g,' ').trim(); }
+
+  // City + State — strip all known tokens first, then match what remains
+  // At this point working should be just "City ST" or "Multi Word City ST"
+  working = working.replace(/\s+/g,' ').trim();
+  var csM = working.match(/^([A-Za-z][A-Za-z ]+?)\s+([A-Z]{2})(?:\s|$)/);
+  if(csM) {
+    d.city = csM[1].trim();
+    d.state = csM[2];
+    working = working.replace(csM[0].trim(), ' ').replace(/\s+/g,' ').trim();
+  }
+
+  // Anything remaining = vendor
+  if(working) d.vendor = working;
+
+  return d;
+}
+
+function resolveNextPasteOrder() {
+  if(_pasteQueueIdx >= _pasteQueue.length) {
+    // All resolved — commit
+    commitPasteOrders();
+    return;
+  }
+
+  var d = _pasteQueue[_pasteQueueIdx];
+
+  // Try location DB match by city+state
+  if(d.city && d.state) {
+    var cityL = d.city.toLowerCase();
+    var stateL = d.state.toLowerCase();
+    var matches = locations.filter(function(l) {
+      var lc = (l.city||'').toLowerCase();
+      var ls = '';
+      if(lc.indexOf(',')!==-1){ var p=lc.split(','); lc=p[0].trim(); ls=p[1].trim(); }
+      if(l.state) ls=l.state.trim().toLowerCase();
+      return lc===cityL && (ls===stateL||stateL==='');
+    });
+
+    if(matches.length === 1) {
+      // Exact match
+      d.dealer = matches[0].name;
+      d.addr = d.addr || matches[0].addr || '';
+      d.phone = d.phone || matches[0].phone || '';
+      _pasteQueueIdx++;
+      resolveNextPasteOrder();
+    } else if(matches.length > 1) {
+      // Ambiguous — show picker
+      showLocPicker(d, matches);
+    } else {
+      // No match — leave dealer blank
+      _pasteQueueIdx++;
+      resolveNextPasteOrder();
+    }
+  } else {
+    _pasteQueueIdx++;
+    resolveNextPasteOrder();
+  }
+}
+
+function showLocPicker(d, matches) {
+  document.getElementById('loc-picker-sub').textContent =
+    'PO ' + d.po + ' — ' + d.city + ', ' + d.state + ' matched ' + matches.length + ' locations. Pick one:';
+  document.getElementById('loc-picker-list').innerHTML = matches.map(function(loc) {
+    return '<div onclick="pickLocForPaste('+loc.id+')" style="padding:10px 12px;border:1px solid var(--bd);border-radius:var(--r);margin-bottom:6px;cursor:pointer;background:var(--sur)">'
+      +'<div style="font-weight:700;font-size:13px;color:var(--navy)">'+esc(loc.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--tx2)">'+esc(loc.addr||'')+' — '+esc(loc.city||'')+'</div>'
+      +(loc.phone?'<div style="font-size:11px;color:var(--tx2)">'+esc(loc.phone)+'</div>':'')
+      +'</div>';
+  }).join('');
+  openM('m-loc-picker');
+}
+
+function pickLocForPaste(locId) {
+  var loc = locations.find(function(l){return l.id===locId;});
+  if(loc && _pasteQueueIdx < _pasteQueue.length) {
+    var d = _pasteQueue[_pasteQueueIdx];
+    d.dealer = loc.name;
+    d.addr = d.addr || loc.addr || '';
+    d.phone = d.phone || loc.phone || '';
+  }
+  closeM('m-loc-picker');
+  _pasteQueueIdx++;
+  resolveNextPasteOrder();
+}
+
+function skipLocPicker() {
+  closeM('m-loc-picker');
+  _pasteQueueIdx++;
+  resolveNextPasteOrder();
+}
+
+function commitPasteOrders() {
+  try {
+  var added=0, updated=0;
+  _pasteQueue.forEach(function(d) {
+    var ei = d.po ? dealers.findIndex(function(x){return x.po===d.po;}) : -1;
+    if(ei>=0) { Object.assign(dealers[ei], d); saveRecord('dealers', dealers[ei]); updated++; }
+    else {
+      d.id = nDealer++;
+      dealers.push(d);
+      saveRecord('dealers', d);
+      added++;
+      // Auto-add to location DB if dealer name found
+      if(d.dealer && !locations.find(function(l){return l.name.toLowerCase()===d.dealer.toLowerCase();})) {
+        var newLoc = {id:nLoc++,name:d.dealer,type:'Receiver',addr:d.addr||'',city:d.city+(d.state?', '+d.state:''),zip:d.zip||'',phone:d.phone||'',email:'',hours:'',dock:'',notes:'',dealerNum:'',coach:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false};
+        locations.push(newLoc);
+        saveRecord('locations', newLoc);
+      }
+    }
+  });
+  renderDealer(); updateDKPIs();
+  closeM('m-paste-orders');
+  document.getElementById('paste-orders-txt').value = '';
+  showMsg('dealer-msg', 'Pasted: '+added+' new, '+updated+' updated.', 'ok');
+  } catch(e) { console.error('commitPasteOrders error:', e); alert('Import error: ' + e.message); }
+}
+
+</script>
+
 </body>
 </html>
