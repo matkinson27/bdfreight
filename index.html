@@ -2548,7 +2548,7 @@ function renderBoard() {
       ? '<span class="'+(mar>=0?'mpos':'mneg')+'">'+(marPct)+'%</span>'
       : '<span class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</span>';
     return '<tr class="row'+(l.id===selLoad?' sel':'')+(isIss?' iss':'')+(isOverdue&&!isIss?' overdue':'')+'" onclick="clickLoad('+l.id+')">'
-      +'<td onclick="event.stopPropagation()" style="white-space:nowrap"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)">'+(['Schedule','Available'].includes(l.status)?'<button onclick="event.stopPropagation();sendRFQFromLoad('+l.id+')" title="Send RFQ email" style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:11px;color:#7c3aed;line-height:1;font-weight:700" tabindex="-1">✉</button>':'')+'</td>'
+      +'<td onclick="event.stopPropagation()" style="white-space:nowrap"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)">'+(['Schedule','Available'].includes(l.status)?'<button onclick="event.stopPropagation();sendRFQFromLoad('+l.id+')" title="Send RFQ email" style="background:#1B2A4A;border:none;cursor:pointer;padding:0 5px;font-size:11px;color:#2ECC40;line-height:1;font-weight:700;height:20px;border-radius:3px;margin-left:3px" tabindex="-1">✉</button>':'')+'</td>'
       +'<td style="font-weight:700;color:'+(l.isLTL?'#7c3aed':'var(--navy)')+'">'+(l.isLTL?'<span style="font-size:9px;font-weight:700;background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-right:3px">LTL</span>':'')+esc(l.loadNum)+'</td>'
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'+overdueLabel+'</td>'
       +'<td>'+trackCell+'</td>'
@@ -2993,7 +2993,7 @@ function renderDetailInto(panel,l){
         +'<button onclick="popoutLoad('+l.id+')" title="Open in new window" style="background:var(--sur2);color:var(--tx2);border:1px solid var(--bd2);font-size:12px;padding:0 10px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)" title="Pop out">⧉</button>'
         +'<span style="'+curStyle+'">'+l.status+'</span>'
         +(nxt&&!['Closed','Issue','Claim'].includes(l.status)?'<button onclick="initiateStatus('+l.id+',\''+nxt+'\')" style="'+nxtStyle+'">Next: '+nxt+'</button>':'')
-        +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="background:var(--sur);color:#7c3aed;border:2px solid #7c3aed;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);display:inline-flex;align-items:center;gap:4px">✉ RFQ</button>':'')
+        +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="background:#1B2A4A;color:#2ECC40;border:none;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);display:inline-flex;align-items:center;gap:4px">✉ RFQ</button>':'')
         +(l.status==='Delivered'&&!l.ratesVerified?'<button onclick="verifyRates('+l.id+')" style="background:#dcfce7;color:#14532d;border:1px solid #86efac;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">✓ Confirm Rates</button>':'')
         +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d;padding:0 10px;height:30px;display:inline-flex;align-items:center;background:#dcfce7;border-radius:20px;border:1px solid #86efac">✓ Rates Confirmed</span>':'')
       +'</div>'
@@ -3070,7 +3070,7 @@ function renderDetailInto(panel,l){
         +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
           +'<span>Call-In Log</span>'
           +'<div style="display:flex;gap:4px">'
-            +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="border:1.5px solid #7c3aed;color:#7c3aed;background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">✉ RFQ</button>':'')
+            +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="background:#1B2A4A;color:#2ECC40;border:none;font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">✉ RFQ</button>':'')
             +(l.status==='Issue'
               ?'<button onclick="removeIssue('+l.id+')" style="border:1.5px solid #92400e;color:#92400e;background:#fef3c7;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Remove Issue</button>'
               :'<button onclick="initiateStatus('+l.id+',\'Issue\')" style="border:2px solid var(--red);color:var(--navy);background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">Flag Issue</button>'
@@ -4878,7 +4878,7 @@ function renderStaging() {
       + '<td onclick="event.stopPropagation()" style="white-space:nowrap">'
         + '<button class="btn xs" style="border:2px solid var(--green);color:var(--navy);font-weight:700;margin-right:3px" onclick="openAddPOsModal('+tl.id+')">+ POs</button>'
         + '<button class="btn xs p" style="font-weight:700;margin-right:3px" onclick="convertTL('+tl.id+')">Convert</button>'
-        + '<button class="btn xs" style="border:1.5px solid #7c3aed;color:#7c3aed;margin-right:3px" onclick="sendRFQEmail('+tl.id+')">✉ RFQ</button>'
+        + '<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:3px" onclick="sendRFQEmail('+tl.id+')">✉ RFQ</button>'
         + '<button class="btn xs d" onclick="dissolveTL('+tl.id+')">Dissolve</button>'
         + '</td>'
       + '</tr>';
@@ -5160,6 +5160,7 @@ function sendRFQEmail(tlId) {
   var mailto = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
   openMailto(subject, body);
 }
+function removePOFromTL(tlId,po){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
   var p=tl.pos.find(function(x){return x.po===po;});if(!p)return;
   dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
@@ -7899,4 +7900,4 @@ function commitPasteOrders() {
 </script>
 
 </body>
-</html>
+</html>v
