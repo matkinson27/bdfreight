@@ -5055,11 +5055,13 @@ function sendRFQFromLoad(lid) {
   var firstPU = puStates.length ? puStates[0] : '';
   var lastDEL = delStates.length ? delStates[delStates.length-1] : '';
   var lane = (firstPU&&lastDEL) ? firstPU+'>'+lastDEL : (firstPU||lastDEL);
-  var stopCount = sorted.length;
+  var puCount = sorted.filter(function(s){return s.type==='pickup';}).length;
+  var delCount = sorted.filter(function(s){return s.type==='delivery';}).length;
+  var stopLabel = puCount+'P'+delCount+'D';
   var subject = 'Quote Request: '+l.loadNum
     +(equip?' | '+equip:'')
     +(lane?' | '+lane:'')
-    +' | '+stopCount+' stop'+(stopCount!==1?'s':'');
+    +' | '+stopLabel;
   var body = 'Hello,\n\nWe are requesting a rate and availability on the following shipment:\n\nSTOPS:\n'+stopLines.join('\n')
     +'\n\n'+(equip?'Equipment: '+equip+(l.equip?' ('+l.equip+')':'')+'\n':'')
     +((totalPcs||totalSeats)?'Pieces: '+totalPcs+' | Seats: '+totalSeats+'\n':'')
@@ -5145,11 +5147,11 @@ function sendRFQEmail(tlId) {
   var firstPUSt = puStatesList.length ? puStatesList[0] : '';
   var lastDELSt = delStatesList.length ? delStatesList[delStatesList.length-1] : '';
   var lane = (firstPUSt&&lastDELSt) ? firstPUSt.trim()+'>'+lastDELSt.trim() : (firstPUSt||lastDELSt||'').trim();
-  var totalStops = puStops.length + Object.keys(delMap).length;
+  var stopLabel = puStops.length+'P'+Object.keys(delMap).length+'D';
   var subject = 'Quote Request: '+tl.tlNum
     +(equipLabel?' | '+equipLabel:'')
     +(lane?' | '+lane:'')
-    +' | '+totalStops+' stop'+(totalStops!==1?'s':'');
+    +' | '+stopLabel;
   var body = 'Hello,\n\nWe are requesting a rate and availability on the following shipment:\n\nSTOPS:\n'+stopLines.join('\n')
     +'\n\n'+(equipLabel?'Equipment: '+equipLabel+(tl.equip?' ('+tl.equip+')':'')+'\n':'')
     +((pcs||seats)?'Pieces: '+pcs+' | Seats: '+seats+'\n':'')
@@ -7900,4 +7902,4 @@ function commitPasteOrders() {
 </script>
 
 </body>
-</html>v
+</html>
