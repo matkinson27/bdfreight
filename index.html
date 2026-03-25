@@ -3024,19 +3024,18 @@ function pickDICarrier(name,lid){
 function setStopTime(lid, idx, field, val) {
   var l = loads.find(function(x){return x.id===lid;});
   if(!l) return;
+  var wasEmpty = !l.stops[idx][field]; // true only if this is a fresh entry, not an edit
   l.stops[idx][field] = val;
   var s = l.stops[idx];
   var sorted = l.stops.slice().sort(function(a,b){ if(a.type!==b.type) return a.type==='pickup'?-1:1; return (a.appt||'').localeCompare(b.appt||''); });
   var isFirst = sorted[0] === s;
   var isLast = sorted[sorted.length-1] === s;
 
-  if(field === 'inT' && val) {
+  if(field === 'inT' && val && wasEmpty) {
     if(s.type === 'pickup') {
-      // In at pickup -> Arrived (if currently Dispatched or earlier in active lifecycle)
       var fi = LC.indexOf(l.status);
       if(fi <= LC.indexOf('Dispatched')) autoAdv(l, 'Arrived', 'Driver arrived at '+s.name+'. In: '+val);
     } else if(s.type === 'delivery') {
-      // In at delivery -> Receiver
       var fi2 = LC.indexOf(l.status);
       if(fi2 <= LC.indexOf('Departed')) autoAdv(l, 'Receiver', 'Driver arrived at '+s.name+'. In: '+val);
     }
@@ -3048,19 +3047,19 @@ function setStopTime(lid, idx, field, val) {
         var stopLabel=(s.type==='pickup'?'PU':'DEL')+': '+(s.name||'stop');
         var lateNote='Late arrival at '+stopLabel+' — '+minsLate+' min late (latest: '+s.latestAppt+', actual: '+val+')';
         if(!l.callins)l.callins=[];
-        l.callins.push({status:'Late Arrival',time:nowStr(),note:lateNote,req:false,type:'late'});
+        // Only log late if not already logged for this stop
+        var alreadyLogged = l.callins.some(function(c){return c.type==='late'&&c.note&&c.note.indexOf(stopLabel)!==-1;});
+        if(!alreadyLogged) l.callins.push({status:'Late Arrival',time:nowStr(),note:lateNote,req:false,type:'late'});
       }
     }
   }
-  if(field === 'outT' && val) {
+  if(field === 'outT' && val && wasEmpty) {
     if(s.type === 'pickup') {
-      // Out at pickup -> Departed (if all pickups have out times or this is last pickup)
       var pickups = l.stops.filter(function(x){return x.type==='pickup';});
       var allPUout = pickups.every(function(x){return x.outT;});
       var fi3 = LC.indexOf(l.status);
       if(allPUout && fi3 <= LC.indexOf('Arrived')) autoAdv(l, 'Departed', 'Driver departed '+s.name+'. Out: '+val);
     } else if(s.type === 'delivery') {
-      // Out at delivery -> Delivered ONLY if this is the last stop
       var deliveries = l.stops.filter(function(x){return x.type==='delivery';});
       var sortedDels = deliveries.slice().sort(function(a,b){return(b.appt||'').localeCompare(a.appt||'');});
       var isLastDel = sortedDels[0] === s;
@@ -4925,10 +4924,20 @@ function toInputDate(s) {
 
 function saveDealer(){
   var f=function(id){return document.getElementById(id).value;};
+  var po = f('df-po').trim();
+  if(!po) { alert('PO # is required.'); return; }
+  // Duplicate PO check — exclude current record when editing
+  var duplicate = dealers.find(function(x){
+    return x.po.trim().toLowerCase() === po.toLowerCase() && x.id !== editingDealerId;
+  });
+  if(duplicate) {
+    alert('PO # "'+po+'" already exists for '+( duplicate.dealer||duplicate.vendor||'another order')+'. PO numbers must be unique.');
+    return;
+  }
   var ready = f('df-ready');
   // Format date as M/D/YYYY for display
   var readyDisp = ready ? (function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
-  var d={po:f('df-po'),vendor:f('df-vendor'),pieces:f('df-pieces'),seats:f('df-seats'),
+  var d={po:po,vendor:f('df-vendor'),pieces:f('df-pieces'),seats:f('df-seats'),
     ready:readyDisp,dealer:f('df-dealer'),phone:f('df-phone'),addr:f('df-addr'),
     city:f('df-city'),state:f('df-state'),zip:f('df-zip'),addinfo:f('df-addinfo'),sel:false};
   if(editingDealerId) {
@@ -6819,7 +6828,7 @@ function initResizableCols(tableId) {
     ths.forEach(function(th, i) {
       if(saved[i]) {
         th.style.width = saved[i]+'px';
-        th.style.minWidth = saved[i]+'px';
+        th.style.minWidth = '0';
       }
     });
   } catch(e){}
@@ -6852,7 +6861,7 @@ function initResizableCols(tableId) {
       document.body.appendChild(tmp);
       var w = Math.max(tmp.offsetWidth + 20, 40);
       document.body.removeChild(tmp);
-      th.style.width = w+'px'; th.style.minWidth = w+'px';
+      th.style.width = w+'px'; th.style.minWidth = '0';
       // Save
       var widths = {};
       table.querySelectorAll('thead th').forEach(function(t,j){if(t.offsetWidth)widths[j]=t.offsetWidth;});
@@ -6868,9 +6877,9 @@ function initResizableCols(tableId) {
       document.body.style.userSelect = 'none';
 
       function onMove(e) {
-        var newW = Math.max(20, startW + (e.clientX - startX));
+        var newW = Math.max(30, startW + (e.clientX - startX));
         th.style.width = newW+'px';
-        th.style.minWidth = newW+'px';
+        th.style.minWidth = '0';
       }
       function onUp() {
         resizer.classList.remove('dragging');
