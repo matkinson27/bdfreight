@@ -1599,7 +1599,7 @@ function sbToLoad(r) {
     deleted: r.deleted||false, deletedAt: r.deleted_at||null,
     deletedBy: r.deleted_by||null, deliveredAt: r.delivered_at||null,
     preIssueStatus: r.pre_issue_status||null, claimInfo: r.claim_info||null,
-    sel: false
+    lastLoc: r.last_loc||'', sel: false
   };
 }
 function sbToCarrier(r) {
@@ -1657,7 +1657,8 @@ function loadToSb(l) {
     rates_verified: o.ratesVerified||false, archived: o.archived||false,
     deleted: o.deleted||false, deleted_at: o.deletedAt||null,
     deleted_by: o.deletedBy||null, delivered_at: o.deliveredAt||null,
-    pre_issue_status: o.preIssueStatus||null, claim_info: o.claimInfo||null
+    pre_issue_status: o.preIssueStatus||null, claim_info: o.claimInfo||null,
+    last_loc: o.lastLoc||''
   };
 }
 function carrierToSb(c) {
@@ -2437,6 +2438,7 @@ function renderDetail() {
   var l=loads.find(function(x){return x.id===selLoad;});
   if(!l){panel.innerHTML='';return;}
   renderDetailInto(panel,l);
+  if(l.lastLoc) setTimeout(function(){ calcLKLEta(l.id); }, 50);
 }
 // ============================
 // STATUS TIMELINE BAR
@@ -2748,6 +2750,24 @@ function renderDetailInto(panel,l){
             +'<div class="info-field"><label>Truck/Trailer</label><input value="'+esc(l.truck||'')+'" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld)ld.truck=v;})(this.value)" placeholder="-"></div>'
             +'<div class="info-field"><label>Tracking'+(l.tracking?' — <a href="'+esc(l.tracking)+'" target="_blank" style="font-size:10px;color:var(--navy)">Open</a>':'')+'</label><input value="'+esc(l.tracking||'')+'" placeholder="https://..." onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.tracking=v;renderBoard();}})(this.value)"></div>'
           +'</div>'
+          +(function(){
+            var ns=getNextStop(l);
+            var nsLabel=ns?((ns.type==='pickup'?'▲ Next PU':'▼ Next DEL')+': '+(ns.name||((ns.city||'')+(ns.state?', '+ns.state:'')))):'';
+            var nsColor=ns?(ns.type==='pickup'?'#1e40af':'#15803d'):'var(--tx3)';
+            return '<div class="info-row" style="grid-template-columns:1fr">'
+              +'<div class="info-field">'
+                +'<label>Last Known Location</label>'
+                +'<div style="display:flex;gap:6px;align-items:center">'
+                  +'<input id="lkl-input-'+l.id+'" value="'+esc(l.lastLoc||'')+'" placeholder="City, ST or ZIP" style="flex:1" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.lastLoc=v;saveRecord(\'loads\',ld);calcLKLEta('+l.id+');}})(this.value)">'
+                  +'<button class="btn xs" onclick="calcLKLEta('+l.id+')" title="Recalculate ETA">ETA</button>'
+                +'</div>'
+                +'<div style="display:flex;justify-content:space-between;margin-top:3px">'
+                  +'<span id="lkl-eta-'+l.id+'" style="font-size:10px;color:var(--tx2)"></span>'
+                  +(ns?'<span style="font-size:10px;font-weight:600;color:'+nsColor+'">'+esc(nsLabel)+'</span>':'')
+                +'</div>'
+              +'</div>'
+            +'</div>';
+          })()
         +'</div>'
         +'<div style="margin-top:10px">'
           +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">'
@@ -3031,6 +3051,57 @@ function openCallinModal(l, title, sub, req) {
   openM('m-callin');
 }
 
+function getNextStop(l) {
+  // Sort all stops by appt time regardless of type — true route sequence
+  var seq = l.stops.slice().sort(function(a,b){
+    var at = a.appt||a.latestAppt||'';
+    var bt = b.appt||b.latestAppt||'';
+    if(at && bt) return at.localeCompare(bt);
+    if(at) return -1;
+    if(bt) return 1;
+    // No appt — pickups before deliveries as fallback
+    if(a.type!==b.type) return a.type==='pickup'?-1:1;
+    return 0;
+  });
+  // First stop with no outT (not yet departed = not completed)
+  return seq.find(function(s){ return !s.outT; }) || null;
+}
+
+function calcLKLEta(lid) {
+  var l = loads.find(function(x){return x.id===lid;});
+  var etaEl = document.getElementById('lkl-eta-'+lid);
+  if(!l || !etaEl) return;
+  var loc = l.lastLoc||'';
+  if(!loc) { etaEl.textContent=''; return; }
+  var ns = getNextStop(l);
+  if(!ns) { etaEl.textContent=''; return; }
+  var dest = ns.city+(ns.state?', '+ns.state:'')+(ns.zip?' '+ns.zip:'');
+  if(!dest.trim()) { etaEl.textContent=''; return; }
+  var lbl = ns.type==='pickup'?'next PU':'next DEL';
+  etaEl.innerHTML = '📍 Calculating ETA to '+esc(dest)+' ('+lbl+')...';
+  calcETA(loc, dest, function(result){
+    if(!document.getElementById('lkl-eta-'+lid)) return;
+    if(result){
+      document.getElementById('lkl-eta-'+lid).innerHTML = '📍 Est. <strong>'+result.eta+'</strong> to '+esc(dest)+' ('+lbl+') <span style="color:var(--tx3)">('+result.miles+' mi)</span>';
+    } else {
+      document.getElementById('lkl-eta-'+lid).textContent = 'Could not calculate ETA.';
+    }
+  });
+}
+
+// Returns the next incomplete stop in true route sequence (by appt, all types)
+function getNextStop(l) {
+  if(!l||!l.stops||!l.stops.length) return null;
+  // Sort all stops by appt time; stops with no appt go last
+  var seq = l.stops.slice().sort(function(a,b){
+    var at = a.appt||'9999', bt = b.appt||'9999';
+    return at.localeCompare(bt);
+  });
+  // First stop with no outT = next stop
+  var next = seq.find(function(s){ return !s.outT; });
+  return next || null;
+}
+
 function ciLocChanged() {
   var loc = document.getElementById('ci-loc').value.trim();
   var etaEl = document.getElementById('ci-eta');
@@ -3038,19 +3109,16 @@ function ciLocChanged() {
   if(!loc || !pendingCallin) return;
   var l = loads.find(function(x){return x.id===pendingCallin.lid;});
   if(!l) return;
-  // Find next unvisited delivery stop
-  var sorted = l.stops.slice().sort(function(a,b){
-    if(a.type!==b.type) return a.type==='pickup'?-1:1;
-    return (a.appt||'').localeCompare(b.appt||'');
-  });
-  var nextDel = sorted.find(function(s){return s.type==='delivery'&&!s.outT;});
-  if(!nextDel) return;
-  var dest = nextDel.city + (nextDel.state?', '+nextDel.state:'') + (nextDel.zip?' '+nextDel.zip:'');
+  var nextStop = getNextStop(l);
+  if(!nextStop) return;
+  var dest = nextStop.city + (nextStop.state?', '+nextStop.state:'') + (nextStop.zip?' '+nextStop.zip:'');
   if(!dest.trim()) return;
-  etaEl.textContent = 'Calculating ETA to '+dest+'...';
+  var stopLabel = nextStop.type==='pickup' ? 'PU' : 'DEL';
+  var stopName = nextStop.name ? esc(nextStop.name) : esc(dest);
+  etaEl.textContent = 'Calculating ETA to next '+stopLabel+'...';
   calcETA(loc, dest, function(result) {
     if(result) {
-      etaEl.innerHTML = '📍 Est. <strong>'+result.eta+'</strong> to '+esc(dest)+' <span style="color:var(--tx3)">('+result.miles+' mi × 1.2 road factor @ 55mph)</span>';
+      etaEl.innerHTML = '📍 Est. <strong>'+result.eta+'</strong> → '+stopLabel+': '+stopName+' <span style="color:var(--tx3)">('+result.miles+' mi, road factor @ 55mph)</span>';
     } else {
       etaEl.textContent = 'Could not calculate ETA — check location format.';
     }
@@ -3147,6 +3215,7 @@ function confirmCallin() {
 
   // note-only (no status change)
   if(to===null){
+    if(loc) l.lastLoc = loc;
     l.callins.push({status:'Note — '+from,time:nowStr(),note:note||'(no note)',loc:loc,req:false,type:'note'});
     closeM('m-callin');pendingCallin=null;
     saveRecord('loads',l);renderDetail();
@@ -3174,6 +3243,7 @@ function confirmCallin() {
   }
   if(to==='Issue') l.preIssueStatus=from;
   l.status=to;
+  if(loc) l.lastLoc = loc;
   l.callins.push({status:from+' to '+to,time:nowStr(),note:note,loc:loc,req:isReq(from,to),type:'callin'});
   if(to==='Closed') l.archived=true;
   if(to==='Claim' && l.carrier) logClaimToCarrier(l, note);
