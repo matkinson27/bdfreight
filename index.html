@@ -3806,7 +3806,20 @@ function addStop(stop) {
   d.className='srow '+(isDel?'di':'pi');d.id='sr-'+idx;
   var locked = s.name ? 'readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"' : '';
   var lockDisplay = s.name ? '' : 'none';
-  d.innerHTML='<button class="rmbtn" onclick="rmStop('+idx+')">x</button>'
+  var activeCount = stopRows.filter(Boolean).length;
+  var myPos = activeCount;
+  var reorderCtrl = '<div style="display:flex;align-items:center;gap:4px;margin-bottom:5px">'
+    +'<button class="rmbtn" onclick="rmStop('+idx+')" style="margin:0">x</button>'
+    +'<div style="display:flex;flex-direction:column;gap:1px">'
+      +'<button onclick="moveStop('+idx+',-1)" class="btn xs" style="height:16px;padding:0 5px;font-size:11px;line-height:1" title="Move up">↑</button>'
+      +'<button onclick="moveStop('+idx+',1)" class="btn xs" style="height:16px;padding:0 5px;font-size:11px;line-height:1" title="Move down">↓</button>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--tx2)">'
+      +'<span>Stop</span>'
+      +'<input type="number" min="1" value="'+myPos+'" onchange="moveStopToNum('+idx+',parseInt(this.value)||1)" style="width:40px;height:22px;font-size:11px;padding:0 5px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;text-align:center">'
+    +'</div>'
+  +'</div>';
+  d.innerHTML=reorderCtrl
     +'<div class="sr1" style="grid-template-columns:88px 1fr 160px 160px">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
       +'<div class="sl">Location'
@@ -3876,6 +3889,42 @@ function addPORow(si,po){
 function updPO(si,ri,f,v){var s=stopRows[si];if(!s)return;var p=s.pos.find(function(x){return x.ri===ri;});if(p)p[f]=(f==='pieces'||f==='seats')?Number(v)||0:v;}
 function rmPORow(si,ri){var tr=document.getElementById('pr-'+si+'-'+ri);if(tr)tr.remove();var s=stopRows[si];if(s)s.pos=s.pos.filter(function(x){return x.ri!==ri;});}
 function rmStop(i){var el=document.getElementById('sr-'+i);if(el)el.remove();stopRows[i]=null;updateLoadCustRTotal();}
+
+function rebuildStops() {
+  // Snapshot current data, clear DOM, re-render in new order
+  var current = stopRows.filter(Boolean);
+  var sl = document.getElementById('stop-list');
+  if(!sl) return;
+  sl.innerHTML = '';
+  stopRows = [];
+  current.forEach(function(s){ addStop(s); });
+  updateLoadCustRTotal();
+}
+
+function moveStop(idx, dir) {
+  // Get only non-null stops with their current indices
+  var active = stopRows.map(function(s,i){return s?{s:s,i:i}:null;}).filter(Boolean);
+  var pos = active.findIndex(function(x){return x.i===idx;});
+  var target = pos + dir;
+  if(target < 0 || target >= active.length) return;
+  // Swap in active array
+  var tmp = active[pos]; active[pos] = active[target]; active[target] = tmp;
+  stopRows = active.map(function(x){return x.s;});
+  rebuildStops();
+}
+
+function moveStopToNum(idx, newNum) {
+  var active = stopRows.map(function(s,i){return s?{s:s,i:i}:null;}).filter(Boolean);
+  var pos = active.findIndex(function(x){return x.i===idx;});
+  var target = newNum - 1; // convert 1-based to 0-based
+  if(target < 0) target = 0;
+  if(target >= active.length) target = active.length - 1;
+  if(target === pos) return;
+  var item = active.splice(pos, 1)[0];
+  active.splice(target, 0, item);
+  stopRows = active.map(function(x){return x.s;});
+  rebuildStops();
+}
 
 function updateLoadCustRTotal(){
   var dels=stopRows.filter(function(s){return s&&s.type==='delivery';});
