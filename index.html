@@ -814,6 +814,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <button class="btn p" onclick="openLoadModal(null)">+ Add Load</button>
       <button class="btn" onclick="exportLoads()">Export CSV</button>
       <button class="btn d" onclick="delSelLoads()">Delete</button>
+      <button class="btn" id="lg-save-filters-btn" onclick="saveFiltersToGroup()" style="display:none">Save Filters</button>
       <span id="board-load-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
     <div class="split">
@@ -1969,23 +1970,53 @@ function saveLoadGroups(groups) {
   localStorage.setItem(lgKey(), JSON.stringify(groups));
 }
 
+function captureBoardFilters() {
+  return {
+    search: document.getElementById('b-search').value||'',
+    status: document.getElementById('b-status').value||'',
+    carrier: document.getElementById('b-carrier').value||'',
+    dispatcher: document.getElementById('b-dispatcher').value||'',
+    dateFrom: document.getElementById('b-date-from').value||'',
+    dateTo: document.getElementById('b-date-to').value||''
+  };
+}
+
+function applyBoardFilters(f) {
+  document.getElementById('b-search').value = f.search||'';
+  document.getElementById('b-status').value = f.status||'';
+  document.getElementById('b-carrier').value = f.carrier||'';
+  document.getElementById('b-dispatcher').value = f.dispatcher||'';
+  document.getElementById('b-date-from').value = f.dateFrom||'';
+  document.getElementById('b-date-to').value = f.dateTo||'';
+}
+
 function renderLoadGroupTabs() {
   var container = document.getElementById('load-group-tabs');
   if(!container) return;
   var groups = getLoadGroups();
   container.innerHTML = groups.map(function(g) {
     var isActive = boardFilter === 'group_'+g.id;
-    return '<div class="stab'+(isActive?' on':'')+'" id="lg-tab-'+g.id+'" style="display:inline-flex;align-items:center;gap:4px;max-width:160px">'
-      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="setBFGroup(\''+g.id+'\',this.parentElement)" ondblclick="renameLGPrompt(\''+g.id+'\')" title="Double-click to rename">'+esc(g.name)+'</span>'
+    var f = g.filters||{};
+    var hasFilters = f.search||f.status||f.carrier||f.dispatcher||f.dateFrom||f.dateTo;
+    return '<div class="stab'+(isActive?' on':'')+'" id="lg-tab-'+g.id+'" style="display:inline-flex;align-items:center;gap:4px;max-width:180px">'
+      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="setBFGroup(\''+g.id+'\',this.parentElement)" ondblclick="renameLGPrompt(\''+g.id+'\')" title="Double-click to rename">'+g.name+'</span>'
+      +(hasFilters?'<span style="font-size:9px;background:#dbeafe;color:#1e40af;border-radius:8px;padding:1px 4px;flex-shrink:0" title="Has saved filters">●</span>':'')
       +'<button onclick="event.stopPropagation();deleteLG(\''+g.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;padding:0;line-height:1;flex-shrink:0" title="Delete board">×</button>'
       +'</div>';
   }).join('');
+  var sfBtn = document.getElementById('lg-save-filters-btn');
+  if(sfBtn) sfBtn.style.display = boardFilter.indexOf('group_')===0 ? '' : 'none';
 }
 
 function setBFGroup(gid, el) {
   boardFilter = 'group_'+gid;
   document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
   el.classList.add('on');
+  var groups = getLoadGroups();
+  var g = groups.find(function(x){return x.id===gid;});
+  if(g && g.filters) applyBoardFilters(g.filters);
+  else applyBoardFilters({});
+  renderLoadGroupTabs();
   renderBoard();
 }
 
@@ -1994,9 +2025,27 @@ function addLoadGroup() {
   if(!name || !name.trim()) return;
   var groups = getLoadGroups();
   var id = Date.now().toString(36);
-  groups.push({id:id, name:name.trim(), loadIds:[]});
+  groups.push({id:id, name:name.trim(), filters: captureBoardFilters()});
+  saveLoadGroups(groups);
+  boardFilter = 'group_'+id;
+  document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
+  renderLoadGroupTabs();
+  var tab = document.getElementById('lg-tab-'+id);
+  if(tab) tab.classList.add('on');
+  renderBoard();
+}
+
+function saveFiltersToGroup() {
+  if(boardFilter.indexOf('group_')!==0) return;
+  var gid = boardFilter.slice(6);
+  var groups = getLoadGroups();
+  var g = groups.find(function(x){return x.id===gid;});
+  if(!g) return;
+  g.filters = captureBoardFilters();
   saveLoadGroups(groups);
   renderLoadGroupTabs();
+  var btn = document.getElementById('lg-save-filters-btn');
+  if(btn){ btn.textContent='\u2713 Saved'; setTimeout(function(){ btn.textContent='Save Filters'; },1500); }
 }
 
 function renameLGPrompt(gid) {
@@ -2017,6 +2066,7 @@ function deleteLG(gid) {
   saveLoadGroups(groups);
   if(boardFilter==='group_'+gid) {
     boardFilter='all';
+    applyBoardFilters({});
     var allTab = document.querySelector('#page-board .stab');
     if(allTab){ document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');}); allTab.classList.add('on'); }
   }
@@ -2024,34 +2074,6 @@ function deleteLG(gid) {
   renderBoard();
 }
 
-function toggleLoadInGroup(lid) {
-  var groups = getLoadGroups();
-  var menu = '<div style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.35)" onclick="this.remove()">'
-    +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--sur);border-radius:10px;padding:20px;min-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
-    +'<div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:12px">Add/Remove from Board</div>';
-  groups.forEach(function(g){
-    var has = (g.loadIds||[]).includes(lid);
-    menu += '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:13px">'
-      +'<input type="checkbox"'+(has?' checked':'')+' style="width:15px;height:15px;accent-color:var(--navy)" onchange="setLoadInGroup(\''+g.id+'\','+lid+',this.checked)">'
-      +esc(g.name)+'</label>';
-  });
-  if(!groups.length) menu += '<div style="font-size:12px;color:var(--tx3)">No boards yet. Click + to create one.</div>';
-  menu += '<button class="btn" style="margin-top:12px;width:100%" onclick="this.closest(\'[style*=inset]\').remove()">Done</button></div></div>';
-  var el = document.createElement('div');
-  el.innerHTML = menu;
-  document.body.appendChild(el.firstChild);
-}
-
-function setLoadInGroup(gid, lid, add) {
-  var groups = getLoadGroups();
-  var g = groups.find(function(x){return x.id===gid;});
-  if(!g) return;
-  if(!g.loadIds) g.loadIds=[];
-  if(add){ if(!g.loadIds.includes(lid)) g.loadIds.push(lid); }
-  else { g.loadIds = g.loadIds.filter(function(x){return x!==lid;}); }
-  saveLoadGroups(groups);
-  if(boardFilter==='group_'+gid) renderBoard();
-}
 function dealerTab(t,el) {
   // Temp loads moved to Staging page — this is a no-op kept for compatibility
 }
@@ -2302,12 +2324,6 @@ function renderBoard() {
     if(boardFilter==='issue'&&l.status!=='Issue')return false;
     if(boardFilter==='claim'&&l.status!=='Claim')return false;
     if(boardFilter==='late'&&!(l.callins&&l.callins.some(function(c){return c.type==='late';})))return false;
-    if(boardFilter.indexOf('group_')===0){
-      var gid=boardFilter.slice(6);
-      var grps=getLoadGroups();
-      var grp=grps.find(function(g){return g.id===gid;});
-      if(!grp||(grp.loadIds||[]).indexOf(l.id)===-1)return false;
-    }
     if(sf&&l.status!==sf)return false;
     if(cf&&l.carrier!==cf)return false;
     if(df&&(l.dispatcher||'')!==df)return false;
@@ -2371,7 +2387,7 @@ function renderBoard() {
       ? '<span class="'+(mar>=0?'mpos':'mneg')+'">'+(marPct)+'%</span>'
       : '<span class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</span>';
     return '<tr class="row'+(l.id===selLoad?' sel':'')+(isIss?' iss':'')+(isOverdue&&!isIss?' overdue':'')+'" onclick="clickLoad('+l.id+')">'
-      +'<td onclick="event.stopPropagation()" style="white-space:nowrap"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)"><button onclick="event.stopPropagation();toggleLoadInGroup('+l.id+')" title="Add/remove from board" style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:12px;color:var(--tx3);line-height:1" tabindex="-1">📋</button></td>'
+      +'<td onclick="event.stopPropagation()"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)"></td>'
       +'<td style="font-weight:700;color:var(--navy)">'+esc(l.loadNum)+'</td>'
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'+overdueLabel+'</td>'
       +'<td>'+trackCell+'</td>'
@@ -3819,6 +3835,7 @@ function addStop(stop) {
       +'<input type="number" min="1" value="'+myPos+'" onchange="moveStopToNum('+idx+',parseInt(this.value)||1)" style="width:40px;height:22px;font-size:11px;padding:0 5px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;text-align:center">'
     +'</div>'
   +'</div>';
+  var puHasDelStops = !isDel && stopRows.some(function(x){return x&&x.type==='delivery';});
   d.innerHTML=reorderCtrl
     +'<div class="sr1" style="grid-template-columns:88px 1fr 160px 160px">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
@@ -3846,7 +3863,7 @@ function addStop(stop) {
     +'</div>'
     +'<div style="margin-top:8px">'
       +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">POs at this stop</div>'
-      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th>'+(isDel?'<th>Ship From</th>':'')+'<th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
+      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th>'+(isDel?'<th>Ship From (PU)</th>':puHasDelStops?'<th>Ship To (DEL)</th>':'')+'<th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
       +'<button class="addpobtn" onclick="addPORow('+idx+')">+ Add PO</button>'
     +'</div>';
   document.getElementById('stop-list').appendChild(d);
@@ -3861,33 +3878,145 @@ function addStop(stop) {
 function addPORow(si,po){
   var tbl=document.getElementById('ptbl-'+si);if(!tbl)return;
   var ri=tbl.rows.length;
-  var p=po||{po:'',dealer:'',pieces:'',seats:'',shipFrom:'',ri:ri};
+  var p=po||{po:'',dealer:'',pieces:'',seats:'',shipFrom:'',shipTo:'',linkedId:'',ri:ri};
   if(!po){if(!stopRows[si].pos)stopRows[si].pos=[];stopRows[si].pos.push(p);}
   p.ri=ri;
   var isDel = stopRows[si] && stopRows[si].type==='delivery';
-  // Build Ship From options from PU stops
+  var isPU  = stopRows[si] && stopRows[si].type==='pickup';
+
+  // Ship From cell (on DEL) — which PU does this PO originate from
   var shipFromCell = '';
   if(isDel) {
     var puStops = stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
-    // Auto-select if only one PU
-    if(!p.shipFrom && puStops.length===1) p.shipFrom = String(puStops[0].idx);
+    if(!p.shipFrom && puStops.length===1) { p.shipFrom = String(puStops[0].idx); syncPOToStop(si,p,String(puStops[0].idx),'pu'); }
     var opts = puStops.map(function(ps){
-      var label = ps.s.name || (ps.s.city?(ps.s.city+(ps.s.state?', '+ps.s.state:'')):'Stop '+(ps.idx+1));
+      var label = ps.s.name||(ps.s.city?(ps.s.city+(ps.s.state?', '+ps.s.state:'')):'PU '+(ps.idx+1));
       return '<option value="'+ps.idx+'"'+(p.shipFrom===String(ps.idx)?' selected':'')+'>'+esc(label)+'</option>';
     }).join('');
-    shipFromCell = '<td><select style="height:24px;font-size:11px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--F);outline:none;width:100%;min-width:90px" onchange="updPO('+si+','+ri+',\'shipFrom\',this.value)"><option value="">— PU —</option>'+opts+'</select></td>';
+    shipFromCell = '<td><select style="height:24px;font-size:11px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--F);outline:none;width:100%;min-width:90px" onchange="onShipFromChange('+si+','+ri+',this.value)"><option value="">— PU —</option>'+opts+'</select></td>';
   }
+
+  // Ship To cell (on PU) — which DEL does this PO go to
+  var shipToCell = '';
+  if(isPU) {
+    var delStops = stopRows.map(function(s,i){return s&&s.type==='delivery'?{idx:i,s:s}:null;}).filter(Boolean);
+    if(delStops.length) {
+      var opts2 = delStops.map(function(ds){
+        var label = ds.s.name||(ds.s.city?(ds.s.city+(ds.s.state?', '+ds.s.state:'')):'DEL '+(ds.idx+1));
+        return '<option value="'+ds.idx+'"'+(p.shipTo===String(ds.idx)?' selected':'')+'>'+esc(label)+'</option>';
+      }).join('');
+      shipToCell = '<td><select style="height:24px;font-size:11px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--F);outline:none;width:100%;min-width:90px" onchange="onShipToChange('+si+','+ri+',this.value)"><option value="">— DEL —</option>'+opts2+'</select></td>';
+    }
+  }
+
   var tr=document.createElement('tr');tr.id='pr-'+si+'-'+ri;
   tr.innerHTML='<td><input value="'+esc(p.po||'')+'" oninput="updPO('+si+','+ri+',\'po\',this.value)" placeholder="PO #"></td>'
     +'<td><input value="'+esc(p.dealer||'')+'" oninput="updPO('+si+','+ri+',\'dealer\',this.value)" placeholder="Dealer"></td>'
     +'<td><input type="number" value="'+esc(p.pieces||'')+'" oninput="updPO('+si+','+ri+',\'pieces\',this.value)" style="width:60px"></td>'
     +'<td><input type="number" value="'+esc(p.seats||'')+'" oninput="updPO('+si+','+ri+',\'seats\',this.value)" style="width:60px"></td>'
-    +shipFromCell
+    +(shipFromCell||shipToCell||'')
     +'<td><button class="rmpobtn" onclick="rmPORow('+si+','+ri+')">x</button></td>';
   tbl.appendChild(tr);
 }
-function updPO(si,ri,f,v){var s=stopRows[si];if(!s)return;var p=s.pos.find(function(x){return x.ri===ri;});if(p)p[f]=(f==='pieces'||f==='seats')?Number(v)||0:v;}
-function rmPORow(si,ri){var tr=document.getElementById('pr-'+si+'-'+ri);if(tr)tr.remove();var s=stopRows[si];if(s)s.pos=s.pos.filter(function(x){return x.ri!==ri;});}
+
+// Called when Ship From changes on a DEL PO row
+function onShipFromChange(si, ri, puIdx) {
+  updPO(si, ri, 'shipFrom', puIdx);
+  var s = stopRows[si]; if(!s) return;
+  var p = s.pos.find(function(x){return x.ri===ri;}); if(!p) return;
+  if(puIdx) syncPOToStop(si, p, puIdx, 'pu');
+}
+
+// Called when Ship To changes on a PU PO row
+function onShipToChange(si, ri, delIdx) {
+  updPO(si, ri, 'shipTo', delIdx);
+  var s = stopRows[si]; if(!s) return;
+  var p = s.pos.find(function(x){return x.ri===ri;}); if(!p) return;
+  if(delIdx) syncPOToStop(si, p, delIdx, 'del');
+}
+
+// Sync a PO from one stop to another, creating or updating the linked counterpart
+function syncPOToStop(fromSi, fromPO, toIdx, toType) {
+  var targetStop = stopRows[toIdx];
+  if(!targetStop) return;
+  if(!targetStop.pos) targetStop.pos = [];
+  // Find existing linked PO on target
+  var existing = fromPO.linkedId ? targetStop.pos.find(function(x){return x.linkedId===fromPO.linkedId;}) : null;
+  if(existing) {
+    // Update fields
+    existing.po = fromPO.po;
+    existing.dealer = fromPO.dealer;
+    existing.pieces = fromPO.pieces;
+    existing.seats = fromPO.seats;
+    if(toType==='del') existing.shipFrom = String(fromSi);
+    else existing.shipTo = String(fromSi);
+    // Update DOM if visible
+    refreshLinkedPORow(toIdx, existing);
+  } else {
+    // Create new linked PO on target
+    var lid = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+    fromPO.linkedId = lid;
+    var newPO = {
+      po: fromPO.po, dealer: fromPO.dealer, pieces: fromPO.pieces, seats: fromPO.seats,
+      linkedId: lid,
+      shipFrom: toType==='del' ? String(fromSi) : '',
+      shipTo:   toType==='pu'  ? String(fromSi) : '',
+      ri: targetStop.pos.length
+    };
+    targetStop.pos.push(newPO);
+    addPORow(Number(toIdx), newPO);
+  }
+}
+
+// Refresh an existing linked PO row in the DOM
+function refreshLinkedPORow(si, p) {
+  var tr = document.getElementById('pr-'+si+'-'+p.ri);
+  if(!tr) return;
+  var inputs = tr.querySelectorAll('input');
+  if(inputs[0]) inputs[0].value = p.po||'';
+  if(inputs[1]) inputs[1].value = p.dealer||'';
+  if(inputs[2]) inputs[2].value = p.pieces||'';
+  if(inputs[3]) inputs[3].value = p.seats||'';
+}
+
+function updPO(si,ri,f,v){
+  var s=stopRows[si];if(!s)return;
+  var p=s.pos.find(function(x){return x.ri===ri;});if(!p)return;
+  p[f]=(f==='pieces'||f==='seats')?Number(v)||0:v;
+  // Propagate field changes to linked counterpart
+  if(p.linkedId && f!=='shipFrom' && f!=='shipTo' && f!=='linkedId') {
+    stopRows.forEach(function(ts, ti) {
+      if(!ts || ti===si) return;
+      var linked = ts.pos && ts.pos.find(function(x){return x.linkedId===p.linkedId;});
+      if(linked) { linked[f]=p[f]; refreshLinkedPORow(ti, linked); }
+    });
+  }
+}
+
+function rmPORow(si,ri){
+  var tr=document.getElementById('pr-'+si+'-'+ri);if(tr)tr.remove();
+  var s=stopRows[si];if(!s)return;
+  var p=s.pos.find(function(x){return x.ri===ri;});
+  // If linked, ask whether to remove counterpart too
+  if(p && p.linkedId) {
+    var lid = p.linkedId;
+    var hasLinked = stopRows.some(function(ts,ti){
+      return ts && ti!==si && ts.pos && ts.pos.some(function(x){return x.linkedId===lid;});
+    });
+    if(hasLinked && confirm('Remove the linked PO from the connected stop as well?')) {
+      stopRows.forEach(function(ts,ti){
+        if(!ts||ti===si||!ts.pos)return;
+        var linked=ts.pos.find(function(x){return x.linkedId===lid;});
+        if(linked){
+          var ltr=document.getElementById('pr-'+ti+'-'+linked.ri);
+          if(ltr)ltr.remove();
+          ts.pos=ts.pos.filter(function(x){return x.linkedId!==lid;});
+        }
+      });
+    }
+  }
+  s.pos=s.pos.filter(function(x){return x.ri!==ri;});
+}
 function rmStop(i){var el=document.getElementById('sr-'+i);if(el)el.remove();stopRows[i]=null;updateLoadCustRTotal();}
 
 function rebuildStops() {
