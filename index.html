@@ -740,8 +740,16 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="tw" style="overflow-y:auto;max-height:calc(100vh - 220px)"><table id="dealer-table">
         <thead style="position:sticky;top:0;z-index:2"><tr>
           <th class="nc" style="width:28px"></th>
-          <th>PO #</th><th>Vendor</th><th>Pieces</th><th>Seats</th><th>Ready Date</th>
-          <th>Dealer Name</th><th>Phone</th><th>Address</th><th>City</th><th>State</th><th class="nc">Actions</th>
+          <th onclick="sortDealer('po')" id="dth-po" style="cursor:pointer">PO #</th>
+          <th onclick="sortDealer('vendor')" id="dth-vendor" style="cursor:pointer">Vendor</th>
+          <th onclick="sortDealer('pieces')" id="dth-pieces" style="cursor:pointer">Pieces</th>
+          <th onclick="sortDealer('seats')" id="dth-seats" style="cursor:pointer">Seats</th>
+          <th onclick="sortDealer('ready')" id="dth-ready" style="cursor:pointer">Ready Date</th>
+          <th onclick="sortDealer('dealer')" id="dth-dealer" style="cursor:pointer">Dealer Name</th>
+          <th>Phone</th><th>Address</th>
+          <th onclick="sortDealer('city')" id="dth-city" style="cursor:pointer">City</th>
+          <th onclick="sortDealer('state')" id="dth-state" style="cursor:pointer">State</th>
+          <th class="nc">Actions</th>
         </tr></thead>
         <tbody id="dealer-body"></tbody>
       </table></div>
@@ -862,10 +870,16 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <div class="tw"><table id="sc-table">
           <thead><tr>
             <th class="nc" style="width:28px"></th>
-            <th onclick="sortSC('name')">Carrier</th><th>MC #</th>
-            <th onclick="sortSC('ontime')">PU On-Time</th>
-            <th onclick="sortSC('delontime')">DEL On-Time</th>
-            <th>Incidents</th><th>Claims</th><th>Loads</th><th>Lanes</th><th>Tier</th><th class="nc">Actions</th>
+            <th onclick="sortSC('name')" id="scth-name" style="cursor:pointer">Carrier</th>
+            <th onclick="sortSC('mc')" id="scth-mc" style="cursor:pointer">MC #</th>
+            <th onclick="sortSC('ontime')" id="scth-ontime" style="cursor:pointer">PU On-Time</th>
+            <th onclick="sortSC('delontime')" id="scth-delontime" style="cursor:pointer">DEL On-Time</th>
+            <th onclick="sortSC('incidents')" id="scth-incidents" style="cursor:pointer">Incidents</th>
+            <th onclick="sortSC('claims')" id="scth-claims" style="cursor:pointer">Claims</th>
+            <th onclick="sortSC('loads')" id="scth-loads" style="cursor:pointer">Loads</th>
+            <th onclick="sortSC('lanes')" id="scth-lanes" style="cursor:pointer">Lanes</th>
+            <th onclick="sortSC('tier')" id="scth-tier" style="cursor:pointer">Tier</th>
+            <th class="nc">Actions</th>
           </tr></thead>
           <tbody id="sc-body"></tbody>
         </table></div>
@@ -895,7 +909,12 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <div class="tw"><table id="loc-table">
           <thead><tr>
             <th class="nc" style="width:28px"></th>
-            <th>Name</th><th>Type</th><th>Address</th><th>City/State</th><th>ZIP</th><th>Contact</th><th>Phone 1</th><th>Phone 2</th><th>Email</th><th>Hours</th><th>Dock Info</th><th>Notes</th><th class="nc">Actions</th>
+            <th onclick="sortLocDB('name')" id="lth-name" style="cursor:pointer">Name</th>
+            <th onclick="sortLocDB('type')" id="lth-type" style="cursor:pointer">Type</th>
+            <th>Address</th>
+            <th onclick="sortLocDB('city')" id="lth-city" style="cursor:pointer">City/State</th>
+            <th onclick="sortLocDB('zip')" id="lth-zip" style="cursor:pointer">ZIP</th>
+            <th>Contact</th><th>Phone 1</th><th>Phone 2</th><th>Email</th><th>Hours</th><th>Dock Info</th><th>Notes</th><th class="nc">Actions</th>
           </tr></thead>
           <tbody id="loc-body"></tbody>
         </table></div>
@@ -918,7 +937,16 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="tw"><table id="rate-table">
       <thead><tr>
         <th class="nc" style="width:28px"></th>
-        <th>Origin</th><th>Destination</th><th>Carrier</th><th>Flat Rate</th><th>Rate/Mile</th><th>Miles</th><th>Fuel Sur.</th><th>Total</th><th>Date</th><th>Trend</th>
+        <th onclick="sortRates('origin')" id="rth-origin" style="cursor:pointer">Origin</th>
+        <th onclick="sortRates('dest')" id="rth-dest" style="cursor:pointer">Destination</th>
+        <th onclick="sortRates('carrier')" id="rth-carrier" style="cursor:pointer">Carrier</th>
+        <th onclick="sortRates('flat')" id="rth-flat" style="cursor:pointer">Flat Rate</th>
+        <th onclick="sortRates('rpm')" id="rth-rpm" style="cursor:pointer">Rate/Mile</th>
+        <th onclick="sortRates('miles')" id="rth-miles" style="cursor:pointer">Miles</th>
+        <th>Fuel Sur.</th>
+        <th onclick="sortRates('total')" id="rth-total" style="cursor:pointer">Total</th>
+        <th onclick="sortRates('date')" id="rth-date" style="cursor:pointer">Date</th>
+        <th>Trend</th>
       </tr></thead>
       <tbody id="rate-body"></tbody>
     </table></div>
@@ -1785,6 +1813,9 @@ function peekNextLoadNum() {
 // applyRemoteState removed — Supabase handles data loading
 var boardFilter = 'all', bSort = {col:'loadNum', asc:true}, selLoad = null;
 var scSort = {col:'name', asc:true}, selCarrier = null;
+var locSort = {col:'name', asc:true};
+var dealerSort = {col:'po', asc:true};
+var rateSort = {col:'date', asc:false};
 var archSort = {col:'loadNum', asc:true}, selArchLoad = null;
 var selLoc = null;
 var editingLoad = null, stopRows = [];
@@ -4397,6 +4428,26 @@ function renderDealer(){
   var sf=document.getElementById('d-state').value;
   var vf=document.getElementById('d-vendor').value;
   var rows=dealers.filter(function(d){return (!sf||d.state===sf)&&(!vf||d.vendor===vf)&&(!q||(d.po+' '+d.dealer+' '+d.vendor+' '+d.city).toLowerCase().includes(q));});
+  rows.sort(function(a,b){
+    var av,bv,r;
+    if(dealerSort.col==='po'){av=a.po||'';bv=b.po||'';}
+    else if(dealerSort.col==='vendor'){av=a.vendor||'';bv=b.vendor||'';}
+    else if(dealerSort.col==='pieces'){av=parseFloat(a.pieces)||0;bv=parseFloat(b.pieces)||0;r=av-bv;return dealerSort.asc?r:-r;}
+    else if(dealerSort.col==='seats'){av=parseFloat(a.seats)||0;bv=parseFloat(b.seats)||0;r=av-bv;return dealerSort.asc?r:-r;}
+    else if(dealerSort.col==='ready'){av=a.ready||'';bv=b.ready||'';}
+    else if(dealerSort.col==='dealer'){av=a.dealer||'';bv=b.dealer||'';}
+    else if(dealerSort.col==='city'){av=a.city||'';bv=b.city||'';}
+    else if(dealerSort.col==='state'){av=a.state||'';bv=b.state||'';}
+    else{av=a[dealerSort.col]||'';bv=b[dealerSort.col]||'';}
+    r=av.toString().localeCompare(bv.toString());
+    return dealerSort.asc?r:-r;
+  });
+  ['po','vendor','pieces','seats','ready','dealer','city','state'].forEach(function(c){
+    var el=document.getElementById('dth-'+c);
+    if(!el)return;
+    var base={'po':'PO #','vendor':'Vendor','pieces':'Pieces','seats':'Seats','ready':'Ready Date','dealer':'Dealer Name','city':'City','state':'State'}[c];
+    el.innerHTML=base+(dealerSort.col===c?' <span style="color:var(--green);font-size:10px">'+(dealerSort.asc?'▲':'▼')+'</span>':'');
+  });
   document.getElementById('dealer-body').innerHTML=rows.length?rows.map(function(d){
         var hasExtra = d.addinfo && d.addinfo.trim();
     return '<tr class="'+(d.sel?'psel':'')+'">'
@@ -4415,6 +4466,7 @@ function renderDealer(){
   }).join(''):'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--tx3)">No dealer orders. Import a CSV or add manually.</td></tr>';
   updateDKPIs();
 }
+function sortDealer(col){dealerSort.asc=dealerSort.col===col?!dealerSort.asc:true;dealerSort.col=col;renderDealer();}
 function toggleDealer(id,v){var x=dealers.find(function(d){return d.id===id;});if(x){x.sel=v;renderDealer();}}
 function selAllDealers(v){dealers.forEach(function(d){d.sel=v;});renderDealer();}
 function delSelDealers(){
@@ -4896,9 +4948,21 @@ function renderSC(){
   rows.sort(function(a,b){
     var sa=calcScore(a),sb=calcScore(b);
     if(scSort.col==='name'){var r=a.name.localeCompare(b.name);return scSort.asc?r:-r;}
-    if(scSort.col==='ontime'){var r2=sa.puPct-sb.puPct;return scSort.asc?r2:-r2;}
-    if(scSort.col==='delontime'){var r3=sa.dlPct-sb.dlPct;return scSort.asc?r3:-r3;}
+    if(scSort.col==='mc'){var r2=(a.mc||'').localeCompare(b.mc||'');return scSort.asc?r2:-r2;}
+    if(scSort.col==='ontime'){var r3=sa.puPct-sb.puPct;return scSort.asc?r3:-r3;}
+    if(scSort.col==='delontime'){var r4=sa.dlPct-sb.dlPct;return scSort.asc?r4:-r4;}
+    if(scSort.col==='incidents'){var r5=(a.incidents||[]).length-(b.incidents||[]).length;return scSort.asc?r5:-r5;}
+    if(scSort.col==='claims'){var r6=(a.claims||[]).length-(b.claims||[]).length;return scSort.asc?r6:-r6;}
+    if(scSort.col==='loads'){var r7=sa.loadsCount-sb.loadsCount;return scSort.asc?r7:-r7;}
+    if(scSort.col==='lanes'){var r8=(a.lanes||'').localeCompare(b.lanes||'');return scSort.asc?r8:-r8;}
+    if(scSort.col==='tier'){var r9=sa.tier.localeCompare(sb.tier);return scSort.asc?r9:-r9;}
     return 0;
+  });
+  var scCols={name:'Carrier',mc:'MC #',ontime:'PU On-Time',delontime:'DEL On-Time',incidents:'Incidents',claims:'Claims',loads:'Loads',lanes:'Lanes',tier:'Tier'};
+  Object.keys(scCols).forEach(function(c){
+    var el=document.getElementById('scth-'+c);
+    if(!el)return;
+    el.innerHTML=scCols[c]+(scSort.col===c?' <span style="color:var(--green);font-size:10px">'+(scSort.asc?'▲':'▼')+'</span>':'');
   });
   document.getElementById('sc-body').innerHTML=rows.map(function(c){
     var s=calcScore(c);
@@ -5336,6 +5400,22 @@ function renderLocDB(){
   var q=(document.getElementById('loc-search').value||'').toLowerCase();
   var tf=document.getElementById('loc-type').value;
   var rows=locations.filter(function(l){return (!tf||l.type===tf)&&(!q||(l.name+' '+l.city+' '+l.addr+' '+(l.dealerNum||'')+' '+(l.coach||'')).toLowerCase().includes(q));});
+  rows.sort(function(a,b){
+    var av,bv,r;
+    if(locSort.col==='name'){av=a.name||'';bv=b.name||'';}
+    else if(locSort.col==='type'){av=a.type||'';bv=b.type||'';}
+    else if(locSort.col==='city'){av=a.city||'';bv=b.city||'';}
+    else if(locSort.col==='zip'){av=a.zip||'';bv=b.zip||'';}
+    else{av=a[locSort.col]||'';bv=b[locSort.col]||'';}
+    r=av.toString().localeCompare(bv.toString());
+    return locSort.asc?r:-r;
+  });
+  ['name','type','city','zip'].forEach(function(c){
+    var el=document.getElementById('lth-'+c);
+    if(!el)return;
+    var base={'name':'Name','type':'Type','city':'City/State','zip':'ZIP'}[c];
+    el.innerHTML=base+(locSort.col===c?' <span style="color:var(--green);font-size:10px">'+(locSort.asc?'▲':'▼')+'</span>':'');
+  });
   document.getElementById('loc-body').innerHTML=rows.map(function(l){
     // Count loads for this location
     var lc = getLoadsForLocation(l.name);
@@ -5363,6 +5443,7 @@ function renderLocDB(){
   renderLocProfile();
 }
 
+function sortLocDB(col){locSort.asc=locSort.col===col?!locSort.asc:true;locSort.col=col;renderLocDB();}
 function clickLoc(id) {
   selLoc = selLoc===id ? null : id;
   renderLocDB();
@@ -5684,6 +5765,24 @@ function renderRates(){
   var cf=document.getElementById('rate-carrier').value;
   var lm={};rates.forEach(function(r){var k=r.origin+'|'+r.dest;if(!lm[k])lm[k]=[];lm[k].push({rpm:r.rpm,date:r.date});});
   var rows=rates.filter(function(r){return (!cf||r.carrier===cf)&&(!q||(r.origin+' '+r.dest+' '+r.carrier).toLowerCase().includes(q));});
+  rows.sort(function(a,b){
+    var av,bv,r;
+    if(rateSort.col==='origin'){av=a.origin||'';bv=b.origin||'';r=av.localeCompare(bv);return rateSort.asc?r:-r;}
+    if(rateSort.col==='dest'){av=a.dest||'';bv=b.dest||'';r=av.localeCompare(bv);return rateSort.asc?r:-r;}
+    if(rateSort.col==='carrier'){av=a.carrier||'';bv=b.carrier||'';r=av.localeCompare(bv);return rateSort.asc?r:-r;}
+    if(rateSort.col==='flat'){r=(a.flat||0)-(b.flat||0);return rateSort.asc?r:-r;}
+    if(rateSort.col==='rpm'){r=(a.rpm||0)-(b.rpm||0);return rateSort.asc?r:-r;}
+    if(rateSort.col==='miles'){r=(a.miles||0)-(b.miles||0);return rateSort.asc?r:-r;}
+    if(rateSort.col==='total'){r=((a.flat||0)+(a.fuel||0))-((b.flat||0)+(b.fuel||0));return rateSort.asc?r:-r;}
+    if(rateSort.col==='date'){av=a.date||'';bv=b.date||'';r=av.localeCompare(bv);return rateSort.asc?r:-r;}
+    return 0;
+  });
+  var rateCols={origin:'Origin',dest:'Destination',carrier:'Carrier',flat:'Flat Rate',rpm:'Rate/Mile',miles:'Miles',total:'Total',date:'Date'};
+  Object.keys(rateCols).forEach(function(c){
+    var el=document.getElementById('rth-'+c);
+    if(!el)return;
+    el.innerHTML=rateCols[c]+(rateSort.col===c?' <span style="color:var(--green);font-size:10px">'+(rateSort.asc?'▲':'▼')+'</span>':'');
+  });
   document.getElementById('rate-body').innerHTML=rows.map(function(r){
     var tot=(r.flat||0)+(r.fuel||0);
     var prev=(lm[r.origin+'|'+r.dest]||[]).filter(function(x){return x.date<r.date;}).sort(function(a,b){return b.date.localeCompare(a.date);})[0];
@@ -5695,6 +5794,7 @@ function renderRates(){
       +'<td style="font-weight:700">$'+tot.toLocaleString()+'</td><td>'+r.date+'</td><td>'+trend+'</td></tr>';
   }).join('');
 }
+function sortRates(col){rateSort.asc=rateSort.col===col?!rateSort.asc:true;rateSort.col=col;renderRates();}
 function delSelRates(){
   var toRemove=rates.filter(function(r){return r.sel;});
   rates=rates.filter(function(r){return !r.sel;});
