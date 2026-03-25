@@ -1282,7 +1282,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi"><label>Dealer #</label><input id="locf-dealer"></div>
       <div class="fi"><label>Coach / Group</label><input id="locf-coach" placeholder="Group / coach name"></div>
       <div class="fi" id="locf-main-wrap" style="display:none"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="locf-isMain" style="width:15px;height:15px;accent-color:var(--navy)"> <span>Main facility <span style="font-size:11px;font-weight:400;color:var(--tx3)">(auto-fills PU stop when vendor is selected)</span></span></label></div>
-      <div class="fdiv">Contacts <span style="font-size:11px;font-weight:400;color:var(--tx3)">(Name / Phone 1 / Phone 2 — first contact shown in table)</span></div>
+      <div class="fdiv">Contacts <span style="font-size:11px;font-weight:400;color:var(--tx3)">(Name / Phone 1 / Ext / Phone 2 — first contact shown in table)</span></div>
       <div class="fi s2">
         <div id="loc-contact-rows"></div>
         <button class="btn sm" onclick="addLocContactRow()" style="margin-top:6px">+ Add Contact</button>
@@ -5485,6 +5485,7 @@ function renderLocDB(){
     var ct0=(l.contacts&&l.contacts[0])||{};
     var contactName=ct0.name||(l.type==='Receiver'?l.name:'');
     var phone1=ct0.phone1||ct0.phone||l.phone||'';
+    var ext1=ct0.ext1||'';
     var phone2=ct0.phone2||'';
     return '<tr class="row'+(l.id===selLoc?' sel':'')+'" onclick="clickLoc('+l.id+')">'
       +'<td onclick="event.stopPropagation()"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="var x=locations.find(function(x){return x.id==='+l.id+'});if(x)x.sel=this.checked"></td>'
@@ -5494,7 +5495,7 @@ function renderLocDB(){
       +'<td>'+esc(l.city)+'</td>'
       +'<td>'+esc(l.zip||'-')+'</td>'
       +'<td style="font-size:11px">'+esc(contactName||'-')+'</td>'
-      +'<td style="font-size:11px">'+esc(phone1||'-')+'</td>'
+      +'<td style="font-size:11px">'+esc(phone1||'-')+(ext1?' <span style="color:var(--tx3)">x'+esc(ext1)+'</span>':'')+'</td>'
       +'<td style="font-size:11px;color:var(--tx2)">'+esc(phone2||'-')+'</td>'
       +'<td>'+(l.email?'<a href="mailto:'+esc(l.email)+'" style="color:var(--navy);font-size:11px" onclick="event.stopPropagation()">'+esc(l.email)+'</a>':'-')+'</td>'
       +'<td>'+esc(l.hours||'-')+'</td>'
@@ -5570,7 +5571,7 @@ function renderLocProfile() {
   var contactPills = ctList.map(function(ct,i){
     var parts = [];
     if(ct.name) parts.push('<strong>'+esc(ct.name)+'</strong>');
-    if(ct.phone1) parts.push(esc(ct.phone1));
+    if(ct.phone1) parts.push(esc(ct.phone1)+(ct.ext1?' <span style="color:var(--tx3);font-size:11px">x'+esc(ct.ext1)+'</span>':''));
     if(ct.phone2) parts.push(esc(ct.phone2));
     return parts.length ? '<div class="dp">'+parts.join(' &mdash; ')+'</div>' : '';
   }).filter(Boolean).join('');
@@ -5632,18 +5633,19 @@ var locContactRows = [];
 function renderLocContactRows() {
   var isReceiver = (document.getElementById('locf-type')||{}).value === 'Receiver';
   document.getElementById('loc-contact-rows').innerHTML = locContactRows.map(function(ct, i) {
-    return '<div class="contact-row" style="grid-template-columns:1fr 1fr 1fr auto auto">'
-      +'<input value="'+esc(ct.name||'')+'" placeholder="'+(isReceiver&&i===0?'Auto-filled from Name':'Contact name')+'" oninput="locContactRows['+i+'].name=this.value" id="locctn-'+i+'">'
-      +'<input value="'+esc(ct.phone1||ct.phone||'')+'" placeholder="Phone 1" oninput="fmtPhone(this);locContactRows['+i+'].phone1=this.value">'
-      +'<input value="'+esc(ct.phone2||'')+'" placeholder="Phone 2" oninput="fmtPhone(this);locContactRows['+i+'].phone2=this.value">'
-      +(i>0?'<button class="btn xs" onclick="var t=locContactRows.splice('+i+',1)[0];locContactRows.splice('+(i-1)+',0,t);renderLocContactRows()" style="font-size:16px;line-height:1;padding:0 6px" title="Move up">↑</button>':'<span></span>')
-      +'<button class="btn xs d" onclick="locContactRows.splice('+i+',1);renderLocContactRows()">x</button>'
+    return '<div class="contact-row" style="grid-template-columns:1fr 1fr 60px 1fr auto auto">'\
+      +'<input value="'+esc(ct.name||'')+'" placeholder="'+(isReceiver&&i===0?'Auto-filled from Name':'Contact name')+'" oninput="locContactRows['+i+'].name=this.value" id="locctn-'+i+'">'\
+      +'<input value="'+esc(ct.phone1||ct.phone||'')+'" placeholder="Phone 1" oninput="fmtPhone(this);locContactRows['+i+'].phone1=this.value">'\
+      +'<input value="'+esc(ct.ext1||'')+'" placeholder="Ext" oninput="locContactRows['+i+'].ext1=this.value" style="padding:0 6px" maxlength="6">'\
+      +'<input value="'+esc(ct.phone2||'')+'" placeholder="Phone 2" oninput="fmtPhone(this);locContactRows['+i+'].phone2=this.value">'\
+      +(i>0?'<button class="btn xs" onclick="var t=locContactRows.splice('+i+',1)[0];locContactRows.splice('+(i-1)+',0,t);renderLocContactRows()" style="font-size:16px;line-height:1;padding:0 6px" title="Move up">↑</button>':'<span></span>')\
+      +'<button class="btn xs d" onclick="locContactRows.splice('+i+',1);renderLocContactRows()">x</button>'\
       +'</div>';
   }).join('');
 }
 
 function addLocContactRow() {
-  locContactRows.push({name:'',phone1:'',phone2:''});
+  locContactRows.push({name:'',phone1:'',ext1:'',phone2:''});
   renderLocContactRows();
 }
 
@@ -5660,12 +5662,12 @@ function locNameSync() {
   if(codeEl && !codeEl.value) {
     var name = (document.getElementById('locf-name')||{}).value || '';
     if(name.length >= 3) {
-      var base = name.replace(/[^a-zA-Z]/g,'').substring(0,3).toUpperCase();
+      var base = name.replace(/[^a-zA-Z]/g,'').substring(0,4).toUpperCase();
       // Check for collisions with existing locations (excluding current editing)
       var used = locations.filter(function(l){return l.id!==editingLocId;}).map(function(l){return (l.locCode||'').toUpperCase();});
       var code = base;
       var n = 2;
-      while(used.indexOf(code) !== -1) { code = base.substring(0,2) + n; n++; }
+      while(used.indexOf(code) !== -1) { code = base.substring(0,3) + n; n++; }
       codeEl.value = code;
     }
   }
@@ -5707,7 +5709,7 @@ function openLocModal(id) {
     if(codeEl) codeEl.value = l.locCode||'';
     // Load contacts - migrate legacy phone field if no contacts yet
     if(l.contacts && l.contacts.length) {
-      locContactRows = l.contacts.map(function(ct){ return {name:ct.name||'',phone1:ct.phone1||ct.phone||'',phone2:ct.phone2||''}; });
+      locContactRows = l.contacts.map(function(ct){ return {name:ct.name||'',phone1:ct.phone1||ct.phone||'',ext1:ct.ext1||'',phone2:ct.phone2||''}; });
     } else {
       var initName = l.type==='Receiver' ? (l.name||'') : '';
       locContactRows = [{name:initName, phone1:l.phone||'', phone2:''}];
