@@ -1052,7 +1052,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="lf-vendor" placeholder="Search locations..." oninput="vendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-vendor"></div></div></div>
       <div class="fi"><label>Carrier</label><div class="acw"><input id="lf-carrier" placeholder="Search scorecard..." oninput="carrierAC(this.value)" autocomplete="off"><div class="acl" id="ac-carrier"></div></div></div>
       <div class="fi"><label>Dispatcher</label><input id="lf-disp" placeholder="Dispatcher name"></div>
-      <div class="fi"><label>Equipment Type</label><div class="acw"><input id="lf-equip" placeholder="V, SB, F, REEFER..." oninput="equipAC(this.value)" autocomplete="off"><div class="acl" id="ac-equip"></div></div></div>
+      <div class="fi"><label>Equipment Type</label><div class="acw"><input id="lf-equip" placeholder="Click or type to select..." oninput="equipAC(this.value)" onfocus="equipAC(this.value)" autocomplete="off"><div class="acl" id="ac-equip"></div></div></div>
       <div class="fi"><label>Carrier Rate ($)</label><input type="number" id="lf-cr" placeholder="0"></div>
       <div class="fi"><label>Customer Rate ($) <span style="font-weight:400;color:var(--tx3);font-size:10px">— or split per receiver below</span></label><input type="number" id="lf-custR"><div id="lf-custR-total" style="font-size:10px;color:var(--green);font-weight:600;margin-top:3px"></div></div>
       <div class="fi"><label>Miles (manual)</label><input type="number" id="lf-miles" placeholder="Enter miles"></div>
@@ -1073,7 +1073,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 </div>
 
 <!-- CALL-IN MODAL -->
-<div class="overlay" id="m-callin">
+<div class="overlay" id="m-callin" style="align-items:center;padding-top:0">
   <div class="mbox">
     <div class="mh" id="ci-title">Status Change</div>
     <div class="ms" id="ci-sub"></div>
@@ -1838,7 +1838,11 @@ var contactRows = [];
 // ============================
 var LC = ['Schedule','Available','Covered','Assigned','Dispatched','Arrived','Departed','Receiver','Delivered','Closed'];
 var NLC = ['Issue','Claim'];
-var REQ = {Assigned_Dispatched:1, Dispatched_Arrived:1, Arrived_Departed:1, Departed_Receiver:1, Receiver_Delivered:1};
+var REQ = {
+  Covered_Assigned:1,
+  Assigned_Dispatched:1, Dispatched_Arrived:1, Arrived_Departed:1,
+  Departed_Receiver:1, Receiver_Delivered:1
+};
 function nextStatus(s) { var i=LC.indexOf(s); return (i>=0&&i<LC.length-1)?LC[i+1]:null; }
 function isReq(f,t) { return !!(REQ[f+'_'+t] || NLC.includes(t)); }
 
@@ -2220,26 +2224,114 @@ function statusBtnStyle(status) {
 // EQUIPMENT LOOKUP
 // ============================
 var EQUIP_MAP = {
-  'V':'Van','VAN':'Van',
-  'R':'Reefer','REEFER':'Reefer','RF':'Reefer',
-  'F':'Flat','FLAT':'Flatbed','FB':'Flatbed',
-  'SD':'Step Deck','STEP':'Step Deck',
+  'V':'Van',
+  'R':'Reefer',
+  'F':'Flatbed',
+  'SD':'Step Deck',
   'DD':'Dbl Drop',
   'RGN':'RGN',
-  'SB':'Box Truck','BOX':'Box Truck','BT':'Box Truck',
-  'SB26':'26ft Box','SB16':'16ft Box',
-  'SPR':'Sprinter','SPRINTER':'Sprinter',
-  'HB':'Hot Shot','HS':'Hot Shot','HOTSHOT':'Hot Shot',
+  'SB':'Box Truck',
+  'SB26':'26ft Box',
+  'SB16':'16ft Box',
+  'SPR':'Sprinter',
+  'HS':'Hot Shot',
   'LTL':'LTL',
-  'CONESTOGA':'Conestoga','CON':'Conestoga',
+  'CON':'Conestoga',
   'AUTO':'Auto Carrier',
-  'TANK':'Tanker','TK':'Tanker',
+  'TK':'Tanker',
   'BULK':'Bulk',
-  'FV':'Flatbed Van'
+  'FV':'Flatbed Van',
+  // Legacy aliases — resolve display only, not shown in picker
+  'VAN':'Van','REEFER':'Reefer','RF':'Reefer','FLAT':'Flatbed','FB':'Flatbed',
+  'STEP':'Step Deck','BT':'Box Truck','BOX':'Box Truck',
+  'HB':'Hot Shot','HOTSHOT':'Hot Shot','SPRINTER':'Sprinter',
+  'CONESTOGA':'Conestoga','TANK':'Tanker'
 };
+// Canonical codes shown in the equipment picker (no aliases)
+var EQUIP_CODES = [
+  'V','R','F','SD','DD','RGN','SB','SB26','SB16','SPR','HS','LTL','CON','AUTO','TK','BULK','FV'
+];
 function resolveEquipCode(raw){
   if(!raw) return '';
   return EQUIP_MAP[raw.trim().toUpperCase()]||raw;
+}
+
+// ============================
+// TIMEZONE HELPERS
+// ============================
+var STATE_TZ = {
+  'AL':'America/Chicago','AK':'America/Anchorage','AZ':'America/Phoenix',
+  'AR':'America/Chicago','CA':'America/Los_Angeles','CO':'America/Denver',
+  'CT':'America/New_York','DE':'America/New_York','FL':'America/New_York',
+  'GA':'America/New_York','HI':'Pacific/Honolulu','ID':'America/Denver',
+  'IL':'America/Chicago','IN':'America/Indiana/Indianapolis','IA':'America/Chicago',
+  'KS':'America/Chicago','KY':'America/New_York','LA':'America/Chicago',
+  'ME':'America/New_York','MD':'America/New_York','MA':'America/New_York',
+  'MI':'America/Detroit','MN':'America/Chicago','MS':'America/Chicago',
+  'MO':'America/Chicago','MT':'America/Denver','NE':'America/Chicago',
+  'NV':'America/Los_Angeles','NH':'America/New_York','NJ':'America/New_York',
+  'NM':'America/Denver','NY':'America/New_York','NC':'America/New_York',
+  'ND':'America/Chicago','OH':'America/New_York','OK':'America/Chicago',
+  'OR':'America/Los_Angeles','PA':'America/New_York','RI':'America/New_York',
+  'SC':'America/New_York','SD':'America/Chicago','TN':'America/Chicago',
+  'TX':'America/Chicago','UT':'America/Denver','VT':'America/New_York',
+  'VA':'America/New_York','WA':'America/Los_Angeles','WV':'America/New_York',
+  'WI':'America/Chicago','WY':'America/Denver','DC':'America/New_York'
+};
+
+function convertToLocalTime(isoStr, state) {
+  if(!isoStr || !state) return null;
+  var tz = STATE_TZ[(state||'').trim().toUpperCase()];
+  if(!tz) return null;
+  // Parse the stored time as Eastern
+  var eastern = 'America/New_York';
+  try {
+    // Build a date assuming the input is Eastern time
+    var parts = isoStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if(!parts) return null;
+    // Format as a localized time string in the target timezone
+    var d = new Date(isoStr + ':00');
+    // Get the UTC offset difference between Eastern and target
+    var etFmt = new Intl.DateTimeFormat('en-US', {timeZone: eastern, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+    var tzFmt = new Intl.DateTimeFormat('en-US', {timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false});
+    var etStr = etFmt.format(d);
+    var tzStr = tzFmt.format(d);
+    // Parse tzStr back to YYYY-MM-DDTHH:MM
+    var m = tzStr.match(/(\d{2})\/(\d{2})\/(\d{4}),?\s*(\d{2}):(\d{2})/);
+    if(!m) return null;
+    return m[3]+'-'+m[1]+'-'+m[2]+'T'+m[4]+':'+m[5];
+  } catch(e) { return null; }
+}
+
+function getLocalTimeLabel(state) {
+  var tz = STATE_TZ[(state||'').trim().toUpperCase()];
+  if(!tz) return 'Local';
+  var abbrs = {
+    'America/New_York':'ET','America/Chicago':'CT','America/Denver':'MT',
+    'America/Los_Angeles':'PT','America/Phoenix':'MST','America/Anchorage':'AKT',
+    'Pacific/Honolulu':'HT','America/Indiana/Indianapolis':'ET','America/Detroit':'ET'
+  };
+  return abbrs[tz]||'Local';
+}
+
+function applyLocalTime(lid, stopIdx) {
+  var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
+  var s = l.stops[stopIdx]; if(!s) return;
+  var changed = false;
+  if(s.appt) {
+    var local = convertToLocalTime(s.appt, s.state);
+    if(local && local !== s.appt) { s.appt = local; changed = true; }
+  }
+  if(s.latestAppt) {
+    var local2 = convertToLocalTime(s.latestAppt, s.state);
+    if(local2 && local2 !== s.latestAppt) { s.latestAppt = local2; changed = true; }
+  }
+  if(changed) {
+    saveRecord('loads', l);
+    renderDetail();
+  } else {
+    alert('Time is already in local time for this stop, or no timezone found for state: '+(s.state||'unknown'));
+  }
 }
 
 // ============================
@@ -2397,7 +2489,7 @@ function renderBoard() {
       +'<td>'+esc(s.lCity||'-')+'</td>'
       +'<td style="color:var(--tx2)">'+esc(s.lState||'-')+(showZip2&&s.lZip?' '+esc(s.lZip):'')+'</td>'
       +'<td style="font-size:11px">'+(s.lAppt?dtToDisplay(s.lAppt):'-')+'</td>'
-      +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
+      +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL'+(l.stops.some(function(x){return x.driverAssist;})?'<span style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;margin-left:4px">DA</span>':'')+'</td>'
       +'<td style="font-size:11px;font-weight:600;color:var(--navy)">'+(equipCode?esc(equipCode):'-')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
       +'<td style="color:var(--tx2)">'+vendorDisplay(l.vendor,true)+'</td>'
@@ -2738,9 +2830,9 @@ function renderDetailInto(panel,l){
         +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
           +'<span style="font-weight:700;font-size:14px;color:var(--navy)">'+esc(s.name||'—')+'</span>'
           +(poCount?'<span style="font-size:11px;background:var(--sur2);border:1px solid var(--bd2);border-radius:4px;padding:1px 6px;color:var(--tx2)">'+poCount+' PO'+(poCount!==1?'s':'')+'</span>':'')
-          +(s.appt?'<span style="font-size:11px;color:var(--tx3);margin:0 3px">|</span><span style="font-size:11px;color:var(--tx2)">Sched: <strong style=&quot;color:var(--tx)&quot;>'+dtToDisplay(s.appt)+'</strong></span>':'')
-          +(s.latestAppt?'<span style="font-size:11px;color:var(--tx2);margin-left:4px">Latest: <strong style=&quot;color:var(--tx)&quot;>'+dtToDisplay(s.latestAppt)+'</strong></span>':'')
-        +'</div>'
+          +(s.appt?'<span style="font-size:11px;color:var(--tx3);margin:0 3px">|</span><span style="font-size:11px;color:var(--tx2)">Sched: <strong style="color:var(--tx)">'+dtToDisplay(s.appt)+'</strong></span>'+(s.state&&STATE_TZ[(s.state||'').trim().toUpperCase()]?'<button onclick="event.stopPropagation();applyLocalTime('+l.id+','+orig_i+')" class="btn xs" style="margin-left:6px;font-size:10px;height:18px;padding:0 6px" title="Convert to local time">'+getLocalTimeLabel(s.state)+' ↺</button>':''):'')
+          +(s.latestAppt?'<span style="font-size:11px;color:var(--tx2);margin-left:4px">Latest: <strong style="color:var(--tx)">'+dtToDisplay(s.latestAppt)+'</strong></span>':'')
+          +(s.driverAssist?'<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:6px">DA</span>':'')
       +'</div>'
     +'</div>';
 
@@ -2924,11 +3016,16 @@ function renderDetailInto(panel,l){
 // ============================
 function equipAC(q){
   var list=document.getElementById('ac-equip');
-  if(!q||q.length<1){list.style.display='none';return;}
-  var up=q.toUpperCase();
-  var matches=Object.entries(EQUIP_MAP).filter(function(e){
-    return e[0].startsWith(up)||e[1].toUpperCase().startsWith(up);
-  }).slice(0,8);
+  var up=(q||'').toUpperCase().trim();
+  var matches;
+  if(!up) {
+    // Show all canonical codes when field is focused/empty
+    matches = EQUIP_CODES.map(function(c){return [c, EQUIP_MAP[c]];});
+  } else {
+    matches = EQUIP_CODES.filter(function(c){
+      return c.startsWith(up) || EQUIP_MAP[c].toUpperCase().startsWith(up);
+    }).map(function(c){return [c, EQUIP_MAP[c]];});
+  }
   if(!matches.length){list.style.display='none';return;}
   list.innerHTML=matches.map(function(e){
     return '<div class="aci" onclick="pickEquip(\''+esc(e[0])+'\')">'
@@ -3812,7 +3909,7 @@ function addStop(stop) {
       if(stopRows[li]){inheritType=stopRows[li].type;break;}
     }
   }
-  var s=stop||{type:inheritType,name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[]};
+  var s=stop||{type:inheritType,name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[],driverAssist:false};
   if(!s.pos)s.pos=[];if(!s.zip)s.zip='';if(!s.latestAppt)s.latestAppt='';
   if(s.custR===undefined)s.custR=0;
   stopRows.push(s);
@@ -3851,6 +3948,7 @@ function addStop(stop) {
     +'<div class="sr2" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
       +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
       +'<div class="sl">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
+      +'<div class="sl" style="justify-content:flex-end"><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap"><input type="checkbox"'+(s.driverAssist?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy)" onchange="stopRows['+idx+'].driverAssist=this.checked"> Driver Assist</label></div>'
       +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" '+locked+' oninput="if(!this.readOnly)stopRows['+idx+'].city=this.value"></div>'
       +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" '+locked+' maxlength="2" oninput="if(!this.readOnly)stopRows['+idx+'].state=this.value"></div>'
       +'<div class="sl">ZIP<input id="sz-'+idx+'" value="'+esc(s.zip)+'" '+locked+' maxlength="5" oninput="if(!this.readOnly)stopRows['+idx+'].zip=this.value"></div>'
