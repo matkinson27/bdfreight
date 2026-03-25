@@ -1269,6 +1269,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="mh" id="m-loc-title">Add Location</div><div style="height:6px"></div>
     <div class="fg">
       <div class="fi"><label>Name</label><input id="locf-name" oninput="locNameSync()"></div>
+      <div class="fi"><label>Location Code <span style="font-size:10px;font-weight:400;color:var(--tx3)">(e.g. MCL, FUR)</span></label><input id="locf-loccode" maxlength="6" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" placeholder="Auto-suggested"></div>
       <div class="fi"><label>Type</label><select id="locf-type" onchange="locTypeSync()"><option>Shipper</option><option>Receiver</option><option>Both</option></select></div>
       <div class="fi s2"><label>Address</label><input id="locf-addr"></div>
       <div class="fi"><label>City</label><input id="locf-city"></div>
@@ -1280,6 +1281,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi s2"><label>Notes</label><textarea id="locf-notes"></textarea></div>
       <div class="fi"><label>Dealer #</label><input id="locf-dealer"></div>
       <div class="fi"><label>Coach / Group</label><input id="locf-coach" placeholder="Group / coach name"></div>
+      <div class="fi" id="locf-main-wrap" style="display:none"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="locf-isMain" style="width:15px;height:15px;accent-color:var(--navy)"> <span>Main facility <span style="font-size:11px;font-weight:400;color:var(--tx3)">(auto-fills PU stop when vendor is selected)</span></span></label></div>
       <div class="fdiv">Contacts <span style="font-size:11px;font-weight:400;color:var(--tx3)">(Name / Phone 1 / Phone 2 — first contact shown in table)</span></div>
       <div class="fi s2">
         <div id="loc-contact-rows"></div>
@@ -1614,7 +1616,7 @@ function sbToLocation(r) {
     city: r.city||'', zip: r.zip||'', phone: r.phone||'', email: r.email||'',
     hours: r.hours||'', dock: r.dock||'', notes: r.notes||'',
     dealerNum: r.dealer_num||'', coach: r.coach||'', contacts: r.contacts||[],
-    sel: false
+    isMain: !!r.is_main, locCode: r.loc_code||'', sel: false
   };
 }
 function sbToDealer(r) {
@@ -1671,7 +1673,8 @@ function locationToSb(l) {
     id: l.id, name: l.name||'', type: l.type||'Both', addr: l.addr||'',
     city: l.city||'', zip: l.zip||'', phone: l.phone||'', email: l.email||'',
     hours: l.hours||'', dock: l.dock||'', notes: l.notes||'',
-    dealer_num: l.dealerNum||'', coach: l.coach||'', contacts: l.contacts||[]
+    dealer_num: l.dealerNum||'', coach: l.coach||'', contacts: l.contacts||[],
+    is_main: !!l.isMain, loc_code: l.locCode||''
   };
 }
 function dealerToSb(d) {
@@ -1846,6 +1849,7 @@ function nowStr() {
 }
 function pad(x) { return x<10?'0'+x:''+x; }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function vendorDisplay(vendorStr,asCode){if(!vendorStr)return '-';var names=vendorStr.split('/').map(function(v){return v.trim();}).filter(Boolean);if(!asCode)return esc(vendorStr);var codes=names.map(function(name){var loc=locations.find(function(l){return l.name===name;});return (loc&&loc.locCode)?loc.locCode:name;});var codeStr=codes.join('/');var fullStr=names.join(' / ');if(codeStr===fullStr)return esc(vendorStr);return '<span title="'+esc(fullStr)+'" style="cursor:default">'+esc(codeStr)+'</span>';}
 function openM(id) { document.getElementById(id).classList.add('on'); }
 function closeM(id) { document.getElementById(id).classList.remove('on'); }
 function selAll(arr,v) { window[arr].forEach(function(x){x.sel=v;}); }
@@ -2271,7 +2275,7 @@ function renderBoard() {
       +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL</td>'
       +'<td style="font-size:11px;font-weight:600;color:var(--navy)">'+(equipCode?esc(equipCode):'-')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
-      +'<td style="color:var(--tx2)">'+esc(l.vendor||'-')+'</td>'
+      +'<td style="color:var(--tx2)">'+vendorDisplay(l.vendor,true)+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
       +'<td>$'+getEffectiveCustR(l).toLocaleString()+'</td>'
       +'<td>'+marginCell+'</td>'
@@ -2320,7 +2324,7 @@ function renderBoardCards() {
         + '<span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'
         + (l.status==='Issue'||l.status==='Claim'?'<span style="color:var(--red);font-size:12px">⚠</span>':'')
       + '</div>'
-      + '<div class="bcard-meta">'+esc(l.vendor||'—')+(l.carrier?' · '+esc(l.carrier):'')+(l.dispatcher?' · '+esc(l.dispatcher):'')+'</div>'
+      + '<div class="bcard-meta">'+vendorDisplay(l.vendor,true)+(l.carrier?' · '+esc(l.carrier):'')+(l.dispatcher?' · '+esc(l.dispatcher):'')+'</div>'
       + '<div class="bcard-row">'
         + '<span class="bcard-route">'+esc(route)+'</span>'
         + '<span class="bcard-margin '+marCls+'">'+marStr+'</span>'
@@ -3768,12 +3772,72 @@ function clearStopLoc(idx){
 function vendorAC(q){
   var list=document.getElementById('ac-vendor');
   if(!q||q.length<1){list.style.display='none';return;}
-  var m=locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&l.name.toLowerCase().includes(q.toLowerCase());});
+  var m=locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&(l.name.toLowerCase().includes(q.toLowerCase())||(l.locCode&&l.locCode.toLowerCase().includes(q.toLowerCase())));});
   if(!m.length){list.style.display='none';return;}
-  list.innerHTML=m.map(function(l){return '<div class="aci" onclick="pickVendor(\''+esc(l.name)+'\')"><div>'+esc(l.name)+'</div><div class="acs">'+esc(l.city)+'</div></div>';}).join('');
+  list.innerHTML=m.map(function(l){return '<div class="aci" onclick="pickVendor(\''+esc(l.name)+'\')"><div>'+esc(l.name)+(l.locCode?' <span style="font-size:10px;font-weight:700;color:var(--navy);background:#e0e7ff;padding:1px 5px;border-radius:3px;margin-left:4px">'+esc(l.locCode)+'</span>':'')+'</div><div class="acs">'+esc(l.city)+(l.isMain?' · ★ Main':'')+'</div></div>';}).join('');
   list.style.display='block';
 }
-function pickVendor(n){document.getElementById('lf-vendor').value=n;document.getElementById('ac-vendor').style.display='none';}
+function pickVendor(n){
+  document.getElementById('lf-vendor').value=n;
+  document.getElementById('ac-vendor').style.display='none';
+  // Find all shipper/both locations matching this vendor name
+  var vendorLocs=locations.filter(function(l){return l.name===n&&(l.type==='Shipper'||l.type==='Both');});
+  if(!vendorLocs.length) return;
+  // Find first PU stop index
+  var puIdx=-1;
+  for(var i=0;i<stopRows.length;i++){if(stopRows[i].type==='pickup'&&!stopRows[i].name){puIdx=i;break;}}
+  if(puIdx===-1) return; // no empty PU stop to fill
+  if(vendorLocs.length===1){
+    applyVendorLocToStop(puIdx, vendorLocs[0]);
+  } else {
+    // Multiple locations — check for a designated main
+    var main=vendorLocs.find(function(l){return l.isMain;});
+    if(main){
+      applyVendorLocToStop(puIdx, main);
+    } else {
+      // Show picker modal
+      showVendorLocPicker(n, vendorLocs, puIdx);
+    }
+  }
+}
+function applyVendorLocToStop(idx, loc){
+  var cs=loc.city||'';var pt=cs.split(', ');
+  stopRows[idx].name=loc.name;
+  stopRows[idx].addr=loc.addr||'';
+  stopRows[idx].city=(pt[0]||'').trim();
+  stopRows[idx].state=(pt[1]||'').trim();
+  stopRows[idx].zip=loc.zip||'';
+  var ni=document.getElementById('sn-'+idx);
+  if(ni){ni.value=loc.name;ni.readOnly=true;ni.style.background='var(--sur2)';ni.style.color='var(--tx2)';ni.style.cursor='not-allowed';}
+  var ai=document.getElementById('sa-'+idx);if(ai){ai.value=loc.addr||'';document.getElementById('saddr-row-'+idx)&&(document.getElementById('saddr-row-'+idx).style.display=loc.addr?'':'none');}
+  var ci=document.getElementById('sc-'+idx);if(ci){ci.value=(pt[0]||'').trim();ci.readOnly=true;ci.style.background='var(--sur2)';ci.style.color='var(--tx2)';ci.style.cursor='not-allowed';}
+  var si=document.getElementById('ss-'+idx);if(si){si.value=(pt[1]||'').trim();si.readOnly=true;si.style.background='var(--sur2)';si.style.color='var(--tx2)';si.style.cursor='not-allowed';}
+  var zi=document.getElementById('sz-'+idx);if(zi){zi.value=loc.zip||'';zi.readOnly=true;zi.style.background='var(--sur2)';zi.style.color='var(--tx2)';zi.style.cursor='not-allowed';}
+  var clrBtn=document.getElementById('slclr-'+idx);if(clrBtn)clrBtn.style.display='';
+}
+function showVendorLocPicker(vendorName, locs, puIdx){
+  var existing=document.getElementById('vendor-loc-picker-modal');
+  if(existing) existing.remove();
+  var modal=document.createElement('div');
+  modal.id='vendor-loc-picker-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML='<div style="background:var(--sur);border-radius:10px;padding:24px;min-width:360px;max-width:500px;box-shadow:0 8px 32px rgba(0,0,0,.25)">'
+    +'<div style="font-weight:700;font-size:15px;color:var(--navy);margin-bottom:6px">Select PU Location</div>'
+    +'<div style="font-size:12px;color:var(--tx2);margin-bottom:16px">'+esc(vendorName)+' has multiple facilities. Which should be used for this pickup?</div>'
+    +locs.map(function(l,i){
+      var cs=l.city||'';
+      return '<div onclick="applyVendorLocToStop('+puIdx+',locations.find(function(x){return x.id==='+l.id+';}));document.getElementById(\'vendor-loc-picker-modal\').remove()" '
+        +'style="padding:10px 14px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;margin-bottom:8px;transition:background .1s" '
+        +'onmouseover="this.style.background=\'var(--sur2)\'" onmouseout="this.style.background=\'\'">'
+        +'<div style="font-weight:600;font-size:13px">'+esc(l.addr||cs)+'</div>'
+        +'<div style="font-size:11px;color:var(--tx2);margin-top:2px">'+esc(cs)+(l.zip?' '+esc(l.zip):'')+'</div>'
+        +(l.isMain?'<div style="font-size:10px;color:var(--green);font-weight:600;margin-top:2px">★ Main Facility</div>':'')
+        +'</div>';
+    }).join('')
+    +'<button class="btn" onclick="document.getElementById(\'vendor-loc-picker-modal\').remove()" style="margin-top:4px;width:100%">Cancel</button>'
+    +'</div>';
+  document.body.appendChild(modal);
+}
 function carrierAC(q){
   var list=document.getElementById('ac-carrier');
   if(!q||q.length<1){list.style.display='none';return;}
@@ -4699,9 +4763,7 @@ function renderArchived(){
       +'<td></td>'
       +'<td style="font-weight:700;color:var(--navy)">'+esc(l.loadNum)+'</td>'
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span></td>'
-      +'<td>'+esc(l.vendor||'-')+'</td>'
-      +'<td>'+esc(l.carrier||'-')+'</td>'
-      +'<td style="color:var(--tx2)">'+esc(l.dispatcher||'-')+'</td>'
+      +'<td>'+vendorDisplay(l.vendor,true)+'</td>'
       +'<td>'+esc(s.fCity)+(s.fState?', '+esc(s.fState):'')+'</td>'
       +'<td>'+esc(s.lCity)+(s.lState?', '+esc(s.lState):'')+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
@@ -5593,11 +5655,28 @@ function locNameSync() {
     var el = document.getElementById('locctn-0');
     if(el) el.value = nameVal;
   }
+  // Auto-suggest location code if field is empty
+  var codeEl = document.getElementById('locf-loccode');
+  if(codeEl && !codeEl.value) {
+    var name = (document.getElementById('locf-name')||{}).value || '';
+    if(name.length >= 3) {
+      var base = name.replace(/[^a-zA-Z]/g,'').substring(0,3).toUpperCase();
+      // Check for collisions with existing locations (excluding current editing)
+      var used = locations.filter(function(l){return l.id!==editingLocId;}).map(function(l){return (l.locCode||'').toUpperCase();});
+      var code = base;
+      var n = 2;
+      while(used.indexOf(code) !== -1) { code = base.substring(0,2) + n; n++; }
+      codeEl.value = code;
+    }
+  }
 }
 
 function locTypeSync() {
   renderLocContactRows();
   locNameSync();
+  var type = (document.getElementById('locf-type')||{}).value;
+  var wrap = document.getElementById('locf-main-wrap');
+  if(wrap) wrap.style.display = (type==='Shipper'||type==='Both') ? '' : 'none';
 }
 
 function openLocModal(id) {
@@ -5620,6 +5699,12 @@ function openLocModal(id) {
     f('locf-hours').value = l.hours || '';
     f('locf-dock').value = l.dock || '';
     f('locf-notes').value = l.notes || '';
+    var isMainCb = document.getElementById('locf-isMain');
+    if(isMainCb) isMainCb.checked = !!l.isMain;
+    var mainWrap = document.getElementById('locf-main-wrap');
+    if(mainWrap) mainWrap.style.display = (l.type==='Shipper'||l.type==='Both') ? '' : 'none';
+    var codeEl = document.getElementById('locf-loccode');
+    if(codeEl) codeEl.value = l.locCode||'';
     // Load contacts - migrate legacy phone field if no contacts yet
     if(l.contacts && l.contacts.length) {
       locContactRows = l.contacts.map(function(ct){ return {name:ct.name||'',phone1:ct.phone1||ct.phone||'',phone2:ct.phone2||''}; });
@@ -5628,7 +5713,7 @@ function openLocModal(id) {
       locContactRows = [{name:initName, phone1:l.phone||'', phone2:''}];
     }
   } else {
-    ['locf-name','locf-addr','locf-city','locf-state','locf-zip','locf-email','locf-dealer','locf-coach','locf-hours','locf-dock','locf-notes'].forEach(function(i){f(i).value='';});
+    ['locf-name','locf-addr','locf-city','locf-state','locf-zip','locf-email','locf-dealer','locf-coach','locf-hours','locf-dock','locf-notes','locf-loccode'].forEach(function(i){f(i).value='';});
     f('locf-type').value = 'Receiver';
     locContactRows = [{name:'',phone1:'',phone2:''}];
   }
@@ -5641,6 +5726,15 @@ function saveLoc(){
   var contacts = locContactRows.filter(function(ct){return ct.name||ct.phone1||ct.phone2;});
   // Keep legacy phone as first contact phone1 for backward compat
   var legacyPhone = contacts.length ? (contacts[0].phone1||'') : '';
+  var newIsMain = !!(document.getElementById('locf-isMain')||{}).checked;
+  var newLocCode = ((document.getElementById('locf-loccode')||{}).value||'').toUpperCase().trim();
+  var newName = f('locf-name');
+  // If setting as main, clear isMain on other locations with same vendor name
+  if(newIsMain) {
+    locations.forEach(function(x){
+      if(x.name===newName && x.id!==editingLocId) { x.isMain=false; saveRecord('locations',x); }
+    });
+  }
   if (editingLocId) {
     var ex = locations.find(function(x){return x.id===editingLocId;});
     if (ex) {
@@ -5648,13 +5742,13 @@ function saveLoc(){
       ex.city=cityState; ex.zip=f('locf-zip'); ex.phone=legacyPhone;
       ex.email=f('locf-email'); ex.dealerNum=f('locf-dealer'); ex.coach=f('locf-coach');
       ex.hours=f('locf-hours'); ex.dock=f('locf-dock'); ex.notes=f('locf-notes');
-      ex.contacts=contacts;
+      ex.contacts=contacts; ex.isMain=newIsMain; ex.locCode=newLocCode;
     }
   } else {
     locations.push({id:nLoc++,name:f('locf-name'),type:f('locf-type'),addr:f('locf-addr'),
       city:cityState,zip:f('locf-zip'),phone:legacyPhone,email:f('locf-email'),
       dealerNum:f('locf-dealer'),coach:f('locf-coach'),hours:f('locf-hours'),
-      dock:f('locf-dock'),notes:f('locf-notes'),contacts:contacts,sel:false});
+      dock:f('locf-dock'),notes:f('locf-notes'),contacts:contacts,isMain:newIsMain,locCode:newLocCode,sel:false});
   }
   editingLocId=null;
   var locToSave = locations[locations.length-1];
