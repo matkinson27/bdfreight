@@ -795,6 +795,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="stab" onclick="setBF('issue',this)">Issues</div>
       <div class="stab" onclick="setBF('claim',this)">Claims</div>
       <div class="stab" onclick="setBF('late',this)" id="stab-late">Late <span class="cnt" id="late-cnt" style="display:none">0</span></div>
+      <div id="load-group-tabs" style="display:contents"></div>
+      <div class="stab" onclick="addLoadGroup()" title="New board" style="color:var(--tx3);font-size:16px;padding:4px 10px;line-height:1">+</div>
     </div>
     <div class="tbar">
       <input type="text" id="b-search" placeholder="Search LD#, vendor, carrier..." oninput="renderBoard()">
@@ -812,6 +814,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <button class="btn p" onclick="openLoadModal(null)">+ Add Load</button>
       <button class="btn" onclick="exportLoads()">Export CSV</button>
       <button class="btn d" onclick="delSelLoads()">Delete</button>
+      <span id="board-load-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
     <div class="split">
       <!-- Mobile card view (shown ≤900px, board-table hidden) -->
@@ -1893,6 +1896,7 @@ function initApp() {
   var ml=document.getElementById('margin-state-lbl');
   if(ml)ml.textContent=localStorage.getItem('bdf_marginPct')==='1'?'%':'$';
   renderDealer(); updateDKPIs();
+  renderLoadGroupTabs();
   renderBoard(); updateBKPIs();
   renderDashboard();
   setInterval(function(){
@@ -1928,6 +1932,7 @@ function goPage(p, el) {
   if(p==='dashboard'){renderDashboard();}
   if(p==='dealer'){renderDealer();updateDKPIs();}
   if(p==='board'){
+    renderLoadGroupTabs();
     renderBoard();updateBKPIs();
     if(window.innerWidth<=900){
       document.getElementById('board-table').style.display='none';
@@ -1949,6 +1954,103 @@ function setBF(f,el) {
   document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
   el.classList.add('on');
   renderBoard();
+}
+
+// ============================
+// LOAD GROUPS (per-user boards)
+// ============================
+function lgKey() { return 'bdf_loadgroups_'+(currentUser||'default'); }
+
+function getLoadGroups() {
+  try { return JSON.parse(localStorage.getItem(lgKey())||'[]'); } catch(e){ return []; }
+}
+
+function saveLoadGroups(groups) {
+  localStorage.setItem(lgKey(), JSON.stringify(groups));
+}
+
+function renderLoadGroupTabs() {
+  var container = document.getElementById('load-group-tabs');
+  if(!container) return;
+  var groups = getLoadGroups();
+  container.innerHTML = groups.map(function(g) {
+    var isActive = boardFilter === 'group_'+g.id;
+    return '<div class="stab'+(isActive?' on':'')+'" id="lg-tab-'+g.id+'" style="display:inline-flex;align-items:center;gap:4px;max-width:160px">'
+      +'<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="setBFGroup(\''+g.id+'\',this.parentElement)" ondblclick="renameLGPrompt(\''+g.id+'\')" title="Double-click to rename">'+esc(g.name)+'</span>'
+      +'<button onclick="event.stopPropagation();deleteLG(\''+g.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:12px;padding:0;line-height:1;flex-shrink:0" title="Delete board">×</button>'
+      +'</div>';
+  }).join('');
+}
+
+function setBFGroup(gid, el) {
+  boardFilter = 'group_'+gid;
+  document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
+  el.classList.add('on');
+  renderBoard();
+}
+
+function addLoadGroup() {
+  var name = prompt('Board name:');
+  if(!name || !name.trim()) return;
+  var groups = getLoadGroups();
+  var id = Date.now().toString(36);
+  groups.push({id:id, name:name.trim(), loadIds:[]});
+  saveLoadGroups(groups);
+  renderLoadGroupTabs();
+}
+
+function renameLGPrompt(gid) {
+  var groups = getLoadGroups();
+  var g = groups.find(function(x){return x.id===gid;});
+  if(!g) return;
+  var name = prompt('Rename board:', g.name);
+  if(!name || !name.trim()) return;
+  g.name = name.trim();
+  saveLoadGroups(groups);
+  renderLoadGroupTabs();
+  if(boardFilter==='group_'+gid) renderBoard();
+}
+
+function deleteLG(gid) {
+  if(!confirm('Delete this board? Loads will not be deleted.')) return;
+  var groups = getLoadGroups().filter(function(g){return g.id!==gid;});
+  saveLoadGroups(groups);
+  if(boardFilter==='group_'+gid) {
+    boardFilter='all';
+    var allTab = document.querySelector('#page-board .stab');
+    if(allTab){ document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');}); allTab.classList.add('on'); }
+  }
+  renderLoadGroupTabs();
+  renderBoard();
+}
+
+function toggleLoadInGroup(lid) {
+  var groups = getLoadGroups();
+  var menu = '<div style="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.35)" onclick="this.remove()">'
+    +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--sur);border-radius:10px;padding:20px;min-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
+    +'<div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:12px">Add/Remove from Board</div>';
+  groups.forEach(function(g){
+    var has = (g.loadIds||[]).includes(lid);
+    menu += '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;font-size:13px">'
+      +'<input type="checkbox"'+(has?' checked':'')+' style="width:15px;height:15px;accent-color:var(--navy)" onchange="setLoadInGroup(\''+g.id+'\','+lid+',this.checked)">'
+      +esc(g.name)+'</label>';
+  });
+  if(!groups.length) menu += '<div style="font-size:12px;color:var(--tx3)">No boards yet. Click + to create one.</div>';
+  menu += '<button class="btn" style="margin-top:12px;width:100%" onclick="this.closest(\'[style*=inset]\').remove()">Done</button></div></div>';
+  var el = document.createElement('div');
+  el.innerHTML = menu;
+  document.body.appendChild(el.firstChild);
+}
+
+function setLoadInGroup(gid, lid, add) {
+  var groups = getLoadGroups();
+  var g = groups.find(function(x){return x.id===gid;});
+  if(!g) return;
+  if(!g.loadIds) g.loadIds=[];
+  if(add){ if(!g.loadIds.includes(lid)) g.loadIds.push(lid); }
+  else { g.loadIds = g.loadIds.filter(function(x){return x!==lid;}); }
+  saveLoadGroups(groups);
+  if(boardFilter==='group_'+gid) renderBoard();
 }
 function dealerTab(t,el) {
   // Temp loads moved to Staging page — this is a no-op kept for compatibility
@@ -2200,6 +2302,12 @@ function renderBoard() {
     if(boardFilter==='issue'&&l.status!=='Issue')return false;
     if(boardFilter==='claim'&&l.status!=='Claim')return false;
     if(boardFilter==='late'&&!(l.callins&&l.callins.some(function(c){return c.type==='late';})))return false;
+    if(boardFilter.indexOf('group_')===0){
+      var gid=boardFilter.slice(6);
+      var grps=getLoadGroups();
+      var grp=grps.find(function(g){return g.id===gid;});
+      if(!grp||(grp.loadIds||[]).indexOf(l.id)===-1)return false;
+    }
     if(sf&&l.status!==sf)return false;
     if(cf&&l.carrier!==cf)return false;
     if(df&&(l.dispatcher||'')!==df)return false;
@@ -2263,7 +2371,7 @@ function renderBoard() {
       ? '<span class="'+(mar>=0?'mpos':'mneg')+'">'+(marPct)+'%</span>'
       : '<span class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</span>';
     return '<tr class="row'+(l.id===selLoad?' sel':'')+(isIss?' iss':'')+(isOverdue&&!isIss?' overdue':'')+'" onclick="clickLoad('+l.id+')">'
-      +'<td onclick="event.stopPropagation()"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)"></td>'
+      +'<td onclick="event.stopPropagation()" style="white-space:nowrap"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)"><button onclick="event.stopPropagation();toggleLoadInGroup('+l.id+')" title="Add/remove from board" style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:12px;color:var(--tx3);line-height:1" tabindex="-1">📋</button></td>'
       +'<td style="font-weight:700;color:var(--navy)">'+esc(l.loadNum)+'</td>'
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'+overdueLabel+'</td>'
       +'<td>'+trackCell+'</td>'
@@ -2282,6 +2390,8 @@ function renderBoard() {
       +'<td>'+marginCell+'</td>'
       +'</tr>';
   }).join('')||'<tr><td colspan="17" style="text-align:center;padding:24px;color:var(--tx3)">No loads found.</td></tr>';
+  var cntEl = document.getElementById('board-load-count');
+  if(cntEl) cntEl.textContent = rows.length + ' load' + (rows.length!==1?'s':'');
   renderDetail();
   if(window.innerWidth<=900) renderBoardCards();
 }
@@ -3680,7 +3790,14 @@ function scrollDT(el, delta) {
 
 function addStop(stop) {
   var idx=stopRows.length;
-  var s=stop||{type:'pickup',name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[]};
+  // Inherit type from last non-null stop above when adding manually
+  var inheritType = 'pickup';
+  if(!stop) {
+    for(var li=stopRows.length-1;li>=0;li--){
+      if(stopRows[li]){inheritType=stopRows[li].type;break;}
+    }
+  }
+  var s=stop||{type:inheritType,name:'',addr:'',city:'',state:'',zip:'',appt:'',latestAppt:'',puNum:'',notes:'',inT:'',outT:'',pos:[]};
   if(!s.pos)s.pos=[];if(!s.zip)s.zip='';if(!s.latestAppt)s.latestAppt='';
   if(s.custR===undefined)s.custR=0;
   stopRows.push(s);
@@ -3716,7 +3833,7 @@ function addStop(stop) {
     +'</div>'
     +'<div style="margin-top:8px">'
       +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">POs at this stop</div>'
-      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th><th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
+      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th>'+(isDel?'<th>Ship From</th>':'')+'<th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
       +'<button class="addpobtn" onclick="addPORow('+idx+')">+ Add PO</button>'
     +'</div>';
   document.getElementById('stop-list').appendChild(d);
@@ -3731,14 +3848,28 @@ function addStop(stop) {
 function addPORow(si,po){
   var tbl=document.getElementById('ptbl-'+si);if(!tbl)return;
   var ri=tbl.rows.length;
-  var p=po||{po:'',dealer:'',pieces:'',seats:'',ri:ri};
+  var p=po||{po:'',dealer:'',pieces:'',seats:'',shipFrom:'',ri:ri};
   if(!po){if(!stopRows[si].pos)stopRows[si].pos=[];stopRows[si].pos.push(p);}
   p.ri=ri;
+  var isDel = stopRows[si] && stopRows[si].type==='delivery';
+  // Build Ship From options from PU stops
+  var shipFromCell = '';
+  if(isDel) {
+    var puStops = stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
+    // Auto-select if only one PU
+    if(!p.shipFrom && puStops.length===1) p.shipFrom = String(puStops[0].idx);
+    var opts = puStops.map(function(ps){
+      var label = ps.s.name || (ps.s.city?(ps.s.city+(ps.s.state?', '+ps.s.state:'')):'Stop '+(ps.idx+1));
+      return '<option value="'+ps.idx+'"'+(p.shipFrom===String(ps.idx)?' selected':'')+'>'+esc(label)+'</option>';
+    }).join('');
+    shipFromCell = '<td><select style="height:24px;font-size:11px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--F);outline:none;width:100%;min-width:90px" onchange="updPO('+si+','+ri+',\'shipFrom\',this.value)"><option value="">— PU —</option>'+opts+'</select></td>';
+  }
   var tr=document.createElement('tr');tr.id='pr-'+si+'-'+ri;
   tr.innerHTML='<td><input value="'+esc(p.po||'')+'" oninput="updPO('+si+','+ri+',\'po\',this.value)" placeholder="PO #"></td>'
     +'<td><input value="'+esc(p.dealer||'')+'" oninput="updPO('+si+','+ri+',\'dealer\',this.value)" placeholder="Dealer"></td>'
     +'<td><input type="number" value="'+esc(p.pieces||'')+'" oninput="updPO('+si+','+ri+',\'pieces\',this.value)" style="width:60px"></td>'
     +'<td><input type="number" value="'+esc(p.seats||'')+'" oninput="updPO('+si+','+ri+',\'seats\',this.value)" style="width:60px"></td>'
+    +shipFromCell
     +'<td><button class="rmpobtn" onclick="rmPORow('+si+','+ri+')">x</button></td>';
   tbl.appendChild(tr);
 }
