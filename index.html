@@ -2318,19 +2318,19 @@ function applyLocalTime(lid, stopIdx) {
   var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
   var s = l.stops[stopIdx]; if(!s) return;
   var changed = false;
-  if(s.appt) {
-    var local = convertToLocalTime(s.appt, s.state);
-    if(local && local !== s.appt) { s.appt = local; changed = true; }
+  if(s.inT) {
+    var local = convertToLocalTime(s.inT, s.state);
+    if(local && local !== s.inT) { s.inT = local; changed = true; }
   }
-  if(s.latestAppt) {
-    var local2 = convertToLocalTime(s.latestAppt, s.state);
-    if(local2 && local2 !== s.latestAppt) { s.latestAppt = local2; changed = true; }
+  if(s.outT) {
+    var local2 = convertToLocalTime(s.outT, s.state);
+    if(local2 && local2 !== s.outT) { s.outT = local2; changed = true; }
   }
   if(changed) {
     saveRecord('loads', l);
     renderDetail();
   } else {
-    alert('Time is already in local time for this stop, or no timezone found for state: '+(s.state||'unknown'));
+    alert('Times are already in local time for this stop, or no timezone found for state: '+(s.state||'unknown'));
   }
 }
 
@@ -2816,11 +2816,13 @@ function renderDetailInto(panel,l){
     var stopLabel = i === 0 ? (s.type==='pickup'?'Pickup':'Delivery') : 'Stop '+(i+1);
     var tagCls = s.type==='pickup'?'pu':'dl';
 
+    var tzLabel = s.state ? getLocalTimeLabel(s.state) : '';
+    var hasTZ = s.state && STATE_TZ[(s.state||'').trim().toUpperCase()];
     var timesBlock = '<div style="margin-top:6px;padding-left:18px">'
-      
       +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
         +'<div class="tf" style="flex:1;min-width:160px"><label>Actual In</label>'+makeDTInput('inT-'+l.id+'-'+orig_i, s.inT||'', 'dtCbIn_'+l.id+'_'+orig_i, s.inT?'ok':inMiss?'miss':'')+'</div>'
         +'<div class="tf" style="flex:1;min-width:160px"><label>Actual Out</label>'+makeDTInput('outT-'+l.id+'-'+orig_i, s.outT||'', 'dtCbOut_'+l.id+'_'+orig_i, s.outT?'ok':outMiss?'miss':'')+'</div>'
+        +(hasTZ&&(s.inT||s.outT)?'<div style="display:flex;align-items:flex-end;padding-bottom:2px"><button onclick="applyLocalTime('+l.id+','+orig_i+')" class="btn xs" style="font-size:10px;height:26px;white-space:nowrap" title="Convert actual times to '+tzLabel+'">→ '+tzLabel+'</button></div>':'')
       +'</div>'
     +'</div>';
 
@@ -2830,9 +2832,10 @@ function renderDetailInto(panel,l){
         +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
           +'<span style="font-weight:700;font-size:14px;color:var(--navy)">'+esc(s.name||'—')+'</span>'
           +(poCount?'<span style="font-size:11px;background:var(--sur2);border:1px solid var(--bd2);border-radius:4px;padding:1px 6px;color:var(--tx2)">'+poCount+' PO'+(poCount!==1?'s':'')+'</span>':'')
-          +(s.appt?'<span style="font-size:11px;color:var(--tx3);margin:0 3px">|</span><span style="font-size:11px;color:var(--tx2)">Sched: <strong style="color:var(--tx)">'+dtToDisplay(s.appt)+'</strong></span>'+(s.state&&STATE_TZ[(s.state||'').trim().toUpperCase()]?'<button onclick="event.stopPropagation();applyLocalTime('+l.id+','+orig_i+')" class="btn xs" style="margin-left:6px;font-size:10px;height:18px;padding:0 6px" title="Convert to local time">'+getLocalTimeLabel(s.state)+' ↺</button>':''):'')
+          +(s.appt?'<span style="font-size:11px;color:var(--tx3);margin:0 3px">|</span><span style="font-size:11px;color:var(--tx2)">Sched: <strong style="color:var(--tx)">'+dtToDisplay(s.appt)+'</strong></span>':'')
           +(s.latestAppt?'<span style="font-size:11px;color:var(--tx2);margin-left:4px">Latest: <strong style="color:var(--tx)">'+dtToDisplay(s.latestAppt)+'</strong></span>':'')
           +(s.driverAssist?'<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:6px">DA</span>':'')
+      +'</div>'
       +'</div>'
     +'</div>';
 
