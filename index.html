@@ -761,7 +761,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   <div class="page" id="page-staging">
     <div class="tbar">
       <input type="text" id="stg-search" placeholder="Search TL#, ticket#, PO#, vendor, dealer..." oninput="renderStaging()" style="width:320px">
-      <button class="btn p" onclick="openNewStagingModal()">+ New Staging Load</button>
+      <button class="btn p" onclick="openNewStagingModal()">+ New Staging Order</button>
+      <button class="btn" onclick="openRFQFromStaging()" id="stg-rfq-btn" style="display:none">✉ RFQ Email</button>
       <span id="stg-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
     <div class="tw" style="overflow-y:auto;flex:1">
@@ -812,6 +813,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <input type="date" id="b-date-to" onchange="renderBoard()" title="PU date to" style="height:32px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);color:var(--tx);font-family:var(--F);outline:none">
       <button class="btn" onclick="clearBoardFilters()">Clear</button>
       <button class="btn p" onclick="openLoadModal(null)">+ Add Load</button>
+      <button class="btn" onclick="openLTLModal()" style="border-color:#7c3aed;color:#7c3aed">+ Add LTL</button>
+      <button class="btn" id="ltl-toggle-btn" onclick="toggleLTLView()" title="Show/hide LTL shipments" style="font-size:11px">LTL: <span id="ltl-toggle-label">Hide</span></button>
       <button class="btn" onclick="exportLoads()">Export CSV</button>
       <button class="btn d" onclick="delSelLoads()">Delete</button>
       <button class="btn" id="lg-save-filters-btn" onclick="saveFiltersToGroup()" style="display:none">Save Filters</button>
@@ -1045,7 +1048,13 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 <!-- LOAD MODAL -->
 <div class="overlay" id="m-load">
   <div class="mbox xxl">
-    <div class="mh" id="m-load-title">Add Load</div><div style="height:6px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="mh" id="m-load-title" style="margin:0">Add Load</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn" onclick="closeM('m-load')">Cancel</button>
+        <button class="btn p" onclick="saveLoad()">Save Load</button>
+      </div>
+    </div>
     <div class="fg">
       <div class="fi"><label>Load # <span id="lf-num-hint" style="font-size:10px;font-weight:400;color:var(--tx3)"></span></label><input id="lf-num"></div>
       <div class="fi"><label>Status</label><select id="lf-status"><option>Schedule</option><option>Available</option><option>Covered</option><option>Assigned</option><option>Dispatched</option><option>Arrived</option><option>Departed</option><option>Receiver</option><option>Delivered</option></select></div>
@@ -1149,6 +1158,30 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="mfooter">
       <button class="btn" onclick="closeM('m-stage')">Cancel</button>
       <button class="btn a" onclick="confirmStage()">Stage Temp Load</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW STAGING ORDER MODAL -->
+<div class="overlay" id="m-new-staging">
+  <div class="mbox w">
+    <div class="mh">New Staging Order</div>
+    <div class="fg">
+      <div class="fi"><label>SO # <span style="font-size:10px;font-weight:400;color:var(--tx3)">(manual entry)</span></label><input id="ns-so" placeholder="e.g. SO-12345"></div>
+      <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="ns-vendor" placeholder="Search locations..." oninput="nsVendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-ns-vendor"></div></div></div>
+      <div class="fi"><label>Pieces</label><input type="number" id="ns-pieces" placeholder="0"></div>
+      <div class="fi"><label>Seats</label><input type="number" id="ns-seats" placeholder="0"></div>
+      <div class="fi"><label>Ready Date</label><input type="date" id="ns-ready"></div>
+      <div class="fi"><label>Notes</label><input id="ns-notes" placeholder="Optional notes"></div>
+      <div class="fi s2"><label>Dealer / Receiver</label><div class="acw"><input id="ns-dealer" placeholder="Search locations..." oninput="nsDealerAC(this.value)" autocomplete="off"><div class="acl" id="ac-ns-dealer"></div></div></div>
+      <div class="fi"><label>Phone</label><input id="ns-phone" oninput="fmtPhone(this)" placeholder="614-555-0000"></div>
+      <div class="fi"><label>City</label><input id="ns-city"></div>
+      <div class="fi"><label>State</label><input id="ns-state" maxlength="2"></div>
+      <div class="fi"><label>ZIP</label><input id="ns-zip" maxlength="5"></div>
+    </div>
+    <div class="mfooter">
+      <button class="btn" onclick="closeM('m-new-staging')">Cancel</button>
+      <button class="btn p" onclick="saveNewStaging()">Create Staging Order</button>
     </div>
   </div>
 </div>
@@ -1603,7 +1636,7 @@ function sbToLoad(r) {
     deleted: r.deleted||false, deletedAt: r.deleted_at||null,
     deletedBy: r.deleted_by||null, deliveredAt: r.delivered_at||null,
     preIssueStatus: r.pre_issue_status||null, claimInfo: r.claim_info||null,
-    lastLoc: r.last_loc||'', sel: false
+    lastLoc: r.last_loc||'', isLTL: !!r.is_ltl, sel: false
   };
 }
 function sbToCarrier(r) {
@@ -1662,7 +1695,7 @@ function loadToSb(l) {
     deleted: o.deleted||false, deleted_at: o.deletedAt||null,
     deleted_by: o.deletedBy||null, delivered_at: o.deliveredAt||null,
     pre_issue_status: o.preIssueStatus||null, claim_info: o.claimInfo||null,
-    last_loc: o.lastLoc||''
+    last_loc: o.lastLoc||'', is_ltl: !!o.isLTL
   };
 }
 function carrierToSb(c) {
@@ -1818,8 +1851,21 @@ function peekNextLoadNum() {
   return 'LD-' + String(n).padStart(6, '0');
 }
 
+// ── LTL counter ──────────────────────────────────────────────────────────────
+function getNextLTLNum() {
+  var n = parseInt(localStorage.getItem('bdf_ltl_counter')||'0') + 1;
+  localStorage.setItem('bdf_ltl_counter', String(n));
+  if(window._SB) window._SB.from('counters').update({n_ltl: n}).eq('id', 1);
+  return 'LTL-' + String(n).padStart(5, '0');
+}
+function peekNextLTLNum() {
+  var n = parseInt(localStorage.getItem('bdf_ltl_counter')||'0') + 1;
+  return 'LTL-' + String(n).padStart(5, '0');
+}
+
 // applyRemoteState removed — Supabase handles data loading
 var boardFilter = 'all', bSort = {col:'loadNum', asc:true}, selLoad = null;
+var showLTL = false; // LTL loads hidden by default on main board
 var scSort = {col:'name', asc:true}, selCarrier = null;
 var locSort = {col:'name', asc:true};
 var dealerSort = {col:'po', asc:true};
@@ -1959,6 +2005,28 @@ function setBF(f,el) {
   document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
   el.classList.add('on');
   renderBoard();
+}
+
+function toggleLTLView() {
+  showLTL = !showLTL;
+  var lbl = document.getElementById('ltl-toggle-label');
+  if(lbl) lbl.textContent = showLTL ? 'Showing' : 'Hide';
+  renderBoard();
+}
+
+function openLTLModal() {
+  // Reuse the regular load modal but pre-set LTL flag and generate LTL number
+  openLoadModal(null);
+  // After modal opens, mark it as LTL
+  setTimeout(function(){
+    var statusEl = document.getElementById('lf-status');
+    if(statusEl) statusEl.value = 'Schedule';
+    // Store pending LTL flag for saveLoad to pick up
+    window._pendingLTL = true;
+    // Update the modal title
+    var title = document.querySelector('#m-load .mh');
+    if(title) title.textContent = 'New LTL Shipment — ' + peekNextLTLNum();
+  }, 50);
 }
 
 // ============================
@@ -2416,6 +2484,7 @@ function renderBoard() {
     if(boardFilter==='issue'&&l.status!=='Issue')return false;
     if(boardFilter==='claim'&&l.status!=='Claim')return false;
     if(boardFilter==='late'&&!(l.callins&&l.callins.some(function(c){return c.type==='late';})))return false;
+    if(l.isLTL && !showLTL) return false;
     if(sf&&l.status!==sf)return false;
     if(cf&&l.carrier!==cf)return false;
     if(df&&(l.dispatcher||'')!==df)return false;
@@ -2479,8 +2548,8 @@ function renderBoard() {
       ? '<span class="'+(mar>=0?'mpos':'mneg')+'">'+(marPct)+'%</span>'
       : '<span class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</span>';
     return '<tr class="row'+(l.id===selLoad?' sel':'')+(isIss?' iss':'')+(isOverdue&&!isIss?' overdue':'')+'" onclick="clickLoad('+l.id+')">'
-      +'<td onclick="event.stopPropagation()"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)"></td>'
-      +'<td style="font-weight:700;color:var(--navy)">'+esc(l.loadNum)+'</td>'
+      +'<td onclick="event.stopPropagation()" style="white-space:nowrap"><input type="checkbox"'+(l.sel?' checked':'')+' onchange="toggleLoad('+l.id+',this.checked)">'+(['Schedule','Available'].includes(l.status)?'<button onclick="event.stopPropagation();sendRFQFromLoad('+l.id+')" title="Send RFQ email" style="background:none;border:none;cursor:pointer;padding:0 0 0 4px;font-size:11px;color:#7c3aed;line-height:1;font-weight:700" tabindex="-1">✉</button>':'')+'</td>'
+      +'<td style="font-weight:700;color:'+(l.isLTL?'#7c3aed':'var(--navy)')+'">'+(l.isLTL?'<span style="font-size:9px;font-weight:700;background:#ede9fe;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-right:3px">LTL</span>':'')+esc(l.loadNum)+'</td>'
       +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span>'+overdueLabel+'</td>'
       +'<td>'+trackCell+'</td>'
       +'<td>'+esc(s.fCity||'-')+'</td>'
@@ -3000,6 +3069,7 @@ function renderDetailInto(panel,l){
         +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-bottom:8px">'
           +'<span>Call-In Log</span>'
           +'<div style="display:flex;gap:4px">'
+            +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="border:1.5px solid #7c3aed;color:#7c3aed;background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">✉ RFQ</button>':'')
             +(l.status==='Issue'
               ?'<button onclick="removeIssue('+l.id+')" style="border:1.5px solid #92400e;color:#92400e;background:#fef3c7;font-size:10px;font-weight:600;padding:2px 8px;border-radius:6px;cursor:pointer;font-family:var(--F)">Remove Issue</button>'
               :'<button onclick="initiateStatus('+l.id+',\'Issue\')" style="border:2px solid var(--red);color:var(--navy);background:var(--sur);font-size:11px;font-weight:700;padding:3px 11px;border-radius:6px;cursor:pointer;font-family:var(--F)">Flag Issue</button>'
@@ -3924,11 +3994,14 @@ function addStop(stop) {
   var lockDisplay = s.name ? '' : 'none';
   var activeCount = stopRows.filter(Boolean).length;
   var myPos = activeCount;
+  var colKey = 'src_'+idx;
+  var isStopCollapsed = window[colKey] || false;
   var reorderCtrl = '<div style="display:flex;align-items:center;gap:4px;margin-bottom:5px">'
-    +'<button class="rmbtn" onclick="rmStop('+idx+')" style="margin:0">x</button>'
+    +'<button class="rmbtn" onclick="rmStop('+idx+')" style="margin:0" title="Remove stop">x</button>'
+    +'<button id="srcol-'+idx+'" onclick="toggleStopCollapse('+idx+')" class="btn xs" style="height:22px;padding:0 8px;font-size:13px;line-height:1" title="Collapse stop">'+(isStopCollapsed?'\u25b6':'\u2014')+'</button>'
     +'<div style="display:flex;flex-direction:column;gap:1px">'
-      +'<button onclick="moveStop('+idx+',-1)" class="btn xs" style="height:16px;padding:0 5px;font-size:11px;line-height:1" title="Move up">↑</button>'
-      +'<button onclick="moveStop('+idx+',1)" class="btn xs" style="height:16px;padding:0 5px;font-size:11px;line-height:1" title="Move down">↓</button>'
+      +'<button onclick="moveStop('+idx+',-1)" class="btn xs" style="height:16px;padding:0 5px;font-size:11px;line-height:1" title="Move up">\u2191</button>'
+      +'<button onclick="moveStop('+idx+',1)" class="btn xs" style="height:16px;padding:0 5px;font-size:11px;line-height:1" title="Move down">\u2193</button>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--tx2)">'
       +'<span>Stop</span>'
@@ -3937,12 +4010,12 @@ function addStop(stop) {
   +'</div>';
   var puHasDelStops = !isDel && stopRows.some(function(x){return x&&x.type==='delivery';});
   d.innerHTML=reorderCtrl
+    +'<div id="srb-'+idx+'" style="display:'+(isStopCollapsed?'none':'')+'">'
     +'<div class="sr1" style="grid-template-columns:88px 1fr 160px 160px">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
       +'<div class="sl">Location'
         +'<div class="acw">'
-          +'<input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"'+(s.name?' readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"':'')+'>'
-          +'<div class="acl" id="snac-'+idx+'"></div>'
+          +'<input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"'+(s.name?' readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"':'')+'>'+          +'<div class="acl" id="snac-'+idx+'"></div>'
         +'</div>'
         +'<button id="slclr-'+idx+'" class="btn xs" style="margin-top:3px;display:'+(s.name?'':'none')+'" onclick="clearStopLoc('+idx+')">Clear Location</button>'
       +'</div>'
@@ -3952,8 +4025,8 @@ function addStop(stop) {
     +'<div class="sr2" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
       +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
       +'<div class="sl">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
-      +'<div class="sl" style="justify-content:flex-end"><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap"><input type="checkbox"'+(s.liftgate?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy)" onchange="stopRows['+idx+'].liftgate=this.checked"> Liftgate Req</label></div>'
-      +'<div class="sl" style="justify-content:flex-end"><label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap"><input type="checkbox"'+(s.driverAssist?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy)" onchange="stopRows['+idx+'].driverAssist=this.checked"> Driver Assist</label></div>'
+      +'<div class="sl" style="display:flex;align-items:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap;width:auto"><input type="checkbox"'+(s.liftgate?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy);flex-shrink:0" onchange="stopRows['+idx+'].liftgate=this.checked"> Liftgate</label></div>'
+      +'<div class="sl" style="display:flex;align-items:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap;width:auto"><input type="checkbox"'+(s.driverAssist?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy);flex-shrink:0" onchange="stopRows['+idx+'].driverAssist=this.checked"> Driver Assist</label></div>'
       +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" '+locked+' oninput="if(!this.readOnly)stopRows['+idx+'].city=this.value"></div>'
       +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" '+locked+' maxlength="2" oninput="if(!this.readOnly)stopRows['+idx+'].state=this.value"></div>'
       +'<div class="sl">ZIP<input id="sz-'+idx+'" value="'+esc(s.zip)+'" '+locked+' maxlength="5" oninput="if(!this.readOnly)stopRows['+idx+'].zip=this.value"></div>'
@@ -3967,7 +4040,8 @@ function addStop(stop) {
       +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">POs at this stop</div>'
       +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th>'+(isDel?'<th>Ship From (PU)</th>':puHasDelStops?'<th>Ship To (DEL)</th>':'')+'<th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
       +'<button class="addpobtn" onclick="addPORow('+idx+')">+ Add PO</button>'
-    +'</div>';
+    +'</div>'
+  +'</div>';
   document.getElementById('stop-list').appendChild(d);
   // Register named datetime callbacks for this stop index
   (function(i, sr) {
@@ -4120,6 +4194,15 @@ function rmPORow(si,ri){
   s.pos=s.pos.filter(function(x){return x.ri!==ri;});
 }
 function rmStop(i){var el=document.getElementById('sr-'+i);if(el)el.remove();stopRows[i]=null;updateLoadCustRTotal();}
+
+function toggleStopCollapse(idx) {
+  var colKey = 'src_'+idx;
+  window[colKey] = !window[colKey];
+  var body = document.getElementById('srb-'+idx);
+  var btn = document.getElementById('srcol-'+idx);
+  if(body) body.style.display = window[colKey] ? 'none' : '';
+  if(btn) btn.textContent = window[colKey] ? '▶' : '—';
+}
 
 function rebuildStops() {
   // Snapshot current data, clear DOM, re-render in new order
@@ -4466,16 +4549,22 @@ function saveLoad(){
   var typedNum = fv('lf-num').trim ? fv('lf-num').trim() : fv('lf-num');
   // Admin can override load number; for new loads use typed value if non-empty, else auto-generate
   var loadNum;
+  var isLTL = !!window._pendingLTL || (editingLoad && editingLoad.isLTL);
   if(isNew) {
-    var enteredNum = document.getElementById('lf-num').value.trim();
-    if(isAdmin() && enteredNum && enteredNum !== peekNextLoadNum()) {
-      loadNum = enteredNum; // admin override — don't consume counter
+    if(isLTL) {
+      loadNum = getNextLTLNum();
     } else {
-      loadNum = getNextLoadNum();
+      var enteredNum = document.getElementById('lf-num').value.trim();
+      if(isAdmin() && enteredNum && enteredNum !== peekNextLoadNum()) {
+        loadNum = enteredNum;
+      } else {
+        loadNum = getNextLoadNum();
+      }
     }
   } else {
     loadNum = isAdmin() ? document.getElementById('lf-num').value.trim() || editingLoad.loadNum : editingLoad.loadNum;
   }
+  window._pendingLTL = false;
   // Determine effective custR: use per-stop sum if any delivery stops have rates, else use the top-level field
   var dels=fs.filter(function(s){return s.type==='delivery';});
   var stopCustRSum=dels.reduce(function(a,s){return a+(s.custR||0);},0);
@@ -4493,7 +4582,8 @@ function saveLoad(){
     docs:editingLoad?editingLoad.docs:{bol:null,bolUrl:null,pod:null,podUrl:null,rc:null,rcUrl:null},
     sel:false, deliveredAt:editingLoad?editingLoad.deliveredAt:null, archived:false, claimInfo:null,
     rateConfirmation:editingLoad?editingLoad.rateConfirmation:null,
-    ratesVerified:editingLoad?editingLoad.ratesVerified:false
+    ratesVerified:editingLoad?editingLoad.ratesVerified:false,
+    isLTL: isLTL
   };
   if(editingLoad){
     editingLoad._prevCarrier = editingLoad.carrier||''; // snapshot before overwrite
@@ -4787,6 +4877,7 @@ function renderStaging() {
       + '<td onclick="event.stopPropagation()" style="white-space:nowrap">'
         + '<button class="btn xs" style="border:2px solid var(--green);color:var(--navy);font-weight:700;margin-right:3px" onclick="openAddPOsModal('+tl.id+')">+ POs</button>'
         + '<button class="btn xs p" style="font-weight:700;margin-right:3px" onclick="convertTL('+tl.id+')">Convert</button>'
+        + '<button class="btn xs" style="border:1.5px solid #7c3aed;color:#7c3aed;margin-right:3px" onclick="sendRFQEmail('+tl.id+')">✉ RFQ</button>'
         + '<button class="btn xs d" onclick="dissolveTL('+tl.id+')">Dissolve</button>'
         + '</td>'
       + '</tr>';
@@ -4849,16 +4940,190 @@ function saveStagingField(tlId, field, val) {
 }
 
 function openNewStagingModal() {
-  // Go to Customer Orders and remind user to select POs
-  goPage('dealer', document.getElementById('ntab-dealer'));
-  setTimeout(function(){
-    var el = document.getElementById('d-search');
-    if(el) el.focus();
-  }, 100);
+  ['ns-so','ns-vendor','ns-pieces','ns-seats','ns-ready','ns-notes','ns-dealer','ns-phone','ns-city','ns-state','ns-zip'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+  openM('m-new-staging');
+  setTimeout(function(){ var el=document.getElementById('ns-so'); if(el) el.focus(); }, 100);
+}
+
+function nsVendorAC(q) {
+  var list=document.getElementById('ac-ns-vendor');
+  if(!q){list.style.display='none';return;}
+  var m=locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&l.name.toLowerCase().includes(q.toLowerCase());}).slice(0,8);
+  if(!m.length){list.style.display='none';return;}
+  list.innerHTML=m.map(function(l){return '<div class="aci" onclick="nsPickVendor(\''+esc(l.name)+'\')"><div>'+esc(l.name)+(l.locCode?' <span style="font-size:10px;background:#e0e7ff;color:var(--navy);padding:1px 4px;border-radius:3px">'+esc(l.locCode)+'</span>':'')+'</div><div class="acs">'+esc(l.city)+'</div></div>';}).join('');
+  list.style.display='block';
+}
+function nsPickVendor(n) {
+  document.getElementById('ns-vendor').value=n;
+  document.getElementById('ac-ns-vendor').style.display='none';
+}
+
+function nsDealerAC(q) {
+  var list=document.getElementById('ac-ns-dealer');
+  if(!q){list.style.display='none';return;}
+  var m=locations.filter(function(l){return (l.type==='Receiver'||l.type==='Both')&&(l.name.toLowerCase().includes(q.toLowerCase())||(l.city||'').toLowerCase().includes(q.toLowerCase()));}).slice(0,8);
+  if(!m.length){list.style.display='none';return;}
+  list.innerHTML=m.map(function(l){
+    var cs=(l.city||'').split(', ');
+    return '<div class="aci" onclick="nsPickDealer(\''+esc(l.name)+'\',\''+esc(l.phone||'')+'\',\''+esc((cs[0]||'').trim())+'\',\''+esc((cs[1]||'').trim())+'\',\''+esc(l.zip||'')+'\')"><div>'+esc(l.name)+'</div><div class="acs">'+esc(l.city)+'</div></div>';
+  }).join('');
+  list.style.display='block';
+}
+function nsPickDealer(name,phone,city,state,zip) {
+  document.getElementById('ns-dealer').value=name;
+  document.getElementById('ac-ns-dealer').style.display='none';
+  if(phone) document.getElementById('ns-phone').value=phone;
+  if(city)  document.getElementById('ns-city').value=city;
+  if(state) document.getElementById('ns-state').value=state;
+  if(zip)   document.getElementById('ns-zip').value=zip;
+}
+
+function saveNewStaging() {
+  var f=function(id){return (document.getElementById(id)||{}).value||'';};
+  var so=f('ns-so').trim();
+  if(!so){alert('SO # is required.');return;}
+  // Check duplicate SO
+  var dup=tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').toLowerCase()===so.toLowerCase();});});
+  if(dup){alert('SO # "'+so+'" already exists in staging.');return;}
+  var ready=f('ns-ready');
+  var readyDisp=ready?(function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})():'';
+  var po={po:so,vendor:f('ns-vendor'),pieces:parseFloat(f('ns-pieces'))||0,seats:parseFloat(f('ns-seats'))||0,
+    ready:readyDisp,dealer:f('ns-dealer'),phone:f('ns-phone'),addr:'',city:f('ns-city'),state:f('ns-state'),zip:f('ns-zip')};
+  var tlNum='TL-'+String(1000+nTL);
+  var tl={id:nTL++,tlNum:tlNum,notes:f('ns-notes'),createdAt:nowStr(),createdBy:cap(currentUser),pos:[po]};
+  tempLoads.push(tl);
+  saveRecord('temp_loads',tl);
+  closeM('m-new-staging');
+  goPage('staging',document.getElementById('ntab-staging'));
+  renderStaging();
 }
 
 
-function removePOFromTL(tlId,po){
+function sendRFQFromLoad(lid) {
+  var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
+  var totalPcs = 0, totalSeats = 0;
+  l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){totalPcs+=(Number(p.pieces)||0);totalSeats+=(Number(p.seats)||0);});});
+
+  var sorted = l.stops.slice().sort(function(a,b){
+    if(a.type!==b.type) return a.type==='pickup'?-1:1;
+    return (a.appt||'').localeCompare(b.appt||'');
+  });
+  var puIdx=0, delIdx=0;
+  var stopLines = sorted.map(function(s){
+    var label = s.type==='pickup' ? 'PU '+(++puIdx) : 'DEL '+(++delIdx);
+    var loc = (s.city||'TBD')+(s.state?', '+s.state:'');
+    var pcs = (s.pos||[]).reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
+    var sts = (s.pos||[]).reduce(function(a,p){return a+(Number(p.seats)||0);},0);
+    var counts = (pcs||sts) ? ' ('+( pcs?pcs+' pcs':'')+( pcs&&sts?', ':'')+( sts?sts+' seats':'')+')' : '';
+    var da = s.driverAssist ? ' — DA' : '';
+    var lg = s.liftgate ? ' — LG' : '';
+    return label+': '+loc+counts+da+lg;
+  });
+
+  var allReady = [];
+  l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){if(p.ready)allReady.push(p.ready);});});
+  var latestReady = '';
+  if(allReady.length) {
+    var parsed = allReady.map(function(d){
+      var parts=d.split('/');
+      return {disp:d,ts:parts.length===3?new Date(parseInt(parts[2]),parseInt(parts[0])-1,parseInt(parts[1])).getTime():0};
+    }).sort(function(a,b){return b.ts-a.ts;});
+    latestReady = parsed[0].disp;
+  }
+
+  var accessorials = [];
+  if(l.stops.some(function(s){return s.driverAssist;})) accessorials.push('Driver Assist');
+  if(l.stops.some(function(s){return s.liftgate;})) accessorials.push('Liftgate Required');
+
+  var equip = l.equip ? resolveEquipCode(l.equip)+' ('+l.equip+')' : '';
+  var subject = 'RFQ'+(latestReady?' — Ready '+latestReady:'')+(totalPcs?' — '+totalPcs+' pcs':'');
+  var body = 'Hello,\n\nWe are requesting a rate and availability on the following shipment:\n\nSTOPS:\n'+stopLines.join('\n')
+    +'\n\n'+(equip?'Equipment: '+equip+'\n':'')
+    +((totalPcs||totalSeats)?'Pieces: '+totalPcs+' | Seats: '+totalSeats+'\n':'')
+    +(latestReady?'Ready Date: '+latestReady+'\n':'')
+    +(accessorials.length?'\nRequirements: '+accessorials.join(', ')+'\n':'')
+    +'\nThank you,';
+
+  window.location.href = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+}
+
+function sendRFQEmail(tlId) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
+  var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))];
+  var pcs = tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
+  var seats = tl.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
+
+  // Latest ready date — parse M/D/YYYY properly
+  var readyDates = tl.pos.map(function(p){return p.ready||'';}).filter(Boolean);
+  var latestReady = '';
+  if(readyDates.length) {
+    var parsed = readyDates.map(function(d){
+      var parts = d.split('/');
+      if(parts.length===3) return {disp:d, ts:new Date(parseInt(parts[2]),parseInt(parts[0])-1,parseInt(parts[1])).getTime()};
+      return {disp:d, ts:0};
+    }).sort(function(a,b){return b.ts-a.ts;});
+    latestReady = parsed[0].disp;
+  }
+
+  // Build ordered stop list: PUs first, then DELs, numbered separately
+  var puStops = [];
+  vendors.forEach(function(v){
+    var loc = locations.find(function(l){return l.name===v;});
+    if(loc && loc.city) {
+      var cs = loc.city.split(',');
+      puStops.push((cs[0]||'').trim()+(cs[1]?' '+cs[1].trim():''));
+    } else {
+      puStops.push('TBD');
+    }
+  });
+
+  var delCities = [];
+  tl.pos.forEach(function(p){
+    if(p.city) {
+      var key = (p.city+(p.state?', '+p.state:'')).trim();
+      if(key && delCities.indexOf(key)===-1) delCities.push(key);
+    }
+  });
+
+  var stopLines = [];
+  puStops.forEach(function(cs,i){ stopLines.push('PU '+(i+1)+': '+cs); });
+  // DEL stops with per-city pcs/seats totals
+  var delMap = {};
+  tl.pos.forEach(function(p){
+    if(p.city) {
+      var key = (p.city+(p.state?', '+p.state:'')).trim();
+      if(!delMap[key]) delMap[key]={pcs:0,seats:0};
+      delMap[key].pcs += Number(p.pieces)||0;
+      delMap[key].seats += Number(p.seats)||0;
+    }
+  });
+  Object.keys(delMap).forEach(function(cs,i){
+    var d = delMap[cs];
+    var counts = (d.pcs||d.seats) ? ' ('+(d.pcs?d.pcs+' pcs':'')+( d.pcs&&d.seats?', ':'')+( d.seats?d.seats+' seats':'')+')' : '';
+    stopLines.push('DEL '+(i+1)+': '+cs+counts);
+  });
+
+  // Accessorials from stops (if load has been converted — check tl for flags)
+  var accessorials = [];
+  if(tl.pos.some(function(p){return p.driverAssist;})) accessorials.push('Driver Assist');
+  if(tl.pos.some(function(p){return p.liftgate;})) accessorials.push('Liftgate Required');
+
+  // Equipment type
+  var equip = tl.equip ? resolveEquipCode(tl.equip)+' ('+tl.equip+')' : '';
+
+  var subject = 'RFQ'+(latestReady?' — Ready '+latestReady:'')+(pcs?' — '+pcs+' pcs':'');
+  var body = 'Hello,\n\nWe are requesting a rate and availability on the following shipment:\n\nSTOPS:\n'+stopLines.join('\n')
+    +'\n\n'+(equip?'Equipment: '+equip+'\n':'')
+    +((pcs||seats)?'Pieces: '+pcs+' | Seats: '+seats+'\n':'')
+    +(latestReady?'Ready Date: '+latestReady+'\n':'')
+    +(accessorials.length?'\nRequirements: '+accessorials.join(', ')+'\n':'')
+    +'\nThank you,';
+
+  var mailto = 'mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  window.location.href = mailto;
+}
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
   var p=tl.pos.find(function(x){return x.po===po;});if(!p)return;
   dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
@@ -7265,6 +7530,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
     if(cRow.n_loc) nLoc = cRow.n_loc;
     if(cRow.n_rate) nRate = cRow.n_rate;
     if(cRow.n_tl) nTL = cRow.n_tl;
+    if(cRow.n_ltl) localStorage.setItem('bdf_ltl_counter', String(cRow.n_ltl));
 
     _sbLoaded = true;
     syncUsersFromSupabase();
