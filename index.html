@@ -5752,12 +5752,14 @@ function saveLoc(){
       dealerNum:f('locf-dealer'),coach:f('locf-coach'),hours:f('locf-hours'),
       dock:f('locf-dock'),notes:f('locf-notes'),contacts:contacts,isMain:newIsMain,locCode:newLocCode,sel:false});
   }
+  var savedId = editingLocId;
   editingLocId=null;
-  var locToSave = locations[locations.length-1];
-  // If editing, find by id instead
-  if(editingLocId !== null) locToSave = locations.find(function(x){return x.id===editingLocId;});
-  // fallback: find by name
-  if(!locToSave) locToSave = locations.find(function(l){return l.name===document.getElementById('locf-name').value.trim();});
+  var locToSave;
+  if(savedId !== null) {
+    locToSave = locations.find(function(x){return x.id===savedId;});
+  } else {
+    locToSave = locations[locations.length-1];
+  }
   if(locToSave) saveRecord('locations', locToSave);
   closeM('m-loc');renderLocDB();
 }
