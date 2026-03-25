@@ -334,9 +334,10 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 #stg-table th{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--tx2)}
 #stg-table td{font-size:13px;padding:8px 10px}
 .stg-row{cursor:pointer}
-.stg-row:hover td{background:#f0f7ff}
-.stg-row.sel td{background:#e8f4fd}
+.stg-row:hover td{background:rgba(27,42,74,.06)}
+.stg-row.sel td{background:rgba(27,42,74,.1)}
 .stg-row.sel td:first-child{border-left:3px solid var(--green)}
+.stg-row.is-load td:first-child{border-left:3px solid var(--green)}
 .stg-expand{background:var(--sur);border-bottom:2px solid var(--green)}
 .stg-expand td{padding:0}
 .stg-inner{padding:0 14px 12px 42px}
@@ -593,9 +594,9 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   </div>
   <div class="nav" id="main-nav">
     <div class="ntab on" id="ntab-dashboard" onclick="goPage('dashboard',this)">Dashboard</div>
-    <div class="ntab" id="ntab-dealer" onclick="goPage('dealer',this)">Customer Orders</div>
-    <div class="ntab" id="ntab-staging" onclick="goPage('staging',this)">Staging</div>
-    <div class="ntab" id="ntab-board" onclick="goPage('board',this)">Shipment Tracking</div>
+    <div class="ntab" id="ntab-dealer" onclick="goPage('dealer',this)">Orders</div>
+    <div class="ntab" id="ntab-staging" onclick="goPage('staging',this)">Temporary Loads</div>
+    <div class="ntab" id="ntab-board" onclick="goPage('board',this)">Load Tracking</div>
     <div class="ntab" id="ntab-scorecard" onclick="goPage('scorecard',this)">Carrier Database</div>
     <div class="ntab" id="ntab-locdb" onclick="goPage('locdb',this)">Location Database</div>
     <div class="ntab" id="ntab-rates" onclick="goPage('rates',this)">Rate Tracker</div>
@@ -758,31 +759,37 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   </div>
 
   <!-- STAGING LOADS PAGE -->
-  <div class="page" id="page-staging">
+  <div class="page" id="page-staging" style="display:flex;flex-direction:column;overflow:hidden">
     <div class="tbar">
-      <input type="text" id="stg-search" placeholder="Search TL#, ticket#, PO#, vendor, dealer..." oninput="renderStaging()" style="width:320px">
+      <input type="text" id="stg-search" placeholder="Search TL#, LD#, PO#, vendor, dealer..." oninput="renderStaging()" style="width:280px">
       <button class="btn p" onclick="openNewStagingModal()">+ New Staging Order</button>
-      <button class="btn" onclick="openRFQFromStaging()" id="stg-rfq-btn" style="display:none">✉ RFQ Email</button>
+      <button class="btn" style="background:#1B2A4A;color:#2ECC40;border:none" onclick="openLoadModal(null)">+ New Load</button>
       <span id="stg-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
-    <div class="tw" style="overflow-y:auto;flex:1">
-      <table id="stg-table" style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr>
-            <th class="nc" style="width:28px"></th>
-            <th onclick="sortStaging('tlNum')" id="sth-tlNum">TL #</th>
-            <th class="nc">Ticket #</th>
-            <th onclick="sortStaging('vendors')" id="sth-vendors">Vendor(s)</th>
-            <th onclick="sortStaging('pos')" id="sth-pos">POs</th>
-            <th onclick="sortStaging('pcs')" id="sth-pcs">Pcs</th>
-            <th onclick="sortStaging('seats')" id="sth-seats">Seats</th>
-            <th onclick="sortStaging('createdAt')" id="sth-createdAt">Created</th>
-            <th class="nc">Notes</th>
-            <th class="nc">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="stg-body"></tbody>
-      </table>
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div style="height:260px;overflow-y:auto;flex-shrink:0" id="stg-split-top">
+        <table id="stg-table" style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th class="nc" style="width:24px"></th>
+              <th onclick="sortStaging('tlNum')" id="sth-tlNum">Order #</th>
+              <th onclick="sortStaging('vendors')" id="sth-vendors">Vendor(s)</th>
+              <th onclick="sortStaging('pos')" id="sth-pos">POs</th>
+              <th onclick="sortStaging('pcs')" id="sth-pcs">Pcs</th>
+              <th onclick="sortStaging('seats')" id="sth-seats">Seats</th>
+              <th onclick="sortStaging('ready')" id="sth-ready">Ready</th>
+              <th class="nc">Best Quote</th>
+              <th class="nc">Notes</th>
+              <th class="nc">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="stg-body"></tbody>
+        </table>
+      </div>
+      <div id="stg-resizer" style="height:5px;background:var(--bd);cursor:row-resize;flex-shrink:0" onmousedown="initStgResize(event)"></div>
+      <div style="flex:1;overflow-y:auto;background:var(--sur2);min-height:80px" id="stg-detail-pane">
+        <div class="dempty">Select an order to view details and quotes</div>
+      </div>
     </div>
     <div style="position:sticky;bottom:0;text-align:right;padding:4px 16px;background:var(--sur);border-top:1px solid var(--bd);font-size:11px;color:var(--tx3)" id="stg-footer"></div>
   </div>
@@ -1167,7 +1174,15 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   <div class="mbox w">
     <div class="mh">New Staging Order</div>
     <div class="fg">
-      <div class="fi"><label>SO # <span style="font-size:10px;font-weight:400;color:var(--tx3)">(manual entry)</span></label><input id="ns-so" placeholder="e.g. SO-12345"></div>
+      <div class="fi s2">
+        <label>SO / PO # <span style="font-size:10px;font-weight:400;color:var(--tx3)">— add multiple if needed</span></label>
+        <div id="ns-po-list" style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;gap:5px;align-items:center">
+            <input class="ns-po-input" placeholder="SO / PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">
+          </div>
+        </div>
+        <button onclick="addNsPORow()" class="btn xs" style="margin-top:5px;border-color:var(--green);color:var(--navy)">+ Add Another PO</button>
+      </div>
       <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="ns-vendor" placeholder="Search locations..." oninput="nsVendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-ns-vendor"></div></div></div>
       <div class="fi"><label>Pieces</label><input type="number" id="ns-pieces" placeholder="0"></div>
       <div class="fi"><label>Seats</label><input type="number" id="ns-seats" placeholder="0"></div>
@@ -1218,7 +1233,15 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   <div class="mbox w">
     <div class="mh" id="m-dealer-title">Add Dealer Order</div><div style="height:6px"></div>
     <div class="fg">
-      <div class="fi"><label>PO #</label><input id="df-po"></div>
+      <div class="fi s2">
+        <label>PO # <span style="font-size:10px;font-weight:400;color:var(--tx3)">— add multiple if needed</span></label>
+        <div id="df-po-list" style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;gap:5px;align-items:center">
+            <input class="df-po-input" placeholder="PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">
+          </div>
+        </div>
+        <button onclick="addDealerPORow()" class="btn xs" style="margin-top:5px;border-color:var(--green);color:var(--navy)">+ Add Another PO</button>
+      </div>
       <div class="fi"><label>Vendor</label>
         <div class="acw"><input id="df-vendor" placeholder="Search vendors..." oninput="dealerVendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-df-vendor"></div></div>
       </div>
@@ -1636,7 +1659,7 @@ function sbToLoad(r) {
     deleted: r.deleted||false, deletedAt: r.deleted_at||null,
     deletedBy: r.deleted_by||null, deliveredAt: r.delivered_at||null,
     preIssueStatus: r.pre_issue_status||null, claimInfo: r.claim_info||null,
-    lastLoc: r.last_loc||'', isLTL: !!r.is_ltl, sel: false
+    lastLoc: r.last_loc||'', isLTL: !!r.is_ltl, quotes: r.quotes||[], sel: false
   };
 }
 function sbToCarrier(r) {
@@ -1675,7 +1698,7 @@ function sbToTempLoad(r) {
   return {
     id: r.id, tlNum: r.tl_num||'', notes: r.notes||'',
     createdAt: r.created_at_str||'', createdBy: r.created_by||'',
-    pos: r.pos||[]
+    pos: r.pos||[], quotes: r.quotes||[]
   };
 }
 
@@ -1695,7 +1718,7 @@ function loadToSb(l) {
     deleted: o.deleted||false, deleted_at: o.deletedAt||null,
     deleted_by: o.deletedBy||null, delivered_at: o.deliveredAt||null,
     pre_issue_status: o.preIssueStatus||null, claim_info: o.claimInfo||null,
-    last_loc: o.lastLoc||'', is_ltl: !!o.isLTL
+    last_loc: o.lastLoc||'', is_ltl: !!o.isLTL, quotes: o.quotes||[]
   };
 }
 function carrierToSb(c) {
@@ -4792,6 +4815,8 @@ function confirmStage(){
 
 var stgSort = {col:'tlNum', asc:true};
 var stgExpanded = {}; // {tlId: true/false}
+var stgSel = null; // {type:'tl'|'load', id: number}
+var quoteSort = {asc:true}; // quote tracker sort direction
 
 function renderStaging() {
   var q = (document.getElementById('stg-search').value||'').toLowerCase();
@@ -4799,123 +4824,297 @@ function renderStaging() {
   var footer = document.getElementById('stg-footer');
   if(!body) return;
 
-  var rows = tempLoads.filter(function(tl) {
-    if(!q) return true;
-    var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(' ');
-    var pos = tl.pos.map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ');
-    var hay = (tl.tlNum+' '+(tl.ticket||'')+' '+vendors+' '+pos).toLowerCase();
-    return hay.includes(q);
+  // Build unified row list: TLs + Schedule/Available loads
+  var rows = [];
+
+  // TLs
+  tempLoads.forEach(function(tl) {
+    var pcs = tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
+    var seats = tl.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
+    var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
+    var readyDates = tl.pos.map(function(p){return p.ready||'';}).filter(Boolean);
+    var latestReady = '';
+    if(readyDates.length) {
+      var parsed = readyDates.map(function(d){var pt=d.split('/');return {disp:d,ts:pt.length===3?new Date(parseInt(pt[2]),parseInt(pt[0])-1,parseInt(pt[1])).getTime():0};}).sort(function(a,b){return b.ts-a.ts;});
+      latestReady = parsed[0].disp;
+    }
+    var hay = (tl.tlNum+' '+(tl.ticket||'')+' '+vendors+' '+tl.pos.map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ')).toLowerCase();
+    if(q && !hay.includes(q)) return;
+    rows.push({type:'tl', id:tl.id, num:tl.tlNum, obj:tl, vendors:vendors, poCount:tl.pos.length, pcs:pcs, seats:seats, ready:latestReady, notes:tl.notes||''});
+  });
+
+  // Schedule + Available loads (not covered yet)
+  loads.filter(function(l){return (l.status==='Schedule'||l.status==='Available')&&!l.archived&&!l.isLTL;}).forEach(function(l) {
+    var pcs=0,seats=0;
+    l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){pcs+=(Number(p.pieces)||0);seats+=(Number(p.seats)||0);});});
+    var vendor = l.vendor||'';
+    var poCount = l.stops.reduce(function(a,s){return a+(s.pos||[]).length;},0);
+    var allReady=[];
+    l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){if(p.ready)allReady.push(p.ready);});});
+    var latestReady='';
+    if(allReady.length){var parsed=allReady.map(function(d){var pt=d.split('/');return{disp:d,ts:pt.length===3?new Date(parseInt(pt[2]),parseInt(pt[0])-1,parseInt(pt[1])).getTime():0};}).sort(function(a,b){return b.ts-a.ts;});latestReady=parsed[0].disp;}
+    var hay = (l.loadNum+' '+vendor+' '+l.notes+' '+l.stops.map(function(s){return (s.pos||[]).map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ');}).join(' ')).toLowerCase();
+    if(q && !hay.includes(q)) return;
+    rows.push({type:'load', id:l.id, num:l.loadNum, obj:l, vendors:vendor, poCount:poCount, pcs:pcs, seats:seats, ready:latestReady, notes:l.notes||''});
   });
 
   // Sort
-  rows = rows.slice().sort(function(a,b) {
-    var av, bv;
-    if(stgSort.col==='tlNum') { av=a.tlNum; bv=b.tlNum; }
-    else if(stgSort.col==='vendors') {
-      av=[...new Set(a.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(',');
-      bv=[...new Set(b.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(',');
-    }
-    else if(stgSort.col==='pos') { av=a.pos.length; bv=b.pos.length; }
-    else if(stgSort.col==='pcs') {
-      av=a.pos.reduce(function(s,p){return s+(Number(p.pieces)||0);},0);
-      bv=b.pos.reduce(function(s,p){return s+(Number(p.pieces)||0);},0);
-    }
-    else if(stgSort.col==='seats') {
-      av=a.pos.reduce(function(s,p){return s+(Number(p.seats)||0);},0);
-      bv=b.pos.reduce(function(s,p){return s+(Number(p.seats)||0);},0);
-    }
-    else if(stgSort.col==='createdAt') { av=a.createdAt||''; bv=b.createdAt||''; }
-    else { av=a.tlNum; bv=b.tlNum; }
-    var r = av>bv?1:av<bv?-1:0;
+  rows.sort(function(a,b){
+    var av,bv;
+    if(stgSort.col==='tlNum'){av=a.num;bv=b.num;}
+    else if(stgSort.col==='vendors'){av=a.vendors;bv=b.vendors;}
+    else if(stgSort.col==='pos'){av=a.poCount;bv=b.poCount;return stgSort.asc?av-bv:bv-av;}
+    else if(stgSort.col==='pcs'){av=a.pcs;bv=b.pcs;return stgSort.asc?av-bv:bv-av;}
+    else if(stgSort.col==='seats'){av=a.seats;bv=b.seats;return stgSort.asc?av-bv:bv-av;}
+    else if(stgSort.col==='ready'){av=a.ready||'';bv=b.ready||'';}
+    else{av=a.num;bv=b.num;}
+    var r=av>bv?1:av<bv?-1:0;
     return stgSort.asc?r:-r;
   });
 
   // Sort indicators
-  ['tlNum','vendors','pos','pcs','seats','createdAt'].forEach(function(c) {
-    var el = document.getElementById('sth-'+c); if(!el) return;
-    var labels = {tlNum:'TL #', vendors:'Vendor(s)', pos:'POs', pcs:'Pcs', seats:'Seats', createdAt:'Created'};
-    var arrow = stgSort.col===c ? ' <span style="color:var(--green);font-size:10px">'+(stgSort.asc?'▲':'▼')+'</span>' : '';
-    el.innerHTML = (labels[c]||c)+arrow;
+  ['tlNum','vendors','pos','pcs','seats','ready'].forEach(function(c){
+    var el=document.getElementById('sth-'+c); if(!el) return;
+    var labels={tlNum:'Order #',vendors:'Vendor(s)',pos:'POs',pcs:'Pcs',seats:'Seats',ready:'Ready'};
+    el.innerHTML=(labels[c]||c)+(stgSort.col===c?' <span style="color:var(--green);font-size:10px">'+(stgSort.asc?'▲':'▼')+'</span>':'');
   });
 
-  if(!rows.length) {
-    body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--tx3)">'+
-      (q ? 'No staging loads match your search.' : 'No staging loads yet. Select POs on Customer Orders and click "Stage as Temp Load".')+
-      '</td></tr>';
-    if(footer) footer.textContent = '';
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--tx3)">'+(q?'No orders match your search.':'No staging orders yet.')+'</td></tr>';
+    if(footer) footer.textContent='';
     return;
   }
 
-  var html = '';
-  rows.forEach(function(tl) {
-    var pcs = tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
-    var seats = tl.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
-    var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
-    var isExpanded = stgExpanded[tl.id];
-    var ticketVal = tl.ticket || '';
-    var notesVal = tl.notes || '';
-    var createdShort = tl.createdAt ? tl.createdAt.substring(5,16) : '';
-
-    // Main row
-    html += '<tr class="stg-row'+(isExpanded?' sel':'')+'" onclick="toggleStagingRow('+tl.id+')" id="stgr-'+tl.id+'">'
-      + '<td style="padding:7px 10px;color:var(--tx3);font-size:13px">'+(isExpanded?'▼':'▶')+'</td>'
-      + '<td style="font-weight:800;color:var(--navy);font-size:14px">'+esc(tl.tlNum)+'</td>'
+  var html='';
+  rows.forEach(function(row) {
+    var isSel = stgSel && stgSel.type===row.type && stgSel.id===row.id;
+    var isLoad = row.type==='load';
+    var quotes = (row.obj.quotes||[]);
+    var bestQuote = quotes.length ? quotes.slice().sort(function(a,b){return (Number(a.rate)||0)-(Number(b.rate)||0);})[0] : null;
+    var bestQuoteStr = bestQuote ? '$'+(Number(bestQuote.rate).toLocaleString())+' — '+esc(bestQuote.carrier) : '<span style="color:var(--tx3)">—</span>';
+    var numBadge = isLoad
+      ? '<span style="font-size:9px;font-weight:700;background:#1B2A4A;color:#2ECC40;border-radius:3px;padding:1px 4px;margin-right:4px">LD</span>'+esc(row.num)
+      : '<span style="font-size:9px;font-weight:700;background:rgba(27,42,74,.12);color:var(--navy);border-radius:3px;padding:1px 4px;margin-right:4px">TL</span>'+esc(row.num);
+    html += '<tr class="stg-row'+(isLoad?' is-load':'')+( isSel?' sel':'')+'" onclick="selectStgRow(this.dataset.type,'+row.id+')" data-type="'+row.type+'" id="stgr-'+row.type+'-'+row.id+'">'
+      + '<td>'+esc(row.vendors||'—')+'</td>'
+      + '<td style="text-align:center">'+row.poCount+'</td>'
+      + '<td style="text-align:center">'+row.pcs+'</td>'
+      + '<td style="text-align:center">'+row.seats+'</td>'
+      + '<td style="font-size:11px;color:var(--tx2)">'+esc(row.ready||'—')+'</td>'
+      + '<td style="font-size:11px">'+bestQuoteStr+'</td>'
       + '<td onclick="event.stopPropagation()">'
-        + '<input class="stg-ticket" id="stg-ticket-'+tl.id+'" value="'+esc(ticketVal)+'" placeholder="—" '
-        + 'onblur="saveStagingField('+tl.id+',\'ticket\',this.value)" '
-        + 'onkeydown="if(event.key===\'Enter\')this.blur()">'
-        + '</td>'
-      + '<td>'+esc(vendors||'—')+'</td>'
-      + '<td style="text-align:center">'+tl.pos.length+'</td>'
-      + '<td style="text-align:center">'+pcs+'</td>'
-      + '<td style="text-align:center">'+seats+'</td>'
-      + '<td style="font-size:11px;color:var(--tx2)">'+esc(createdShort)+' <span style="color:var(--tx3)">'+esc(tl.createdBy||'')+'</span></td>'
-      + '<td onclick="event.stopPropagation()">'
-        + '<input class="stg-notes-input" value="'+esc(notesVal)+'" placeholder="notes..." '
-        + 'onblur="saveStagingField('+tl.id+',\'notes\',this.value)" '
-        + 'onkeydown="if(event.key===\'Enter\')this.blur()">'
-        + '</td>'
+        + '<input class="stg-notes-input" value="'+esc(row.notes)+'" placeholder="notes..." '
+        + 'onblur="saveStgNote(\"'+row.type+'\",'+row.id+',this.value)" '
+        + 'onkeydown="if(event.key===\'Enter\')this.blur()">'  
+      + '</td>'
       + '<td onclick="event.stopPropagation()" style="white-space:nowrap">'
-        + '<button class="btn xs" style="border:2px solid var(--green);color:var(--navy);font-weight:700;margin-right:3px" onclick="openAddPOsModal('+tl.id+')">+ POs</button>'
-        + '<button class="btn xs p" style="font-weight:700;margin-right:3px" onclick="convertTL('+tl.id+')">Convert</button>'
-        + '<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:3px" onclick="sendRFQEmail('+tl.id+')">✉ RFQ</button>'
-        + '<button class="btn xs d" onclick="dissolveTL('+tl.id+')">Dissolve</button>'
-        + '</td>'
+        + (isLoad
+          ? '<button class="btn xs" style="border:2px solid var(--green);color:var(--navy);font-weight:700;margin-right:3px" onclick="openLoadModal(loads.find(function(x){return x.id==='+row.id+';}),\'stops\')">Edit Stops</button>'
+            + '<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:3px" onclick="sendRFQFromLoad('+row.id+')">✉ RFQ</button>'
+          : '<button class="btn xs" style="border:2px solid var(--green);color:var(--navy);font-weight:700;margin-right:3px" onclick="openAddPOsModal('+row.id+')">+ POs</button>'
+            + '<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:3px" onclick="sendRFQEmail('+row.id+')">✉ RFQ</button>'
+            + '<button class="btn xs p" style="font-weight:700;margin-right:3px" onclick="convertTL('+row.id+')">Convert</button>'
+            + '<button class="btn xs d" onclick="dissolveTL('+row.id+')">Dissolve</button>'
+        )
+      + '</td>'
       + '</tr>';
+  });
+  body.innerHTML = html;
+  if(footer) footer.textContent = rows.length+' order'+(rows.length!==1?'s':'');
+  if(stgSel) renderStgDetail();
+}
 
-    // Expanded PO table
-    if(isExpanded) {
-      var poRows = tl.pos.map(function(p) {
-        return '<tr>'
-          + '<td style="font-weight:600;color:var(--navy);font-family:var(--M);background:'+(stgHighlightPo&&stgHighlightPo===p.po?'#fef08a':'')+'">'+esc(p.po||'')+'</td>'
-          + '<td>'+esc(p.vendor||'')+'</td>'
-          + '<td style="text-align:center">'+esc(p.pieces||'0')+'</td>'
-          + '<td style="text-align:center">'+esc(p.seats||'0')+'</td>'
-          + '<td>'+esc(fmtDate(p.ready||''))+'</td>'
-          + '<td>'+esc(p.dealer||'')+'</td>'
-          + '<td style="color:var(--tx2)">'+esc(p.city||'')+(p.state?', '+esc(p.state):'')+'</td>'
-          + '<td><button class="btn xs d" onclick="removePOFromTL('+tl.id+',\''+esc(p.po||'')+'\')">Remove</button></td>'
-          + '</tr>';
-      }).join('');
+function selectStgRow(type, id) {
+  if(stgSel && stgSel.type===type && stgSel.id===id) {
+    stgSel = null;
+    document.getElementById('stg-detail-pane').innerHTML='<div class="dempty">Select an order to view details and quotes</div>';
+    renderStaging();
+    return;
+  }
+  stgSel = {type:type, id:id};
+  renderStaging();
+  renderStgDetail();
+}
 
-      html += '<tr class="stg-expand" id="stgx-'+tl.id+'">'
-        + '<td colspan="10" class="stg-inner">'
-          + '<table class="stg-po-tbl">'
-            + '<thead><tr>'
-              + '<th>PO #</th><th>Vendor</th><th>Pcs</th><th>Seats</th>'
-              + '<th>Ready</th><th>Dealer</th><th>City, ST</th><th></th>'
-            + '</tr></thead>'
-            + '<tbody>'+poRows+'</tbody>'
-          + '</table>'
-        + '</td>'
-        + '</tr>';
-    }
+function saveStgNote(type, id, val) {
+  if(type==='tl') {
+    var tl=tempLoads.find(function(t){return t.id===id;}); if(!tl)return;
+    tl.notes=val; saveRecord('temp_loads',tl);
+  } else {
+    var l=loads.find(function(x){return x.id===id;}); if(!l)return;
+    l.notes=val; saveRecord('loads',l);
+  }
+}
+
+function initStgResize(e) {
+  var startY=e.clientY;
+  var top=document.getElementById('stg-split-top');
+  var startH=top.offsetHeight;
+  function onMove(ev){top.style.height=Math.max(80,startH+(ev.clientY-startY))+'px';}
+  function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);}
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
+
+function renderStgDetail() {
+  var pane = document.getElementById('stg-detail-pane'); if(!pane||!stgSel) return;
+  var isLoad = stgSel.type==='load';
+  var obj = isLoad ? loads.find(function(x){return x.id===stgSel.id;}) : tempLoads.find(function(t){return t.id===stgSel.id;});
+  if(!obj){pane.innerHTML='<div class="dempty">Order not found</div>';return;}
+
+  // Summary info
+  var num = isLoad ? obj.loadNum : obj.tlNum;
+  var pcs=0,seats=0,vendors='';
+  if(isLoad){
+    obj.stops.forEach(function(s){(s.pos||[]).forEach(function(p){pcs+=(Number(p.pieces)||0);seats+=(Number(p.seats)||0);});});
+    vendors=obj.vendor||'';
+  } else {
+    pcs=obj.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
+    seats=obj.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
+    vendors=[...new Set(obj.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
+  }
+
+  var quotes = (obj.quotes||[]).slice().sort(function(a,b){
+    var av=Number(a.rate)||0, bv=Number(b.rate)||0;
+    return quoteSort.asc ? av-bv : bv-av;
   });
 
-  body.innerHTML = html;
-  if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
-  // Clear highlight after render so it only shows once
-  setTimeout(function(){ stgHighlightPo = null; }, 2000);
+  var stopsSummary = '';
+  if(isLoad) {
+    var pu=obj.stops.filter(function(s){return s.type==='pickup';}).length;
+    var dl=obj.stops.filter(function(s){return s.type==='delivery';}).length;
+    stopsSummary = pu+'P'+dl+'D';
+    var states=obj.stops.map(function(s){return s.state;}).filter(Boolean);
+    if(states.length>1) stopsSummary += ' | '+states[0]+'>'+states[states.length-1];
+  }
+
+  var quoteRows = quotes.map(function(q,i){
+    return '<tr>'
+      +'<td style="font-weight:700;color:var(--navy)">$'+(Number(q.rate)||0).toLocaleString()+'</td>'
+      +'<td>'+esc(q.carrier||'')+'</td>'
+      +'<td style="font-size:11px;color:var(--tx2)">'+esc(q.pickDate||'')+'</td>'
+      +'<td style="font-size:11px;color:var(--tx2)">'+esc(q.note||'')+'</td>'
+      +'<td style="white-space:nowrap">'
+        +'<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:3px" onclick="acceptQuote('+i+')">Accept</button>'
+        +'<button class="btn xs d" onclick="deleteQuote('+i+')">✕</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+
+  pane.innerHTML = '<div style="padding:14px 16px">'
+    // Header
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
+      +'<span style="font-size:20px;font-weight:800;color:var(--navy)">'+esc(num)+'</span>'
+      +(isLoad?'<span style="font-size:11px;background:#1B2A4A;color:#2ECC40;border-radius:4px;padding:2px 7px">'+obj.status+'</span>':'')
+      +(stopsSummary?'<span style="font-size:11px;color:var(--tx2)">'+esc(stopsSummary)+'</span>':'')
+      +(vendors?'<span style="font-size:11px;color:var(--tx2)">'+esc(vendors)+'</span>':'')
+      +(pcs?'<span style="font-size:11px;color:var(--tx2)">'+pcs+' pcs / '+seats+' seats</span>':'')
+      +(isLoad?'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+obj.id+';}),\'header\')" style="background:var(--sur);color:var(--navy);border:2px solid var(--green);font-weight:700;font-size:11px;padding:2px 10px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Info</button>':'')
+      +(isLoad?'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+obj.id+';}),\'stops\')" style="background:var(--sur);color:var(--navy);border:2px solid var(--green);font-weight:700;font-size:11px;padding:2px 10px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Stops</button>':'')
+      +'<button onclick="'+(isLoad?'sendRFQFromLoad('+obj.id+')':'sendRFQEmail('+obj.id+')')+'" style="background:#1B2A4A;color:#2ECC40;border:none;font-weight:700;font-size:11px;padding:2px 10px;border-radius:6px;cursor:pointer;font-family:var(--F)">✉ RFQ</button>'
+    +'</div>'
+    // Quote tracker
+    +'<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:12px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        +'<span style="font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em">Quote Tracker</span>'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+          +'<button onclick="quoteSort.asc=!quoteSort.asc;renderStgDetail()" class="btn xs" title="Toggle sort">'+(quoteSort.asc?'↑ Low→High':'↓ High→Low')+'</button>'
+        +'</div>'
+      +'</div>'
+      // Add quote row
+      +'<div style="display:grid;grid-template-columns:140px 100px 110px 1fr 80px;gap:6px;margin-bottom:10px;align-items:center">'
+        +'<div class="acw"><input id="qt-carrier" placeholder="Carrier / broker..." oninput="qtCarrierAC(this.value)" autocomplete="off" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx)"><div class="acl" id="ac-qt-carrier"></div></div>'
+        +'<input id="qt-rate" type="number" placeholder="Rate $" style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+        +'<input id="qt-date" type="date" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+        +'<input id="qt-note" placeholder="Note..." style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+        +'<button onclick="addQuote()" style="background:#1B2A4A;color:#2ECC40;border:none;height:28px;padding:0 10px;border-radius:var(--r);cursor:pointer;font-family:var(--F);font-weight:700;font-size:12px;white-space:nowrap">+ Add</button>'
+      +'</div>'
+      +(quotes.length
+        ? '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+          +'<thead><tr style="border-bottom:1px solid var(--bd)">'
+          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Rate</th>'
+          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Carrier</th>'
+          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Avail Date</th>'
+          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Note</th>'
+          +'<th></th>'
+          +'</tr></thead>'
+          +'<tbody>'+quoteRows+'</tbody>'
+          +'</table>'
+        : '<div style="text-align:center;padding:16px;color:var(--tx3);font-size:12px">No quotes yet — add one above</div>'
+      )
+    +'</div>'
+  +'</div>';
+}
+
+function qtCarrierAC(q) {
+  var list=document.getElementById('ac-qt-carrier'); if(!list) return;
+  if(!q){list.style.display='none';return;}
+  var m=carriers.filter(function(c){return (c.name||'').toLowerCase().includes(q.toLowerCase());}).slice(0,8);
+  if(!m.length){list.style.display='none';return;}
+  list.innerHTML=m.map(function(c){return '<div class="aci" onclick="qtPickCarrier(\''+esc(c.name||'')+'\')"><div>'+esc(c.name||'')+'</div><div class="acs">MC: '+esc(c.mc||'—')+'</div></div>';}).join('');
+  list.style.display='block';
+}
+function qtPickCarrier(name){
+  var el=document.getElementById('qt-carrier'); if(el){el.value=name;}
+  var list=document.getElementById('ac-qt-carrier'); if(list) list.style.display='none';
+}
+
+function addQuote() {
+  if(!stgSel) return;
+  var carrier=(document.getElementById('qt-carrier')||{}).value||'';
+  var rate=(document.getElementById('qt-rate')||{}).value||'';
+  var date=(document.getElementById('qt-date')||{}).value||'';
+  var note=(document.getElementById('qt-note')||{}).value||'';
+  if(!carrier&&!rate){alert('Enter at least a carrier and rate.');return;}
+  var isLoad=stgSel.type==='load';
+  var obj=isLoad?loads.find(function(x){return x.id===stgSel.id;}):tempLoads.find(function(t){return t.id===stgSel.id;});
+  if(!obj) return;
+  if(!obj.quotes) obj.quotes=[];
+  obj.quotes.push({carrier:carrier,rate:parseFloat(rate)||0,pickDate:date,note:note,addedAt:nowStr()});
+  saveRecord(isLoad?'loads':'temp_loads', obj);
+  renderStgDetail();
+  renderStaging();
+}
+
+function deleteQuote(idx) {
+  if(!stgSel) return;
+  var isLoad=stgSel.type==='load';
+  var obj=isLoad?loads.find(function(x){return x.id===stgSel.id;}):tempLoads.find(function(t){return t.id===stgSel.id;});
+  if(!obj||!obj.quotes) return;
+  var sorted=obj.quotes.slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});
+  var toRemove=sorted[idx];
+  obj.quotes=obj.quotes.filter(function(q){return q!==toRemove;});
+  saveRecord(isLoad?'loads':'temp_loads', obj);
+  renderStgDetail();
+  renderStaging();
+}
+
+function acceptQuote(idx) {
+  if(!stgSel||stgSel.type!=='load') return;
+  var l=loads.find(function(x){return x.id===stgSel.id;}); if(!l) return;
+  var sorted=(l.quotes||[]).slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});
+  var q=sorted[idx]; if(!q) return;
+  if(!confirm('Accept '+esc(q.carrier)+' at $'+q.rate+'? This will set the carrier, rate, and advance the load to Covered.')) return;
+  l.carrier=q.carrier;
+  l.cr=q.rate;
+  // Log to carrier rate history
+  var c=carriers.find(function(x){return (x.name||'').toLowerCase()===(q.carrier||'').toLowerCase();});
+  if(c){
+    if(!c.rateHistory) c.rateHistory=[];
+    var sPU=l.stops.find(function(s){return s.type==='pickup';});
+    var sDEL=l.stops.filter(function(s){return s.type==='delivery';});
+    c.rateHistory.push({loadNum:l.loadNum,origin:sPU?sPU.state:'',dest:sDEL.length?sDEL[sDEL.length-1].state:'',flat:q.rate,rpm:'',miles:l.miles||0,date:nowStr().substring(0,10),notes:q.note||''});
+    saveRecord('carriers',c);
+  }
+  // Advance to Covered
+  l.status='Covered';
+  if(!l.callins) l.callins=[];
+  l.callins.push({status:'Available to Covered',time:nowStr(),note:'Carrier '+q.carrier+' accepted at $'+q.rate+' via quote tracker.',req:false,type:'note'});
+  saveRecord('loads',l);
+  stgSel=null;
+  renderStaging();
+  renderBoard();
+  document.getElementById('stg-detail-pane').innerHTML='<div class="dempty">Load moved to Covered — select another order</div>';
 }
 
 function toggleStagingRow(tlId) {
@@ -4941,11 +5140,13 @@ function saveStagingField(tlId, field, val) {
 }
 
 function openNewStagingModal() {
-  ['ns-so','ns-vendor','ns-pieces','ns-seats','ns-ready','ns-notes','ns-dealer','ns-phone','ns-city','ns-state','ns-zip'].forEach(function(id){
+  ['ns-vendor','ns-pieces','ns-seats','ns-ready','ns-notes','ns-dealer','ns-phone','ns-city','ns-state','ns-zip'].forEach(function(id){
     var el=document.getElementById(id); if(el) el.value='';
   });
+  var list=document.getElementById('ns-po-list');
+  if(list) list.innerHTML='<div style="display:flex;gap:5px;align-items:center"><input class="ns-po-input" placeholder="SO / PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none"></div>';
   openM('m-new-staging');
-  setTimeout(function(){ var el=document.getElementById('ns-so'); if(el) el.focus(); }, 100);
+  setTimeout(function(){ var el=document.querySelector('#ns-po-list .ns-po-input'); if(el) el.focus(); }, 100);
 }
 
 function nsVendorAC(q) {
@@ -4983,17 +5184,21 @@ function nsPickDealer(name,phone,city,state,zip) {
 
 function saveNewStaging() {
   var f=function(id){return (document.getElementById(id)||{}).value||'';};
-  var so=f('ns-so').trim();
-  if(!so){alert('SO # is required.');return;}
-  // Check duplicate SO
-  var dup=tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').toLowerCase()===so.toLowerCase();});});
-  if(dup){alert('SO # "'+so+'" already exists in staging.');return;}
+  var pos = getNsPOs();
+  if(!pos.length){alert('At least one SO / PO # is required.');return;}
+  // Check duplicates
+  var dupes = pos.filter(function(so){
+    return tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').toLowerCase()===so.toLowerCase();});});
+  });
+  if(dupes.length){alert('SO # "'+dupes[0]+'" already exists in staging.');return;}
   var ready=f('ns-ready');
   var readyDisp=ready?(function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})():'';
-  var po={po:so,vendor:f('ns-vendor'),pieces:parseFloat(f('ns-pieces'))||0,seats:parseFloat(f('ns-seats'))||0,
-    ready:readyDisp,dealer:f('ns-dealer'),phone:f('ns-phone'),addr:'',city:f('ns-city'),state:f('ns-state'),zip:f('ns-zip')};
   var tlNum='TL-'+String(1000+nTL);
-  var tl={id:nTL++,tlNum:tlNum,notes:f('ns-notes'),createdAt:nowStr(),createdBy:cap(currentUser),pos:[po]};
+  var poList = pos.map(function(so){
+    return {po:so,vendor:f('ns-vendor'),pieces:parseFloat(f('ns-pieces'))||0,seats:parseFloat(f('ns-seats'))||0,
+      ready:readyDisp,dealer:f('ns-dealer'),phone:f('ns-phone'),addr:'',city:f('ns-city'),state:f('ns-state'),zip:f('ns-zip')};
+  });
+  var tl={id:nTL++,tlNum:tlNum,notes:f('ns-notes'),createdAt:nowStr(),createdBy:cap(currentUser),pos:poList,quotes:[]};
   tempLoads.push(tl);
   saveRecord('temp_loads',tl);
   closeM('m-new-staging');
@@ -5303,20 +5508,56 @@ function delSelDealers(){
   renderDealer();
 }
 
+function addDealerPORow() {
+  var list = document.getElementById('df-po-list'); if(!list) return;
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:5px;align-items:center';
+  row.innerHTML = '<input class="df-po-input" placeholder="PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">'
+    + '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:16px;padding:0 4px;line-height:1">×</button>';
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function addNsPORow() {
+  var list = document.getElementById('ns-po-list'); if(!list) return;
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:5px;align-items:center';
+  row.innerHTML = '<input class="ns-po-input" placeholder="SO / PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">'
+    + '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:16px;padding:0 4px;line-height:1">×</button>';
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+function getDealerPOs() {
+  return Array.from(document.querySelectorAll('#df-po-list .df-po-input'))
+    .map(function(i){return i.value.trim();}).filter(Boolean);
+}
+
+function getNsPOs() {
+  return Array.from(document.querySelectorAll('#ns-po-list .ns-po-input'))
+    .map(function(i){return i.value.trim();}).filter(Boolean);
+}
+
 function openDealerModal(id) {
   editingDealerId = id||null;
   document.getElementById('m-dealer-title').textContent = id ? 'Edit Dealer Order' : 'Add Dealer Order';
   var fv=function(i){return document.getElementById(i);};
+  // Reset PO list to single empty row
+  var list = document.getElementById('df-po-list');
+  if(list) list.innerHTML = '<div style="display:flex;gap:5px;align-items:center"><input class="df-po-input" placeholder="PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none"></div>';
   if(id) {
     var d=dealers.find(function(x){return x.id===id;});if(!d)return;
-    fv('df-po').value=d.po||'';fv('df-vendor').value=d.vendor||'';
+    // Fill first PO input with existing PO
+    var firstInput = document.querySelector('#df-po-list .df-po-input');
+    if(firstInput) firstInput.value = d.po||'';
+    fv('df-vendor').value=d.vendor||'';
     fv('df-pieces').value=d.pieces||'';fv('df-seats').value=d.seats||'';
     fv('df-ready').value=d.ready?toInputDate(d.ready):'';
     fv('df-dealer').value=d.dealer||'';fv('df-phone').value=d.phone||'';
     fv('df-addr').value=d.addr||'';fv('df-city').value=d.city||'';
     fv('df-state').value=d.state||'';fv('df-zip').value=d.zip||'';fv('df-addinfo').value=d.addinfo||'';
   } else {
-    ['df-po','df-vendor','df-pieces','df-seats','df-ready','df-dealer','df-phone','df-addr','df-city','df-state','df-zip','df-addinfo'].forEach(function(i){fv(i).value='';});
+    ['df-vendor','df-pieces','df-seats','df-ready','df-dealer','df-phone','df-addr','df-city','df-state','df-zip','df-addinfo'].forEach(function(i){fv(i).value='';});
   }
   openM('m-dealer');
 }
@@ -5331,40 +5572,38 @@ function toInputDate(s) {
 
 function saveDealer(){
   var f=function(id){return document.getElementById(id).value;};
-  var po = f('df-po').trim();
-  if(!po) { alert('PO # is required.'); return; }
-  // Duplicate PO check — exclude current record when editing
-  var duplicate = dealers.find(function(x){
-    return x.po.trim().toLowerCase() === po.toLowerCase() && x.id !== editingDealerId;
+  var pos = getDealerPOs();
+  if(!pos.length) { alert('At least one PO # is required.'); return; }
+  var dupes = pos.filter(function(po){
+    return dealers.find(function(x){return x.po.trim().toLowerCase()===po.toLowerCase()&&x.id!==editingDealerId;});
   });
-  if(duplicate) {
-    alert('PO # "'+po+'" already exists for '+( duplicate.dealer||duplicate.vendor||'another order')+'. PO numbers must be unique.');
-    return;
-  }
+  if(dupes.length) { alert('PO # "'+dupes[0]+'" already exists. PO numbers must be unique.'); return; }
   var ready = f('df-ready');
-  // Format date as M/D/YYYY for display
   var readyDisp = ready ? (function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
-  var d={po:po,vendor:f('df-vendor'),pieces:f('df-pieces'),seats:f('df-seats'),
+  var base={vendor:f('df-vendor'),pieces:f('df-pieces'),seats:f('df-seats'),
     ready:readyDisp,dealer:f('df-dealer'),phone:f('df-phone'),addr:f('df-addr'),
     city:f('df-city'),state:f('df-state'),zip:f('df-zip'),addinfo:f('df-addinfo'),sel:false};
   if(editingDealerId) {
     var ex=dealers.find(function(x){return x.id===editingDealerId;});
-    if(ex) Object.assign(ex,d);
+    if(ex) { Object.assign(ex,base); ex.po=pos[0]; saveRecord('dealers',ex); }
+    pos.slice(1).forEach(function(po){
+      var nd=Object.assign({},base,{po:po,id:nDealer++});
+      dealers.push(nd); saveRecord('dealers',nd);
+    });
   } else {
-    d.id=nDealer++;
-    dealers.push(d);
+    pos.forEach(function(po){
+      var nd=Object.assign({},base,{po:po,id:nDealer++});
+      dealers.push(nd); saveRecord('dealers',nd);
+    });
   }
-  if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
-    locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
-  // Write dealer record + any new location created
-  var dealerToSave = editingDealerId ? dealers.find(function(x){return x.id===editingDealerId;}) : dealers[dealers.length-1];
-  if(dealerToSave) saveRecord('dealers', dealerToSave);
-  if(d.dealer){
-    var newLoc=locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();});
-    if(newLoc) saveRecord('locations', newLoc);
+  var dealerName=f('df-dealer');
+  if(dealerName&&!locations.find(function(l){return l.name.toLowerCase()===dealerName.toLowerCase();})) {
+    var newLoc={id:nLoc++,name:dealerName,type:'Receiver',addr:(f('df-addr')||'')+', '+(f('df-city')||'')+', '+(f('df-state')||''),city:(f('df-city')||'')+', '+(f('df-state')||''),contact:'',phone:f('df-phone')||'',hours:'',dock:'',notes:'',contacts:[{name:dealerName,phone1:f('df-phone')||'',phone2:''}],sel:false};
+    locations.push(newLoc); saveRecord('locations',newLoc);
   }
   closeM('m-dealer');renderDealer();
 }
+
 
 function matchDealerNames(){
   var matched=0;
