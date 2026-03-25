@@ -2438,7 +2438,6 @@ function renderDetail() {
   var l=loads.find(function(x){return x.id===selLoad;});
   if(!l){panel.innerHTML='';return;}
   renderDetailInto(panel,l);
-  if(l.lastLoc) setTimeout(function(){ calcLKLEta(l.id); }, 50);
 }
 // ============================
 // STATUS TIMELINE BAR
@@ -2750,24 +2749,6 @@ function renderDetailInto(panel,l){
             +'<div class="info-field"><label>Truck/Trailer</label><input value="'+esc(l.truck||'')+'" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld)ld.truck=v;})(this.value)" placeholder="-"></div>'
             +'<div class="info-field"><label>Tracking'+(l.tracking?' — <a href="'+esc(l.tracking)+'" target="_blank" style="font-size:10px;color:var(--navy)">Open</a>':'')+'</label><input value="'+esc(l.tracking||'')+'" placeholder="https://..." onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.tracking=v;renderBoard();}})(this.value)"></div>'
           +'</div>'
-          +(function(){
-            var ns=getNextStop(l);
-            var nsLabel=ns?((ns.type==='pickup'?'▲ Next PU':'▼ Next DEL')+': '+(ns.name||((ns.city||'')+(ns.state?', '+ns.state:'')))):'';
-            var nsColor=ns?(ns.type==='pickup'?'#1e40af':'#15803d'):'var(--tx3)';
-            return '<div class="info-row" style="grid-template-columns:1fr">'
-              +'<div class="info-field">'
-                +'<label>Last Known Location</label>'
-                +'<div style="display:flex;gap:6px;align-items:center">'
-                  +'<input id="lkl-input-'+l.id+'" value="'+esc(l.lastLoc||'')+'" placeholder="City, ST or ZIP" style="flex:1" onchange="(function(v){var ld=loads.find(function(x){return x.id==='+l.id+'});if(ld){ld.lastLoc=v;saveRecord(\'loads\',ld);calcLKLEta('+l.id+');}})(this.value)">'
-                  +'<button class="btn xs" onclick="calcLKLEta('+l.id+')" title="Recalculate ETA">ETA</button>'
-                +'</div>'
-                +'<div style="display:flex;justify-content:space-between;margin-top:3px">'
-                  +'<span id="lkl-eta-'+l.id+'" style="font-size:10px;color:var(--tx2)"></span>'
-                  +(ns?'<span style="font-size:10px;font-weight:600;color:'+nsColor+'">'+esc(nsLabel)+'</span>':'')
-                +'</div>'
-              +'</div>'
-            +'</div>';
-          })()
         +'</div>'
         +'<div style="margin-top:10px">'
           +'<div class="dct" style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px">'
@@ -3014,7 +2995,7 @@ function openCallinModal(l, title, sub, req) {
   var locEl = document.getElementById('ci-loc');
   var badge = document.getElementById('ci-loc-badge');
   var etaEl = document.getElementById('ci-eta');
-  locEl.value = '';
+  locEl.value = l.lastLoc||'';
   locEl.readOnly = false;
   badge.style.display = 'none';
   etaEl.textContent = '';
@@ -3028,16 +3009,13 @@ function openCallinModal(l, title, sub, req) {
     });
     var curStop = null;
     if(l.status==='Arrived'||l.status==='Departed') {
-      // Most recently checked-in pickup
       curStop = sorted.filter(function(s){return s.type==='pickup'&&s.inT;}).pop() || sorted[0];
     } else if(l.status==='Receiver') {
-      // Most recently checked-in delivery
       curStop = sorted.filter(function(s){return s.type==='delivery'&&s.inT;}).pop() || sorted[sorted.length-1];
     }
     if(curStop && curStop.city) {
       locEl.value = curStop.city + (curStop.state?', '+curStop.state:'') + (curStop.zip?' '+curStop.zip:'');
-      locEl.readOnly = true;
-      badge.style.display = '';
+      badge.style.display = '';  // show Auto-filled badge but field stays editable
     }
   }
 
