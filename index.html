@@ -759,11 +759,10 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   </div>
 
   <!-- STAGING LOADS PAGE -->
-  <div class="page" id="page-staging" style="display:flex;flex-direction:column;overflow:hidden">
+  <div class="page" id="page-staging">
     <div class="tbar">
       <input type="text" id="stg-search" placeholder="Search TL#, LD#, PO#, vendor, dealer..." oninput="renderStaging()" style="width:280px">
-      <button class="btn p" onclick="openNewStagingModal()">+ New Staging Order</button>
-      <button class="btn" style="background:#1B2A4A;color:#2ECC40;border:none" onclick="openLoadModal(null)">+ New Load</button>
+      <button class="btn p" onclick="openNewStagingModal()">+ New Temp Load</button>
       <span id="stg-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
@@ -799,10 +798,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div id="kpi-board" style="display:none"></div>
     <div class="stabs">
       <div class="stab on" onclick="setBF('all',this)">All Loads</div>
-      <div class="stab" onclick="setBF('active',this)">Active</div>
+      <div class="stab" onclick="setBF('available',this)">Available Loads</div>
       <div class="stab" onclick="setBF('issue',this)">Issues</div>
-      <div class="stab" onclick="setBF('claim',this)">Claims</div>
-      <div class="stab" onclick="setBF('late',this)" id="stab-late">Late <span class="cnt" id="late-cnt" style="display:none">0</span></div>
       <div id="load-group-tabs" style="display:contents"></div>
       <div class="stab" onclick="addLoadGroup()" title="New board" style="color:var(--tx3);font-size:16px;padding:4px 10px;line-height:1">+</div>
     </div>
@@ -820,8 +817,6 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <input type="date" id="b-date-to" onchange="renderBoard()" title="PU date to" style="height:32px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);color:var(--tx);font-family:var(--F);outline:none">
       <button class="btn" onclick="clearBoardFilters()">Clear</button>
       <button class="btn p" onclick="openLoadModal(null)">+ Add Load</button>
-      <button class="btn" onclick="openLTLModal()" style="border-color:#7c3aed;color:#7c3aed">+ Add LTL</button>
-      <button class="btn" id="ltl-toggle-btn" onclick="toggleLTLView()" title="Show/hide LTL shipments" style="font-size:11px">LTL: <span id="ltl-toggle-label">Hide</span></button>
       <button class="btn" onclick="exportLoads()">Export CSV</button>
       <button class="btn d" onclick="delSelLoads()">Delete</button>
       <button class="btn" id="lg-save-filters-btn" onclick="saveFiltersToGroup()" style="display:none">Save Filters</button>
@@ -1172,7 +1167,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 <!-- NEW STAGING ORDER MODAL -->
 <div class="overlay" id="m-new-staging">
   <div class="mbox w">
-    <div class="mh">New Staging Order</div>
+    <div class="mh">New Temp Load</div>
     <div class="fg">
       <div class="fi s2">
         <label>SO / PO # <span style="font-size:10px;font-weight:400;color:var(--tx3)">— add multiple if needed</span></label>
@@ -1888,6 +1883,7 @@ function peekNextLTLNum() {
 
 // applyRemoteState removed — Supabase handles data loading
 var boardFilter = 'all', bSort = {col:'loadNum', asc:true}, selLoad = null;
+var detailTab = 'details'; // 'details' | 'quotes'
 var showLTL = false; // LTL loads hidden by default on main board
 var scSort = {col:'name', asc:true}, selCarrier = null;
 var locSort = {col:'name', asc:true};
@@ -2023,6 +2019,233 @@ function goPage(p, el) {
   // Re-init resizable cols for the newly visible table
   setTimeout(function(){initAllResizableCols();},50);
 }
+function setDetailTab(tab, lid) {
+  detailTab = tab;
+  renderDetail();
+}
+
+function renderQuotePane(l) {
+  var quotes = (l.quotes||[]).slice().sort(function(a,b){
+    return quoteSort.asc ? (Number(a.rate)||0)-(Number(b.rate)||0) : (Number(b.rate)||0)-(Number(a.rate)||0);
+  });
+  var quoteRows = quotes.map(function(q,i){
+    var canAccept = l.status==='Available';
+    return '<tr>'
+      +'<td style="font-weight:800;color:var(--navy);font-size:14px">$'+(Number(q.rate)||0).toLocaleString()+'</td>'
+      +'<td style="font-weight:600">'+esc(q.carrier||'')+'</td>'
+      +'<td style="font-size:11px;color:var(--tx2)">'+esc(q.pickDate||'—')+'</td>'
+      +'<td style="font-size:11px;color:var(--tx2);max-width:160px">'+esc(q.note||'')+'</td>'
+      +'<td style="white-space:nowrap">'
+        +(canAccept?'<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:4px" onclick="acceptLoadQuote('+l.id+','+i+')">Accept</button>':'')
+        +'<button class="btn xs d" onclick="deleteLoadQuote('+l.id+','+i+')">✕</button>'
+      +'</td>'
+      +'</tr>';
+  }).join('');
+
+  var equipOpts = EQUIP_CODES.map(function(c){
+    return '<option value="'+c+'"'+(l._qtEquip===c?' selected':'')+'>'+resolveEquipCode(c)+' ('+c+')</option>';
+  }).join('');
+
+  return '<div style="padding:14px 16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+      +'<span style="font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em">Quote Tracker — '+esc(l.loadNum)+'</span>'
+      +'<div style="display:flex;gap:6px;align-items:center">'
+        +(l.status!=='Available'?'<span style="font-size:11px;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:4px">PU appt required to accept</span>':'')
+        +'<button onclick="quoteSort.asc=!quoteSort.asc;renderDetail()" class="btn xs">'+(quoteSort.asc?'↑ Low→High':'↓ High→Low')+'</button>'
+        +'<button onclick="sendRFQFromLoad('+l.id+')" style="background:#1B2A4A;color:#2ECC40;border:none;height:28px;padding:0 10px;border-radius:var(--r);cursor:pointer;font-family:var(--F);font-size:11px;font-weight:700">✉ RFQ</button>'
+      +'</div>'
+    +'</div>'
+    // Add quote row
+    +'<div style="display:grid;grid-template-columns:180px 90px 130px 1fr 60px;gap:6px;margin-bottom:12px;align-items:center">'
+      +'<div class="acw"><input id="lqt-carrier-'+l.id+'" placeholder="Carrier / broker..." oninput="lqtCarrierAC(this.value,'+l.id+')" autocomplete="off" style="width:100%;height:30px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx)"><div class="acl" id="ac-lqt-'+l.id+'"></div></div>'
+      +'<input id="lqt-rate-'+l.id+'" type="number" placeholder="Rate $" style="height:30px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+      +'<input id="lqt-date-'+l.id+'" type="date" style="height:30px;font-size:12px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+      +'<input id="lqt-note-'+l.id+'" placeholder="Note..." style="height:30px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+      +'<button onclick="addLoadQuote('+l.id+')" style="background:#1B2A4A;color:#2ECC40;border:none;height:30px;padding:0 10px;border-radius:var(--r);cursor:pointer;font-family:var(--F);font-weight:700;font-size:12px;white-space:nowrap">+ Add</button>'
+    +'</div>'
+    +(quotes.length
+      ? '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        +'<thead><tr style="border-bottom:2px solid var(--bd)">'
+        +'<th style="text-align:left;padding:5px 8px;color:var(--tx2);font-weight:600">Rate</th>'
+        +'<th style="text-align:left;padding:5px 8px;color:var(--tx2);font-weight:600">Carrier</th>'
+        +'<th style="text-align:left;padding:5px 8px;color:var(--tx2);font-weight:600">Avail Date</th>'
+        +'<th style="text-align:left;padding:5px 8px;color:var(--tx2);font-weight:600">Note</th>'
+        +'<th></th>'
+        +'</tr></thead>'
+        +'<tbody>'+quoteRows+'</tbody>'
+        +'</table>'
+      : '<div style="text-align:center;padding:24px;color:var(--tx3);font-size:12px">No quotes yet — add one above</div>'
+    )
+  +'</div>';
+}
+
+function lqtCarrierAC(q, lid) {
+  var list = document.getElementById('ac-lqt-'+lid); if(!list) return;
+  if(!q){list.style.display='none';return;}
+  var m = carriers.filter(function(c){return (c.name||'').toLowerCase().includes(q.toLowerCase());}).slice(0,8);
+  if(!m.length){list.style.display='none';return;}
+  list.innerHTML = m.map(function(c){return '<div class="aci" onclick="lqtPickCarrier(\''+esc(c.name||'')+'\','+lid+')"><div>'+esc(c.name||'')+'</div><div class="acs">MC: '+esc(c.mc||'—')+'</div></div>';}).join('');
+  list.style.display = 'block';
+}
+function lqtPickCarrier(name, lid) {
+  var el = document.getElementById('lqt-carrier-'+lid); if(el) el.value = name;
+  var list = document.getElementById('ac-lqt-'+lid); if(list) list.style.display = 'none';
+}
+
+function addLoadQuote(lid) {
+  var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
+  var carrier = (document.getElementById('lqt-carrier-'+lid)||{}).value||'';
+  var rate = (document.getElementById('lqt-rate-'+lid)||{}).value||'';
+  var date = (document.getElementById('lqt-date-'+lid)||{}).value||'';
+  var note = (document.getElementById('lqt-note-'+lid)||{}).value||'';
+  if(!carrier&&!rate){alert('Enter at least a carrier and rate.');return;}
+  if(!l.quotes) l.quotes=[];
+  l.quotes.push({carrier:carrier, rate:parseFloat(rate)||0, pickDate:date, note:note, addedAt:nowStr()});
+  saveRecord('loads', l);
+  renderDetail();
+}
+
+function deleteLoadQuote(lid, idx) {
+  var l = loads.find(function(x){return x.id===lid;}); if(!l||!l.quotes) return;
+  var sorted = (l.quotes||[]).slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});
+  var toRemove = sorted[idx];
+  l.quotes = l.quotes.filter(function(q){return q!==toRemove;});
+  saveRecord('loads', l);
+  renderDetail();
+}
+
+function acceptLoadQuote(lid, idx) {
+  var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
+  if(l.status!=='Available'){alert('Load must be Available status (needs a PU appt) before accepting a quote.');return;}
+  var sorted = (l.quotes||[]).slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});
+  var q = sorted[idx]; if(!q) return;
+  if(!confirm('Accept '+esc(q.carrier)+' at $'+q.rate+'? Load will advance to Covered.')) return;
+  l.carrier = q.carrier;
+  l.cr = q.rate;
+  // Log to carrier rate history
+  var c = carriers.find(function(x){return (x.name||'').toLowerCase()===(q.carrier||'').toLowerCase();});
+  if(c) {
+    if(!c.rateHistory) c.rateHistory=[];
+    var sPU = l.stops.find(function(s){return s.type==='pickup';});
+    var sDELs = l.stops.filter(function(s){return s.type==='delivery';});
+    c.rateHistory.push({loadNum:l.loadNum, origin:sPU?sPU.state:'', dest:sDELs.length?sDELs[sDELs.length-1].state:'', flat:q.rate, rpm:'', miles:l.miles||0, date:nowStr().substring(0,10), notes:q.note||''});
+    saveRecord('carriers', c);
+  }
+  l.status = 'Covered';
+  if(!l.callins) l.callins=[];
+  l.callins.push({status:'Available to Covered', time:nowStr(), note:'Carrier '+q.carrier+' accepted at $'+q.rate+' via quote tracker.', req:false, type:'note'});
+  saveRecord('loads', l);
+  detailTab = 'details';
+  renderBoard();
+  renderDetail();
+}
+
+function popoutQuotes(lid) {
+  var l = loads.find(function(x){return x.id===lid;}); if(!l) return;
+  var win = window.open('','bdf_quotes_'+lid,'width=700,height=520,resizable=yes,scrollbars=yes');
+  if(!win) return;
+  var pu = l.stops.find(function(s){return s.type==='pickup';});
+  var dels = l.stops.filter(function(s){return s.type==='delivery';});
+  var lane = (pu&&pu.state?pu.state:'?')+'>'+(dels.length?dels[dels.length-1].state||'?':'?');
+  var pcs=0,seats=0;
+  l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){pcs+=(Number(p.pieces)||0);seats+=(Number(p.seats)||0);});});
+  function buildPopout() {
+    var quotes = (l.quotes||[]).slice().sort(function(a,b){return (Number(a.rate)||0)-(Number(b.rate)||0);});
+    var carrierOpts = carriers.map(function(c){return '<option value="'+esc(c.name||'')+'">'+esc(c.name||'')+'</option>';}).join('');
+    var rows = quotes.map(function(q,i){
+      return '<tr style="border-bottom:1px solid #e2e8f0">'
+        +'<td style="padding:8px;font-weight:800;color:#1B2A4A;font-size:15px">$'+(Number(q.rate)||0).toLocaleString()+'</td>'
+        +'<td style="padding:8px;font-weight:600">'+esc(q.carrier||'')+'</td>'
+        +'<td style="padding:8px;font-size:12px;color:#64748b">'+esc(q.pickDate||'—')+'</td>'
+        +'<td style="padding:8px;font-size:12px;color:#64748b">'+esc(q.note||'')+'</td>'
+        +'<td style="padding:8px;white-space:nowrap">'
+          +(l.status==='Available'?'<button onclick="accept('+i+')" style="background:#1B2A4A;color:#2ECC40;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;margin-right:4px">Accept</button>':'')
+          +'<button onclick="del('+i+')" style="background:#fee2e2;color:#991b1b;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px">✕</button>'
+        +'</td>'
+        +'</tr>';
+    }).join('');
+    var canAccept = l.status==='Available';
+    win.document.open();
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Quotes — '+esc(l.loadNum)+'</title>'
+      +'<style>*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{margin:0;background:#f8fafc}header{background:#1B2A4A;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}header h2{margin:0;font-size:16px;font-weight:800}header span{font-size:12px;color:#2ECC40}table{width:100%;border-collapse:collapse;background:#fff}thead th{background:#f1f5f9;padding:8px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}.add-row{display:grid;grid-template-columns:1fr 90px 120px 1fr 70px;gap:6px;padding:12px 16px;background:#fff;border-bottom:1px solid #e2e8f0}input,select{height:32px;font-size:12px;padding:0 8px;border:1px solid #cbd5e1;border-radius:4px;width:100%;outline:none}.add-btn{background:#1B2A4A;color:#2ECC40;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700}.status-bar{background:'+(canAccept?'#dcfce7':'#fef3c7')+';color:'+(canAccept?'#14532d':'#92400e')+';padding:8px 16px;font-size:12px;font-weight:600}</style>'
+      +'</head><body>'
+      +'<header><h2>'+esc(l.loadNum)+' — Quote Tracker</h2><span>'+lane+' | '+pcs+'pcs / '+seats+'seats | '+esc(l.status)+'</span></header>'
+      +'<div class="status-bar">'+(canAccept?'✓ Ready to accept — load has PU appt':'⚠ Load needs Available status (PU appt) before accepting a quote')+'</div>'
+      +'<div class="add-row">'
+        +'<select id="po-carrier"><option value="">Select carrier...</option>'+carrierOpts+'</select>'
+        +'<input type="number" id="po-rate" placeholder="Rate $">'
+        +'<input type="date" id="po-date">'
+        +'<input id="po-note" placeholder="Note...">'
+        +'<button class="add-btn" onclick="addQ()">+ Add</button>'
+      +'</div>'
+      +'<table><thead><tr><th>Rate</th><th>Carrier</th><th>Avail Date</th><th>Note</th><th></th></tr></thead>'
+      +'<tbody id="qtbody">'+rows+'</tbody></table>'
+      +'<script>'
+        +'function refresh(){window.opener&&window.opener.popoutRefresh&&window.opener.popoutRefresh('+lid+',window);}'
+        +'function addQ(){'
+          +'var carrier=document.getElementById("po-carrier").value;'
+          +'var rate=document.getElementById("po-rate").value;'
+          +'var date=document.getElementById("po-date").value;'
+          +'var note=document.getElementById("po-note").value;'
+          +'if(!carrier||!rate){alert("Select a carrier and enter a rate.");return;}'
+          +'window.opener&&window.opener.popoutAddQuote&&window.opener.popoutAddQuote('+lid+',carrier,parseFloat(rate)||0,date,note);'
+          +'setTimeout(refresh,300);'
+        +'}'
+        +'function accept(i){if(window.opener&&window.opener.popoutAcceptQuote){window.opener.popoutAcceptQuote('+lid+',i);setTimeout(function(){window.close();},400);}}'
+        +'function del(i){if(window.opener&&window.opener.popoutDeleteQuote){window.opener.popoutDeleteQuote('+lid+',i);setTimeout(refresh,300);}}'
+      +'<\/script>'
+      +'</body></html>');
+    win.document.close();
+  }
+  buildPopout();
+  // Expose callbacks on main window for pop-out to call back
+  window.popoutAddQuote = function(lid2, carrier, rate, date, note) {
+    var l2 = loads.find(function(x){return x.id===lid2;}); if(!l2) return;
+    if(!l2.quotes) l2.quotes=[];
+    l2.quotes.push({carrier:carrier, rate:rate, pickDate:date, note:note, addedAt:nowStr()});
+    saveRecord('loads', l2);
+    renderDetail();
+  };
+  window.popoutAcceptQuote = function(lid2, idx) {
+    var l2 = loads.find(function(x){return x.id===lid2;}); if(!l2) return;
+    if(l2.status!=='Available'){alert('Load must be Available to accept a quote.');return;}
+    var sorted = (l2.quotes||[]).slice().sort(function(a,b){return (Number(a.rate)||0)-(Number(b.rate)||0);});
+    var q = sorted[idx]; if(!q) return;
+    l2.carrier=q.carrier; l2.cr=q.rate;
+    l2.status='Covered';
+    if(!l2.callins) l2.callins=[];
+    l2.callins.push({status:'Available to Covered',time:nowStr(),note:'Carrier '+q.carrier+' accepted at $'+q.rate+' via quote pop-out.',req:false,type:'note'});
+    saveRecord('loads',l2);
+    renderBoard(); renderDetail();
+  };
+  window.popoutDeleteQuote = function(lid2, idx) {
+    var l2 = loads.find(function(x){return x.id===lid2;}); if(!l2||!l2.quotes) return;
+    var sorted = (l2.quotes||[]).slice().sort(function(a,b){return (Number(a.rate)||0)-(Number(b.rate)||0);});
+    var toRemove = sorted[idx];
+    l2.quotes = l2.quotes.filter(function(q){return q!==toRemove;});
+    saveRecord('loads',l2);
+    renderDetail();
+  };
+  window.popoutRefresh = function(lid2, w) {
+    var l2 = loads.find(function(x){return x.id===lid2;}); if(!l2||!w||w.closed) return;
+    var quotes = (l2.quotes||[]).slice().sort(function(a,b){return (Number(a.rate)||0)-(Number(b.rate)||0);});
+    var tbody = w.document.getElementById('qtbody'); if(!tbody) return;
+    tbody.innerHTML = quotes.map(function(q,i){
+      return '<tr style="border-bottom:1px solid #e2e8f0">'
+        +'<td style="padding:8px;font-weight:800;color:#1B2A4A;font-size:15px">$'+(Number(q.rate)||0).toLocaleString()+'</td>'
+        +'<td style="padding:8px;font-weight:600">'+esc(q.carrier||'')+'</td>'
+        +'<td style="padding:8px;font-size:12px;color:#64748b">'+esc(q.pickDate||'—')+'</td>'
+        +'<td style="padding:8px;font-size:12px;color:#64748b">'+esc(q.note||'')+'</td>'
+        +'<td style="padding:8px;white-space:nowrap">'
+          +(l2.status==='Available'?'<button onclick="accept('+i+')" style="background:#1B2A4A;color:#2ECC40;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;margin-right:4px">Accept</button>':'')
+          +'<button onclick="del('+i+')" style="background:#fee2e2;color:#991b1b;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px">✕</button>'
+        +'</td>'
+        +'</tr>';
+    }).join('');
+  };
+}
+
+
 function setBF(f,el) {
   boardFilter=f;
   document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
@@ -2030,30 +2253,6 @@ function setBF(f,el) {
   renderBoard();
 }
 
-function toggleLTLView() {
-  showLTL = !showLTL;
-  var lbl = document.getElementById('ltl-toggle-label');
-  if(lbl) lbl.textContent = showLTL ? 'Showing' : 'Hide';
-  renderBoard();
-}
-
-function openLTLModal() {
-  // Reuse the regular load modal but pre-set LTL flag and generate LTL number
-  openLoadModal(null);
-  // After modal opens, mark it as LTL
-  setTimeout(function(){
-    var statusEl = document.getElementById('lf-status');
-    if(statusEl) statusEl.value = 'Schedule';
-    // Store pending LTL flag for saveLoad to pick up
-    window._pendingLTL = true;
-    // Update the modal title
-    var title = document.querySelector('#m-load .mh');
-    if(title) title.textContent = 'New LTL Shipment — ' + peekNextLTLNum();
-  }, 50);
-}
-
-// ============================
-// LOAD GROUPS (per-user boards)
 // ============================
 function lgKey() { return 'bdf_loadgroups_'+(currentUser||'default'); }
 
@@ -2503,10 +2702,8 @@ function renderBoard() {
   dd.value=dv;
   var rows=loads.filter(function(l){
     if(l.archived)return false;
-    if(boardFilter==='active'&&['Delivered','Closed','Issue','Claim'].includes(l.status))return false;
+    if(boardFilter==='available'&&!['Schedule','Available'].includes(l.status))return false;
     if(boardFilter==='issue'&&l.status!=='Issue')return false;
-    if(boardFilter==='claim'&&l.status!=='Claim')return false;
-    if(boardFilter==='late'&&!(l.callins&&l.callins.some(function(c){return c.type==='late';})))return false;
     if(l.isLTL && !showLTL) return false;
     if(sf&&l.status!==sf)return false;
     if(cf&&l.carrier!==cf)return false;
@@ -2683,7 +2880,11 @@ window.addEventListener('resize', function(){
 });
 
 function sortBoard(c){bSort.asc=bSort.col===c?!bSort.asc:true;bSort.col=c;renderBoard();}
-function clickLoad(id){selLoad=selLoad===id?null:id;renderBoard();}
+function clickLoad(id){
+  if(selLoad!==id) detailTab='details';
+  selLoad=selLoad===id?null:id;
+  renderBoard();
+}
 function toggleLoad(id,v){var l=loads.find(function(x){return x.id===id;});if(l)l.sel=v;}
 function selAllLoads(v){loads.forEach(function(l){l.sel=v;});}
 function delSelLoads(){
@@ -3019,6 +3220,14 @@ function renderDetailInto(panel,l){
         +(['Schedule','Available'].includes(l.status)?'<button onclick="sendRFQFromLoad('+l.id+')" style="background:#1B2A4A;color:#2ECC40;border:none;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F);display:inline-flex;align-items:center;gap:4px">✉ RFQ</button>':'')
         +(l.status==='Delivered'&&!l.ratesVerified?'<button onclick="verifyRates('+l.id+')" style="background:#dcfce7;color:#14532d;border:1px solid #86efac;font-weight:700;font-size:12px;padding:0 14px;height:30px;border-radius:20px;cursor:pointer;font-family:var(--F)">✓ Confirm Rates</button>':'')
         +(l.status==='Delivered'&&l.ratesVerified?'<span style="font-size:11px;font-weight:600;color:#15803d;padding:0 10px;height:30px;display:inline-flex;align-items:center;background:#dcfce7;border-radius:20px;border:1px solid #86efac">✓ Rates Confirmed</span>':'')
+        +(['Schedule','Available'].includes(l.status)
+          ?'<div style="margin-left:auto;display:flex;gap:0;border:1.5px solid var(--bd2);border-radius:20px;overflow:hidden">'
+            +'<button onclick="setDetailTab(\'details\','+l.id+')" style="height:28px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:'+(detailTab==='details'?'#1B2A4A':'var(--sur)')+';color:'+(detailTab==='details'?'#2ECC40':'var(--tx2)')+';font-family:var(--F)">Details</button>'
+            +'<button onclick="setDetailTab(\'quotes\','+l.id+')" style="height:28px;padding:0 12px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:'+(detailTab==='quotes'?'#1B2A4A':'var(--sur)')+';color:'+(detailTab==='quotes'?'#2ECC40':'var(--tx2)')+';font-family:var(--F)">Quotes'+(((l.quotes||[]).length)?' <span style="background:#2ECC40;color:#1B2A4A;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:800">'+l.quotes.length+'</span>':'')+'</button>'
+            +'<button onclick="popoutQuotes('+l.id+')" style="height:28px;padding:0 10px;font-size:11px;cursor:pointer;border:none;border-left:1.5px solid var(--bd2);background:var(--sur);color:var(--tx2);font-family:var(--F)" title="Open quotes in new window">⧉</button>'
+          +'</div>'
+          :''
+        )
       +'</div>'
       +'<div class="dpills">'
         +(tot.n>0?'<div class="dp">POs <strong>'+tot.n+'</strong></div>':'')
@@ -3032,8 +3241,12 @@ function renderDetailInto(panel,l){
         +(missDocs.length&&l.status==='Delivered'?'<div class="dp" style="border-color:#fca5a5;background:#fff5f5"><strong style="color:var(--red)">Missing: '+missDocs.join(', ')+'</strong></div>':'')
       +'</div>'
     +'</div>'
+    // ── Body: Details or Quotes ──
+    +(detailTab==='quotes'&&['Schedule','Available'].includes(l.status)
+      ? renderQuotePane(l)
+      :
     // ── 3-col body: Info | Stops | Call-In ──
-    +'<div class="dbody">'
+    '<div class="dbody">'
 
       // Col 1 — Load Info + Driver + Docs
       +'<div class="dcol">'
@@ -3104,6 +3317,7 @@ function renderDetailInto(panel,l){
         +ciHTML
       +'</div>'
     +'</div>'
+    )
   +'</div>';
 }
 </script>
@@ -4039,7 +4253,8 @@ function addStop(stop) {
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
       +'<div class="sl">Location'
         +'<div class="acw">'
-          +'<input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"'+(s.name?' readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"':'')+'>'+          +'<div class="acl" id="snac-'+idx+'"></div>'
+          +'<input type="text" id="sn-'+idx+'" value="'+esc(s.name)+'" placeholder="Search DB..." oninput="stopNameAC('+idx+',this.value)" autocomplete="off"'+(s.name?' readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"':'')+'>'
+          +'<div class="acl" id="snac-'+idx+'"></div>'
         +'</div>'
         +'<button id="slclr-'+idx+'" class="btn xs" style="margin-top:3px;display:'+(s.name?'':'none')+'" onclick="clearStopLoc('+idx+')">Clear Location</button>'
       +'</div>'
@@ -4814,9 +5029,9 @@ function confirmStage(){
 }
 
 var stgSort = {col:'tlNum', asc:true};
-var stgExpanded = {}; // {tlId: true/false}
-var stgSel = null; // {type:'tl'|'load', id: number}
-var quoteSort = {asc:true}; // quote tracker sort direction
+var stgExpanded = {};
+var stgSel = null;
+var quoteSort = {asc:true};
 
 function renderStaging() {
   var q = (document.getElementById('stg-search').value||'').toLowerCase();
@@ -4824,10 +5039,8 @@ function renderStaging() {
   var footer = document.getElementById('stg-footer');
   if(!body) return;
 
-  // Build unified row list: TLs + Schedule/Available loads
+  // TLs only — loads live on the tracking board
   var rows = [];
-
-  // TLs
   tempLoads.forEach(function(tl) {
     var pcs = tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
     var seats = tl.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
@@ -4841,21 +5054,6 @@ function renderStaging() {
     var hay = (tl.tlNum+' '+(tl.ticket||'')+' '+vendors+' '+tl.pos.map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ')).toLowerCase();
     if(q && !hay.includes(q)) return;
     rows.push({type:'tl', id:tl.id, num:tl.tlNum, obj:tl, vendors:vendors, poCount:tl.pos.length, pcs:pcs, seats:seats, ready:latestReady, notes:tl.notes||''});
-  });
-
-  // Schedule + Available loads (not covered yet)
-  loads.filter(function(l){return (l.status==='Schedule'||l.status==='Available')&&!l.archived&&!l.isLTL;}).forEach(function(l) {
-    var pcs=0,seats=0;
-    l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){pcs+=(Number(p.pieces)||0);seats+=(Number(p.seats)||0);});});
-    var vendor = l.vendor||'';
-    var poCount = l.stops.reduce(function(a,s){return a+(s.pos||[]).length;},0);
-    var allReady=[];
-    l.stops.forEach(function(s){(s.pos||[]).forEach(function(p){if(p.ready)allReady.push(p.ready);});});
-    var latestReady='';
-    if(allReady.length){var parsed=allReady.map(function(d){var pt=d.split('/');return{disp:d,ts:pt.length===3?new Date(parseInt(pt[2]),parseInt(pt[0])-1,parseInt(pt[1])).getTime():0};}).sort(function(a,b){return b.ts-a.ts;});latestReady=parsed[0].disp;}
-    var hay = (l.loadNum+' '+vendor+' '+l.notes+' '+l.stops.map(function(s){return (s.pos||[]).map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ');}).join(' ')).toLowerCase();
-    if(q && !hay.includes(q)) return;
-    rows.push({type:'load', id:l.id, num:l.loadNum, obj:l, vendors:vendor, poCount:poCount, pcs:pcs, seats:seats, ready:latestReady, notes:l.notes||''});
   });
 
   // Sort
