@@ -318,6 +318,14 @@ tr.psel td{background:#eef9ee!important}
 .dash-table tr:last-child td{border-bottom:none}
 .dash-welcome{padding:14px 16px;font-size:20px;font-weight:700;color:var(--navy)}
 .dash-welcome span{color:var(--green)}
+.drange-btn{height:26px;padding:0 10px;font-size:11px;font-weight:600;border-radius:20px;cursor:pointer;border:1px solid rgba(255,255,255,0.2);background:transparent;color:rgba(255,255,255,0.5);font-family:var(--F);transition:all .15s}
+.drange-btn:hover{background:rgba(255,255,255,0.1);color:#fff}
+.drange-btn.drange-on{background:#2ECC40;color:#1B2A4A;border-color:#2ECC40}
+.dash-action-btn{width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;background:var(--sur2);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;font-family:var(--F);transition:background .1s;text-align:left}
+.dash-action-btn:hover{background:#e8f4fd;border-color:var(--navy)}
+.dash-action-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dash-action-lbl{font-size:13px;font-weight:600;color:var(--tx);flex:1}
+.dash-action-count{font-size:11px;color:var(--tx2);font-weight:500}
 /* Score breakdown bar */
 .score-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .score-bar-label{font-size:12px;color:var(--tx);width:180px;flex-shrink:0}
@@ -597,121 +605,142 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="ntab" id="ntab-dealer" onclick="goPage('dealer',this)">Orders</div>
     <div class="ntab" id="ntab-staging" onclick="goPage('staging',this)">Temporary Loads</div>
     <div class="ntab" id="ntab-board" onclick="goPage('board',this)">Load Tracking</div>
-    <div class="ntab" id="ntab-scorecard" onclick="goPage('scorecard',this)">Carrier Database</div>
-    <div class="ntab" id="ntab-locdb" onclick="goPage('locdb',this)">Location Database</div>
+    <div class="ntab" id="ntab-scorecard" onclick="goPage('scorecard',this)">Carriers</div>
+    <div class="ntab" id="ntab-locdb" onclick="goPage('locdb',this)">Locations</div>
     <div class="ntab" id="ntab-rates" onclick="goPage('rates',this)">Rate Tracker</div>
     <div class="ntab" id="ntab-accounting" onclick="goPage('accounting',this)">Accounting</div>
   </div>
 
   <!-- DASHBOARD -->
   <div class="page on" id="page-dashboard">
-    <div style="overflow-y:auto;flex:1;background:var(--bg)">
-      <div class="dash-welcome">Good <span id="dash-greeting" style="color:var(--navy)">morning</span>, <span id="dash-username" style="color:var(--green)">—</span></div>
-      <div class="dash-grid">
+    <div style="overflow-y:auto;flex:1;background:var(--bg)" id="dash-scroll">
 
-        <!-- LEFT: Personal Stats + Nav Buttons -->
-        <div style="display:flex;flex-direction:column;gap:16px">
-
-          <!-- Personal Stats -->
-          <div class="dash-section">
-            <div class="dash-section-hd">My Stats <span class="ds-sub" id="dash-user-label"></span></div>
-            <div class="dash-kpis" id="dash-my-kpis">
-              <div class="dash-kpi"><div class="dash-kpi-l">Loads Built</div><div class="dash-kpi-v" id="dkpi-loads">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Total Revenue</div><div class="dash-kpi-v" id="dkpi-rev">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Total Margin</div><div class="dash-kpi-v" id="dkpi-margin">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Avg Margin/Load</div><div class="dash-kpi-v" id="dkpi-avgmargin">—</div></div>
-            </div>
-            <div style="padding:10px 14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-              <div style="background:var(--sur2);border-radius:var(--r);padding:8px 12px;border:1px solid var(--bd)">
-                <div style="font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Active Loads</div>
-                <div style="font-size:16px;font-weight:700;color:var(--navy)" id="dkpi-active">—</div>
-              </div>
-              <div style="background:var(--sur2);border-radius:var(--r);padding:8px 12px;border:1px solid var(--bd)">
-                <div style="font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Carrier Rate Paid</div>
-                <div style="font-size:16px;font-weight:700;color:var(--tx)" id="dkpi-cr">—</div>
-              </div>
-              <div style="background:var(--sur2);border-radius:var(--r);padding:8px 12px;border:1px solid var(--bd)">
-                <div style="font-size:10px;color:var(--tx2);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Margin %</div>
-                <div style="font-size:16px;font-weight:700" id="dkpi-marginpct">—</div>
-              </div>
-            </div>
+      <!-- ── Hero Header ── -->
+      <div style="background:#1B2A4A;padding:24px 28px 20px;position:relative;overflow:hidden">
+        <!-- Subtle background pattern -->
+        <div style="position:absolute;inset:0;opacity:.04;background:repeating-linear-gradient(45deg,#2ECC40 0,#2ECC40 1px,transparent 0,transparent 50%);background-size:20px 20px;pointer-events:none"></div>
+        <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#2ECC40;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">BoxDrop Freight</div>
+            <div style="font-size:28px;font-weight:800;color:#fff;line-height:1.2">Good <span id="dash-greeting">morning</span>, <span style="color:#2ECC40" id="dash-username">—</span></div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:4px" id="dash-user-label"></div>
           </div>
-
-          <!-- Nav Buttons -->
-          <div class="dash-section">
-            <div class="dash-section-hd">Quick Navigation</div>
-            <div class="dash-nav-grid">
-              <div class="dash-nav-btn" onclick="goPage('dealer',document.getElementById('ntab-dealer'))">
-                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg></div>
-                <div><div class="dash-nav-lbl">Customer Orders</div><div class="dash-nav-sub" id="dnav-orders">— POs</div></div>
-              </div>
-              <div class="dash-nav-btn" onclick="goPage('board',document.getElementById('ntab-board'))">
-                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="1" y="3" width="22" height="13" rx="2"/><path d="M16 17v1a2 2 0 01-2 2H10a2 2 0 01-2-2v-1"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="12" r="1" fill="#fff" stroke="none"/></svg></div>
-                <div><div class="dash-nav-lbl">Shipment Tracking</div><div class="dash-nav-sub" id="dnav-board">— active</div></div>
-              </div>
-              <div class="dash-nav-btn" onclick="goPage('scorecard',document.getElementById('ntab-scorecard'))">
-                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-                <div><div class="dash-nav-lbl">Carrier Database</div><div class="dash-nav-sub" id="dnav-carriers">— carriers</div></div>
-              </div>
-              <div class="dash-nav-btn" onclick="goPage('locdb',document.getElementById('ntab-locdb'))">
-                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-                <div><div class="dash-nav-lbl">Location Database</div><div class="dash-nav-sub" id="dnav-locs">— locations</div></div>
-              </div>
-              <div class="dash-nav-btn" onclick="goPage('rates',document.getElementById('ntab-rates'))">
-                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
-                <div><div class="dash-nav-lbl">Rate Tracker</div><div class="dash-nav-sub" id="dnav-rates">— rates logged</div></div>
-              </div>
-              <div class="dash-nav-btn" onclick="goPage('accounting',document.getElementById('ntab-accounting'))">
-                <div class="dash-nav-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
-                <div><div class="dash-nav-lbl">Accounting</div><div class="dash-nav-sub" id="dnav-acct">— pending</div></div>
-              </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <!-- Admin: pending rate confirmation alert -->
+            <div id="dash-acct-alert" style="display:none">
+              <button onclick="goPage('accounting',document.getElementById('ntab-accounting'))" style="background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.4);color:#fca5a5;padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--F)" id="dash-acct-btn"></button>
             </div>
+            <!-- Today's Loads button -->
+            <button onclick="openTodaysLoads()" style="background:#2ECC40;border:none;color:#1B2A4A;padding:8px 18px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:800;font-family:var(--F);display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1B2A4A" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Today's Loads
+            </button>
           </div>
         </div>
 
-        <!-- RIGHT: Company-Wide Carrier Stats -->
-        <div style="display:flex;flex-direction:column;gap:16px">
-
-          <!-- Company Load Summary -->
-          <div class="dash-section">
-            <div class="dash-section-hd">Company Overview <span class="ds-sub">All Users</span></div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-bottom:1px solid var(--bd)">
-              <div class="dash-kpi"><div class="dash-kpi-l">Active Loads</div><div class="dash-kpi-v g" id="dco-active">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Overdue</div><div class="dash-kpi-v" id="dco-overdue">—</div></div>
-              <div class="dash-kpi" style="border-right:none"><div class="dash-kpi-l">Issues</div><div class="dash-kpi-v" id="dco-issues">—</div></div>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
-              <div class="dash-kpi"><div class="dash-kpi-l">Total Revenue</div><div class="dash-kpi-v g" id="dco-rev">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Total Margin</div><div class="dash-kpi-v" id="dco-margin">—</div></div>
-              <div class="dash-kpi" style="border-right:none"><div class="dash-kpi-l">Loads This Month</div><div class="dash-kpi-v" id="dco-month">—</div></div>
-            </div>
+        <!-- Date range selector row -->
+        <div style="display:flex;align-items:center;gap:10px;margin-top:16px">
+          <span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.06em">Showing:</span>
+          <div style="display:flex;gap:4px">
+            <button onclick="setDashRange('month',this)" id="drange-month" class="drange-btn drange-on">This Month</button>
+            <button onclick="setDashRange('lastmonth',this)" id="drange-lastmonth" class="drange-btn">Last Month</button>
+            <button onclick="setDashRange('ytd',this)" id="drange-ytd" class="drange-btn">YTD</button>
+            <button onclick="setDashRange('alltime',this)" id="drange-alltime" class="drange-btn">All Time</button>
+            <button onclick="setDashRange('custom',this)" id="drange-custom" class="drange-btn" style="display:flex;align-items:center;gap:4px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Custom
+            </button>
           </div>
-
-          <!-- Carrier Scorecard Summary -->
-          <div class="dash-section">
-            <div class="dash-section-hd">Carrier Scorecard <span class="ds-sub" id="dash-carrier-sub"></span></div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--bd)">
-              <div class="dash-kpi"><div class="dash-kpi-l">Tier A</div><div class="dash-kpi-v g" id="dsc-a">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Tier B</div><div class="dash-kpi-v" id="dsc-b">—</div></div>
-              <div class="dash-kpi"><div class="dash-kpi-l">Tier C</div><div class="dash-kpi-v" id="dsc-c">—</div></div>
-              <div class="dash-kpi" style="border-right:none"><div class="dash-kpi-l">Probation</div><div class="dash-kpi-v r" id="dsc-p">—</div></div>
-            </div>
-            <div style="padding:8px 0 0">
-              <div style="padding:6px 14px;font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em">Top Carriers by Grade</div>
-              <table class="dash-table" id="dash-carrier-table">
-                <thead><tr><th>Carrier</th><th>Tier</th><th>Score</th><th>PU On-Time</th><th>DEL On-Time</th><th>Loads</th></tr></thead>
-                <tbody id="dash-carrier-body"></tbody>
-              </table>
-            </div>
+          <div id="drange-custom-inputs" style="display:none;gap:6px;align-items:center">
+            <input type="date" id="drange-from" onchange="renderDashboard()" style="height:26px;font-size:11px;padding:0 6px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;background:rgba(255,255,255,0.1);color:#fff;font-family:var(--F)">
+            <span style="color:rgba(255,255,255,0.4);font-size:11px">to</span>
+            <input type="date" id="drange-to" onchange="renderDashboard()" style="height:26px;font-size:11px;padding:0 6px;border:1px solid rgba(255,255,255,0.2);border-radius:4px;background:rgba(255,255,255,0.1);color:#fff;font-family:var(--F)">
           </div>
+          <span id="drange-label" style="font-size:11px;color:rgba(255,255,255,0.35)"></span>
+        </div>
+      </div>
 
-          <!-- Recent Activity -->
+      <!-- ── Main grid ── -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;padding:16px;align-items:start">
+
+        <!-- LEFT COLUMN -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Monthly KPIs -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="dash-kpi-row"></div>
+
+          <!-- Shoutouts row -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="dash-shoutout-row"></div>
+
+          <!-- Recent loads table -->
           <div class="dash-section">
-            <div class="dash-section-hd">Recent Loads <span class="ds-sub">Last 10 active</span></div>
+            <div class="dash-section-hd">
+              Recent Loads
+              <button onclick="goPage('board',document.getElementById('ntab-board'))" style="font-size:10px;font-weight:600;color:var(--navy);background:var(--sur2);border:1px solid var(--bd);padding:2px 8px;border-radius:10px;cursor:pointer">View All →</button>
+            </div>
             <table class="dash-table">
-              <thead><tr><th>Load #</th><th>Status</th><th>Carrier</th><th>Dispatcher</th><th>Margin</th></tr></thead>
+              <thead><tr><th>Load #</th><th>Status</th><th>Lane</th><th>Carrier</th><th>Dispatcher</th><th>Margin</th></tr></thead>
               <tbody id="dash-recent-body"></tbody>
             </table>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Quick Actions -->
+          <div class="dash-section">
+            <div class="dash-section-hd">Quick Actions</div>
+            <div style="display:flex;flex-direction:column;gap:6px;padding:12px">
+              <button onclick="openNewStagingModal()" class="dash-action-btn">
+                <span class="dash-action-ico" style="background:#1B2A4A">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ECC40" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                </span>
+                <span class="dash-action-lbl">New Temp Load</span>
+                <span class="dash-action-count" id="dact-tl"></span>
+              </button>
+              <button onclick="openLoadModal(null)" class="dash-action-btn">
+                <span class="dash-action-ico" style="background:#1B2A4A">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ECC40" stroke-width="2.5"><rect x="1" y="3" width="22" height="13" rx="2"/><path d="M16 17v1a2 2 0 01-2 2H10a2 2 0 01-2-2v-1"/></svg>
+                </span>
+                <span class="dash-action-lbl">Create Load</span>
+                <span class="dash-action-count" id="dact-loads"></span>
+              </button>
+              <button onclick="openDealerModal(null)" class="dash-action-btn">
+                <span class="dash-action-ico" style="background:#1B2A4A">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ECC40" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+                </span>
+                <span class="dash-action-lbl">Add Order</span>
+                <span class="dash-action-count" id="dact-orders"></span>
+              </button>
+              <button onclick="openM('m-carrier')" class="dash-action-btn">
+                <span class="dash-action-ico" style="background:#1B2A4A">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ECC40" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                </span>
+                <span class="dash-action-lbl">Add Carrier</span>
+                <span class="dash-action-count" id="dact-carriers"></span>
+              </button>
+              <button onclick="openLocModal(null)" class="dash-action-btn">
+                <span class="dash-action-ico" style="background:#1B2A4A">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ECC40" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
+                <span class="dash-action-lbl">Add Location</span>
+                <span class="dash-action-count" id="dact-locs"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- My Stats -->
+          <div class="dash-section">
+            <div class="dash-section-hd">My Stats <span class="ds-sub" id="dash-user-label2"></span></div>
+            <div id="dash-my-stats"></div>
+          </div>
+
+          <!-- Needs Attention (issues, available) -->
+          <div class="dash-section" id="dash-attention-section">
+            <div class="dash-section-hd">Needs Attention</div>
+            <div id="dash-attention"></div>
           </div>
 
         </div>
@@ -8013,128 +8042,254 @@ function closeArchivedView() {
 // ============================
 // DASHBOARD
 // ============================
+// ── Dashboard range state ─────────────────────────────────────────────────────
+var dashRange = 'month'; // 'month' | 'lastmonth' | 'ytd' | 'alltime' | 'custom'
+
+function setDashRange(range, el) {
+  dashRange = range;
+  document.querySelectorAll('.drange-btn').forEach(function(b){b.classList.remove('drange-on');});
+  if(el) el.classList.add('drange-on');
+  var ci = document.getElementById('drange-custom-inputs');
+  if(ci) ci.style.display = range==='custom' ? 'flex' : 'none';
+  renderDashboard();
+}
+
+function getDashDateRange() {
+  var now = new Date();
+  var from, to = now.getTime();
+  if(dashRange==='month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  } else if(dashRange==='lastmonth') {
+    from = new Date(now.getFullYear(), now.getMonth()-1, 1).getTime();
+    to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).getTime();
+  } else if(dashRange==='ytd') {
+    from = new Date(now.getFullYear(), 0, 1).getTime();
+  } else if(dashRange==='alltime') {
+    from = 0;
+  } else if(dashRange==='custom') {
+    var fromEl = document.getElementById('drange-from');
+    var toEl = document.getElementById('drange-to');
+    from = fromEl && fromEl.value ? new Date(fromEl.value).getTime() : 0;
+    to = toEl && toEl.value ? new Date(toEl.value+'T23:59:59').getTime() : now.getTime();
+  }
+  return {from: from||0, to: to};
+}
+
+function dashRangeLabel() {
+  var now = new Date();
+  if(dashRange==='month') return now.toLocaleString('default',{month:'long'})+' '+now.getFullYear();
+  if(dashRange==='lastmonth') { var d=new Date(now.getFullYear(),now.getMonth()-1,1); return d.toLocaleString('default',{month:'long'})+' '+d.getFullYear(); }
+  if(dashRange==='ytd') return 'Jan 1 – Today '+now.getFullYear();
+  if(dashRange==='alltime') return 'All Time';
+  return 'Custom Range';
+}
+
+function loadInRange(l, range) {
+  var ts = l.deliveredAt || l.id;
+  return ts >= range.from && ts <= range.to;
+}
+
+function openTodaysLoads() {
+  var today = new Date();
+  var mm = String(today.getMonth()+1).padStart(2,'0');
+  var dd = String(today.getDate()).padStart(2,'0');
+  var label = mm+'/'+dd;
+  // Get or create today's group
+  var groups = getLoadGroups();
+  var existing = groups.find(function(g){return g.name===label;});
+  if(!existing) {
+    // Create new group with today's date filter
+    var newGroup = {id: Date.now(), name: label, filters: {
+      startCity:'', endCity:'', status:'', carrier:'', vendor:'',
+      pickupDate: today.toISOString().slice(0,10)
+    }};
+    groups.push(newGroup);
+    localStorage.setItem(lgKey(), JSON.stringify(groups));
+  }
+  goPage('board', document.getElementById('ntab-board'));
+  setTimeout(function(){
+    renderLoadGroupTabs();
+    // Click the tab for today
+    setTimeout(function(){
+      var tabs = document.querySelectorAll('#board-lg-tabs .stab');
+      tabs.forEach(function(t){
+        if(t.textContent.trim()===label) t.click();
+      });
+    }, 80);
+  }, 60);
+}
+
 function renderDashboard() {
-  var u = cap(currentUser || '');
+  var u = cap(currentUser||'');
   var h = new Date().getHours();
-  var greeting = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
-  var gEl = document.getElementById('dash-greeting');
-  var uEl = document.getElementById('dash-username');
-  if(gEl) gEl.textContent = greeting;
-  if(uEl) uEl.textContent = u;
-  var dlEl = document.getElementById('dash-user-label');
-  if(dlEl) dlEl.textContent = u + ' \u00B7 ' + (currentUserRole==='admin'?'Admin':'Standard');
+  var greeting = h<12?'morning':h<17?'afternoon':'evening';
+  var gEl=document.getElementById('dash-greeting'); if(gEl) gEl.textContent=greeting;
+  var uEl=document.getElementById('dash-username'); if(uEl) uEl.textContent=u;
+  var dlEl=document.getElementById('dash-user-label'); if(dlEl) dlEl.textContent=u+' \u00B7 '+(isAdmin()?'Admin':'Dispatcher');
+  var dl2El=document.getElementById('dash-user-label2'); if(dl2El) dl2El.textContent=u;
 
-  function setEl(id, val) { var el=document.getElementById(id); if(el) el.textContent=val; }
+  // Range label
+  var rlEl = document.getElementById('drange-label'); if(rlEl) rlEl.textContent=dashRangeLabel();
 
-  // ---- Personal stats: loads where dispatcher matches current user ----
-  var myLoads = loads.filter(function(l){
-    return (l.dispatcher||'').toLowerCase() === (currentUser||'').toLowerCase();
-  });
-  var myActive = myLoads.filter(function(l){return !l.archived && !['Delivered','Closed'].includes(l.status);}).length;
-  var myRev = myLoads.reduce(function(a,l){return a+getEffectiveCustR(l);},0);
-  var myCR  = myLoads.reduce(function(a,l){return a+(l.cr||0);},0);
-  var myMar = myRev - myCR;
-  var myAvgMar = myLoads.length ? Math.round(myMar / myLoads.length) : 0;
-  var myMarPct = myRev > 0 ? (myMar/myRev*100).toFixed(1) : null;
+  var range = getDashDateRange();
 
-  setEl('dkpi-loads', myLoads.length);
-  setEl('dkpi-rev', '$' + myRev.toLocaleString());
+  // ── Loads in range (delivered/closed) ──
+  var rangeLoads = loads.filter(function(l){ return loadInRange(l, range); });
+  var deliveredInRange = rangeLoads.filter(function(l){return ['Delivered','Closed'].includes(l.status)||l.archived;});
+  var confirmedInRange = deliveredInRange.filter(function(l){return l.rateConfirmation&&l.ratesVerified&&!l.rateConfirmation.crDiscrepancy&&!l.rateConfirmation.customerDiscrepancy;});
 
-  var margEl = document.getElementById('dkpi-margin');
-  if(margEl) { margEl.textContent = '$' + myMar.toLocaleString(); margEl.className = 'dash-kpi-v ' + (myMar >= 0 ? 'g' : 'r'); }
-  setEl('dkpi-avgmargin', '$' + myAvgMar.toLocaleString());
-  setEl('dkpi-active', myActive);
-  setEl('dkpi-cr', '$' + myCR.toLocaleString());
-  var mpEl = document.getElementById('dkpi-marginpct');
-  if(mpEl) { mpEl.textContent = myMarPct !== null ? myMarPct + '%' : '\u2014'; mpEl.style.color = myMar >= 0 ? '#15803d' : 'var(--red)'; }
+  var totalRev = confirmedInRange.reduce(function(a,l){return a+(l.rateConfirmation.confirmedCustR||0);},0);
+  var totalCR  = confirmedInRange.reduce(function(a,l){return a+(l.rateConfirmation.confirmedCr||0);},0);
+  var totalMargin = totalRev - totalCR;
+  var avgMarginPct = totalRev>0 ? Math.round(totalMargin/totalRev*100) : 0;
 
-  // ---- Nav button sub-labels ----
-  setEl('dnav-orders', dealers.length + ' PO' + (dealers.length!==1?'s':''));
-  var actBoardCount = loads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);}).length;
-  setEl('dnav-board', actBoardCount + ' active');
-  setEl('dnav-carriers', carriers.length + ' carrier' + (carriers.length!==1?'s':''));
-  setEl('dnav-locs', locations.length + ' location' + (locations.length!==1?'s':''));
-  setEl('dnav-rates', rates.length + ' rate' + (rates.length!==1?'s':'') + ' logged');
-  var pendAcct = loads.filter(function(l){return (['Delivered','Closed'].includes(l.status)||l.archived)&&!l.rateConfirmation;}).length;
-  setEl('dnav-acct', pendAcct + ' pending');
+  // Active loads (current, not archived, not closed/delivered)
+  var activeLoads = loads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);});
+  var availableLoads = activeLoads.filter(function(l){return l.status==='Schedule'||l.status==='Available';});
+  var issueLoads = activeLoads.filter(function(l){return l.status==='Issue';});
 
-  // ---- Company Overview ----
-  var nowStr2 = new Date().toISOString().slice(0,16).replace('T',' ');
-  var prePickup2 = ['Schedule','Available','Covered','Assigned','Dispatched'];
-  var preDel2 = ['Arrived','Departed'];
-  var coActive = loads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);}).length;
-  var coIssues = loads.filter(function(l){return l.status==='Issue';}).length;
-  var coOverdue = loads.filter(function(l){
-    if(l.archived) return false;
-    var s=getStopSum(l);
-    return (prePickup2.includes(l.status)&&s.fAppt&&s.fAppt<nowStr2)||(preDel2.includes(l.status)&&s.lAppt&&s.lAppt<nowStr2);
-  }).length;
-  var coRev = loads.reduce(function(a,l){return a+getEffectiveCustR(l);},0);
-  var coCR  = loads.reduce(function(a,l){return a+(l.cr||0);},0);
-  var coMar = coRev - coCR;
-  var nowD = new Date();
-  var monthStart = new Date(nowD.getFullYear(), nowD.getMonth(), 1).getTime();
-  var coMonth = loads.filter(function(l){
-    var t = l.deliveredAt || l.id;
-    return t && t >= monthStart;
-  }).length;
-
-  setEl('dco-active', coActive);
-  var odEl = document.getElementById('dco-overdue');
-  if(odEl) { odEl.textContent = coOverdue; odEl.className = 'dash-kpi-v ' + (coOverdue > 0 ? 'r' : ''); }
-  var issEl = document.getElementById('dco-issues');
-  if(issEl) { issEl.textContent = coIssues; issEl.className = 'dash-kpi-v ' + (coIssues > 0 ? 'r' : ''); }
-  setEl('dco-rev', '$' + coRev.toLocaleString());
-  var cmEl = document.getElementById('dco-margin');
-  if(cmEl) { cmEl.textContent = '$' + coMar.toLocaleString(); cmEl.className = 'dash-kpi-v ' + (coMar >= 0 ? 'g' : 'r'); }
-  setEl('dco-month', coMonth);
-
-  // ---- Carrier Scorecard Summary ----
-  var scored = carriers.map(function(c){ return {c:c, s:calcScore(c)}; });
-  var tierCounts = {A:0, B:0, C:0, P:0};
-  scored.forEach(function(x){ tierCounts[x.s.tier]++; });
-  setEl('dsc-a', tierCounts.A);
-  setEl('dsc-b', tierCounts.B);
-  setEl('dsc-c', tierCounts.C);
-  setEl('dsc-p', tierCounts.P);
-  var subEl = document.getElementById('dash-carrier-sub');
-  if(subEl) subEl.textContent = carriers.length + ' total';
-
-  // Top 8 carriers by score
-  var topCarriers = scored.slice().sort(function(a,b){return b.s.score-a.s.score;}).slice(0,8);
-  var tbody = document.getElementById('dash-carrier-body');
-  if(tbody) {
-    tbody.innerHTML = topCarriers.length ? topCarriers.map(function(x){
-      var c = x.c, s = x.s;
-      return '<tr>'
-        + '<td style="font-weight:600;color:var(--navy)">' + esc(c.name) + '</td>'
-        + '<td><span class="tier tier-' + s.tier + '">' + s.tier + '</span></td>'
-        + '<td style="font-weight:700">' + s.score + '</td>'
-        + '<td style="color:' + (s.puPct>=0.9?'#15803d':s.puPct>=0.75?'var(--amber)':'var(--red)') + ';font-weight:600">' + Math.round(s.puPct*100) + '%</td>'
-        + '<td style="color:' + (s.dlPct>=0.9?'#15803d':s.dlPct>=0.75?'var(--amber)':'var(--red)') + ';font-weight:600">' + Math.round(s.dlPct*100) + '%</td>'
-        + '<td style="color:var(--tx2)">' + s.loadsCount + '</td>'
-        + '</tr>';
-    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx3)">No carriers yet.</td></tr>';
+  // ── KPI row ──
+  var kpiRow = document.getElementById('dash-kpi-row');
+  if(kpiRow) {
+    kpiRow.innerHTML = [
+      {l:'Revenue',v:'$'+totalRev.toLocaleString(),c:totalRev>0?'#15803d':'var(--tx)'},
+      {l:'Carrier Spend',v:'$'+totalCR.toLocaleString(),c:'var(--tx)'},
+      {l:'Margin',v:'$'+totalMargin.toLocaleString(),c:totalMargin>=0?'#15803d':'#dc2626'},
+      {l:'Avg Margin %',v:avgMarginPct+'%',c:avgMarginPct>=20?'#15803d':avgMarginPct>=10?'var(--tx)':'#dc2626'},
+    ].map(function(k){
+      return '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px">'
+        +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">'+k.l+'</div>'
+        +'<div style="font-size:24px;font-weight:800;color:'+k.c+'">'+k.v+'</div>'
+        +'<div style="font-size:11px;color:var(--tx2);margin-top:3px">'+deliveredInRange.length+' loads · '+confirmedInRange.length+' confirmed</div>'
+      +'</div>';
+    }).join('');
   }
 
-  // ---- Recent Loads ----
-  var recentLoads = loads.filter(function(l){return !l.archived&&l.status!=='Closed';})
-    .slice().sort(function(a,b){return b.id-a.id;}).slice(0,10);
+  // ── Shoutouts ──
+  var shoutRow = document.getElementById('dash-shoutout-row');
+  if(shoutRow) {
+    var bestDollar = confirmedInRange.length ? confirmedInRange.slice().sort(function(a,b){
+      var am=(a.rateConfirmation.confirmedCustR||0)-(a.rateConfirmation.confirmedCr||0);
+      var bm=(b.rateConfirmation.confirmedCustR||0)-(b.rateConfirmation.confirmedCr||0);
+      return bm-am;
+    })[0] : null;
+    var bestPct = confirmedInRange.filter(function(l){return l.rateConfirmation.confirmedCustR>0;}).sort(function(a,b){
+      var ap=((a.rateConfirmation.confirmedCustR||0)-(a.rateConfirmation.confirmedCr||0))/(a.rateConfirmation.confirmedCustR||1);
+      var bp=((b.rateConfirmation.confirmedCustR||0)-(b.rateConfirmation.confirmedCr||0))/(b.rateConfirmation.confirmedCustR||1);
+      return bp-ap;
+    })[0]||null;
+
+    function shoutCard(title, load, valueStr, sub) {
+      if(!load) return '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:16px;display:flex;align-items:center;justify-content:center;min-height:80px"><span style="font-size:12px;color:var(--tx3)">No confirmed loads in range</span></div>';
+      var pu = (load.stops||[]).find(function(s){return s.type==='pickup';});
+      var dels = (load.stops||[]).filter(function(s){return s.type==='delivery';});
+      var lane = (pu?pu.state:'?')+'>'+(dels.length?dels[dels.length-1].state:'?');
+      return '<div style="background:linear-gradient(135deg,#1B2A4A 0%,#243656 100%);border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden">'
+        +'<div style="position:absolute;top:-10px;right:-10px;font-size:60px;opacity:.07;pointer-events:none">&#127942;</div>'
+        +'<div style="font-size:10px;font-weight:700;color:#2ECC40;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">'+title+'</div>'
+        +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">'
+          +'<span style="font-size:20px;font-weight:800;color:#fff">'+valueStr+'</span>'
+          +'<span style="font-size:12px;font-weight:600;color:rgba(255,255,255,.5)">'+esc(load.loadNum)+'</span>'
+        +'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,.6)">'+esc(lane)+(load.dispatcher?' &nbsp;·&nbsp; <span style="color:#2ECC40;font-weight:700">'+esc(cap(load.dispatcher))+'</span>':'')+'</div>'
+        +(sub?'<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">'+sub+'</div>':'')
+      +'</div>';
+    }
+    var d1 = bestDollar ? bestDollar.rateConfirmation : null;
+    var dollarMargin = d1 ? '$'+((d1.confirmedCustR||0)-(d1.confirmedCr||0)).toLocaleString() : '';
+    var d2 = bestPct ? bestPct.rateConfirmation : null;
+    var pctMargin = d2 ? Math.round(((d2.confirmedCustR||0)-(d2.confirmedCr||0))/(d2.confirmedCustR||1)*100)+'%' : '';
+    shoutRow.innerHTML = shoutCard('&#127942; Highest Margin $', bestDollar, dollarMargin, 'Top dollar this period')
+      + shoutCard('&#127919; Highest Margin %', bestPct, pctMargin, 'Best rate on a load');
+  }
+
+  // ── My Stats ──
+  var myLoads = loads.filter(function(l){return (l.dispatcher||'').toLowerCase()===(currentUser||'').toLowerCase();});
+  var myInRange = myLoads.filter(function(l){return loadInRange(l,range);});
+  var myDelivered = myInRange.filter(function(l){return ['Delivered','Closed'].includes(l.status)||l.archived;});
+  var myConfirmed = myDelivered.filter(function(l){return l.rateConfirmation&&l.ratesVerified;});
+  var myRev = myConfirmed.reduce(function(a,l){return a+(l.rateConfirmation.confirmedCustR||0);},0);
+  var myCR = myConfirmed.reduce(function(a,l){return a+(l.rateConfirmation.confirmedCr||0);},0);
+  var myMargin = myRev - myCR;
+  var myMarginPct = myRev>0 ? Math.round(myMargin/myRev*100) : 0;
+  var myActive = myLoads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);}).length;
+  var msEl = document.getElementById('dash-my-stats');
+  if(msEl) {
+    msEl.innerHTML = [
+      {l:'Loads Dispatched',v:myInRange.length,c:'var(--navy)'},
+      {l:'Revenue',v:'$'+myRev.toLocaleString(),c:'#15803d'},
+      {l:'Margin',v:'$'+myMargin.toLocaleString(),c:myMargin>=0?'#15803d':'#dc2626'},
+      {l:'Margin %',v:myMarginPct+'%',c:myMarginPct>=20?'#15803d':myMarginPct>=10?'var(--tx)':'#dc2626'},
+      {l:'Active Now',v:myActive,c:'var(--navy)'},
+    ].map(function(k){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--bd)">'
+        +'<span style="font-size:12px;color:var(--tx2)">'+k.l+'</span>'
+        +'<span style="font-size:14px;font-weight:800;color:'+k.c+'">'+k.v+'</span>'
+      +'</div>';
+    }).join('');
+  }
+
+  // ── Action button counts ──
+  function setEl(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+  setEl('dact-tl', tempLoads.length+' TLs');
+  setEl('dact-loads', activeLoads.length+' active');
+  setEl('dact-orders', dealers.length+' orders');
+  setEl('dact-carriers', carriers.length+' carriers');
+  setEl('dact-locs', locations.length+' locations');
+
+  // ── Admin: pending rate confirmation alert ──
+  var pendingRC = loads.filter(function(l){return (['Delivered','Closed'].includes(l.status)||l.archived)&&!l.ratesVerified;}).length;
+  var alertDiv = document.getElementById('dash-acct-alert');
+  var alertBtn = document.getElementById('dash-acct-btn');
+  if(alertDiv && alertBtn) {
+    if(isAdmin() && pendingRC > 0) {
+      alertDiv.style.display='';
+      alertBtn.textContent = pendingRC+' load'+(pendingRC!==1?'s':'')+' need rate confirmation';
+    } else {
+      alertDiv.style.display='none';
+    }
+  }
+
+  // ── Needs Attention ──
+  var attEl = document.getElementById('dash-attention');
+  if(attEl) {
+    var items = [];
+    if(availableLoads.length) items.push({label:'Available Loads',count:availableLoads.length,color:'#15803d',bg:'#dcfce7',action:'goPage(\'board\',document.getElementById(\'ntab-board\'));setTimeout(function(){setBF(\'available\',document.querySelector(\'#page-board .stab:nth-child(2)\'));},80)'});
+    if(issueLoads.length) items.push({label:'Active Issues',count:issueLoads.length,color:'#991b1b',bg:'#fee2e2',action:'goPage(\'board\',document.getElementById(\'ntab-board\'));setTimeout(function(){setBF(\'issue\',document.querySelector(\'#page-board .stab:nth-child(3)\'));},80)'});
+    if(tempLoads.length) items.push({label:'Temp Loads Staging',count:tempLoads.length,color:'var(--navy)',bg:'rgba(27,42,74,.08)',action:'goPage(\'staging\',document.getElementById(\'ntab-staging\'))'});
+    if(!items.length) {
+      attEl.innerHTML='<div style="padding:14px;text-align:center;font-size:12px;color:var(--tx3)">All clear &#10003;</div>';
+    } else {
+      attEl.innerHTML = items.map(function(it){
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="'+it.action+'">'
+          +'<span style="font-size:12px;color:var(--tx)">'+it.label+'</span>'
+          +'<span style="font-size:13px;font-weight:800;background:'+it.bg+';color:'+it.color+';padding:2px 10px;border-radius:20px">'+it.count+'</span>'
+        +'</div>';
+      }).join('');
+    }
+  }
+
+  // ── Recent loads ──
   var recentBody = document.getElementById('dash-recent-body');
   if(recentBody) {
-    recentBody.innerHTML = recentLoads.length ? recentLoads.map(function(l){
-      var mar = getEffectiveCustR(l) - (l.cr||0);
-      var lid = l.id;
-      return '<tr style="cursor:pointer" onclick="(function(){selLoad='+lid+';goPage(\'board\',document.getElementById(\'ntab-board\'));setTimeout(function(){renderBoard();renderDetail();},60);})()">'
-        + '<td style="font-weight:700;color:var(--navy)">' + esc(l.loadNum) + '</td>'
-        + '<td><span class="st st-' + l.status.toLowerCase() + '">' + l.status + '</span></td>'
-        + '<td style="color:var(--tx2)">' + esc(l.carrier||'\u2014') + '</td>'
-        + '<td style="color:var(--tx2)">' + esc(l.dispatcher||'\u2014') + '</td>'
-        + '<td class="' + (mar>=0?'mpos':'mneg') + '">$' + mar.toLocaleString() + '</td>'
-        + '</tr>';
-    }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--tx3)">No active loads.</td></tr>';
+    var recent = loads.filter(function(l){return !l.archived&&l.status!=='Closed';}).slice().sort(function(a,b){return b.id-a.id;}).slice(0,8);
+    recentBody.innerHTML = recent.length ? recent.map(function(l){
+      var pu=(l.stops||[]).find(function(s){return s.type==='pickup';});
+      var del=(l.stops||[]).filter(function(s){return s.type==='delivery';});
+      var lane=(pu?pu.state:'?')+'>'+(del.length?del[del.length-1].state:'?');
+      var mar=getEffectiveCustR(l)-(l.cr||0);
+      return '<tr style="cursor:pointer" onclick="(function(){selLoad='+l.id+';goPage(\'board\',document.getElementById(\'ntab-board\'));setTimeout(function(){renderBoard();renderDetail();},60);})()">'
+        +'<td style="font-weight:700;color:var(--navy)">'+esc(l.loadNum)+'</td>'
+        +'<td><span class="st st-'+l.status.toLowerCase()+'">'+l.status+'</span></td>'
+        +'<td style="color:var(--tx2);font-size:11px">'+esc(lane)+'</td>'
+        +'<td style="color:var(--tx2)">'+esc(l.carrier||'\u2014')+'</td>'
+        +'<td style="color:var(--tx2)">'+esc(cap(l.dispatcher||''))+'</td>'
+        +'<td class="'+(mar>=0?'mpos':'mneg')+'">$'+mar.toLocaleString()+'</td>'
+        +'</tr>';
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--tx3)">No active loads.</td></tr>';
   }
 }
+
 
 // ============================
 // RESIZABLE COLUMNS
