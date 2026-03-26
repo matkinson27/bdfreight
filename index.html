@@ -742,6 +742,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <thead style="position:sticky;top:0;z-index:2"><tr>
           <th class="nc" style="width:28px"></th>
           <th onclick="sortDealer('po')" id="dth-po" style="cursor:pointer">PO #</th>
+          <th onclick="sortDealer('addinfo')" id="dth-addinfo" style="cursor:pointer">Notes</th>
           <th onclick="sortDealer('vendor')" id="dth-vendor" style="cursor:pointer">Vendor</th>
           <th onclick="sortDealer('pieces')" id="dth-pieces" style="cursor:pointer">Pieces</th>
           <th onclick="sortDealer('seats')" id="dth-seats" style="cursor:pointer">Seats</th>
@@ -1166,32 +1167,29 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 
 <!-- NEW STAGING ORDER MODAL -->
 <div class="overlay" id="m-new-staging">
-  <div class="mbox w">
+  <div class="mbox xxl" style="max-width:960px">
     <div class="mh">New Temp Load</div>
-    <div class="fg">
-      <div class="fi s2">
-        <label>SO / PO # <span style="font-size:10px;font-weight:400;color:var(--tx3)">— add multiple if needed</span></label>
-        <div id="ns-po-list" style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;gap:5px;align-items:center">
-            <input class="ns-po-input" placeholder="SO / PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">
-          </div>
-        </div>
-        <button onclick="addNsPORow()" class="btn xs" style="margin-top:5px;border-color:var(--green);color:var(--navy)">+ Add Another PO</button>
+    <div style="margin-bottom:8px">
+      <!-- Column headers -->
+      <div style="display:grid;grid-template-columns:140px 60px 60px 160px 120px 160px 32px;gap:6px;padding:0 4px;margin-bottom:4px">
+        <div style="font-size:11px;font-weight:700;color:var(--tx2)">PO # <span style="font-size:10px;font-weight:400">(search)</span></div>
+        <div style="font-size:11px;font-weight:700;color:var(--tx2)">Pcs</div>
+        <div style="font-size:11px;font-weight:700;color:var(--tx2)">Seats</div>
+        <div style="font-size:11px;font-weight:700;color:var(--tx2)">Vendor</div>
+        <div style="font-size:11px;font-weight:700;color:var(--tx2)">Ready Date</div>
+        <div style="font-size:11px;font-weight:700;color:var(--tx2)">Dealer</div>
+        <div></div>
       </div>
-      <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="ns-vendor" placeholder="Search locations..." oninput="nsVendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-ns-vendor"></div></div></div>
-      <div class="fi"><label>Pieces</label><input type="number" id="ns-pieces" placeholder="0"></div>
-      <div class="fi"><label>Seats</label><input type="number" id="ns-seats" placeholder="0"></div>
-      <div class="fi"><label>Ready Date</label><input type="date" id="ns-ready"></div>
-      <div class="fi"><label>Notes</label><input id="ns-notes" placeholder="Optional notes"></div>
-      <div class="fi s2"><label>Dealer / Receiver</label><div class="acw"><input id="ns-dealer" placeholder="Search locations..." oninput="nsDealerAC(this.value)" autocomplete="off"><div class="acl" id="ac-ns-dealer"></div></div></div>
-      <div class="fi"><label>Phone</label><input id="ns-phone" oninput="fmtPhone(this)" placeholder="614-555-0000"></div>
-      <div class="fi"><label>City</label><input id="ns-city"></div>
-      <div class="fi"><label>State</label><input id="ns-state" maxlength="2"></div>
-      <div class="fi"><label>ZIP</label><input id="ns-zip" maxlength="5"></div>
+      <!-- PO rows -->
+      <div id="ns-po-rows"></div>
+      <!-- Add PO button -->
+      <button onclick="nsAddPORow()" class="btn xs" style="margin-top:6px;border-color:var(--green);color:var(--navy);font-weight:700">+ Add PO</button>
     </div>
+    <!-- Group legend -->
+    <div id="ns-group-legend" style="margin-top:8px;font-size:11px;color:var(--tx2);display:none"></div>
     <div class="mfooter">
       <button class="btn" onclick="closeM('m-new-staging')">Cancel</button>
-      <button class="btn p" onclick="saveNewStaging()">Create Staging Order</button>
+      <button class="btn p" onclick="saveNewStaging()">Create Temp Load</button>
     </div>
   </div>
 </div>
@@ -3768,11 +3766,21 @@ function confirmCallin() {
 // Issue 11: confirm rates on a delivered load
 function verifyRates(lid) {
   var l=loads.find(function(x){return x.id===lid;});if(!l)return;
-  if(!confirm('Confirm that rates for '+l.loadNum+' are correct and unchanged?'))return;
+  if(!confirm('Confirm that all rates for '+l.loadNum+' are correct?'))return;
   l.ratesVerified=true;
+  // Clear any discrepancy flags — user is explicitly signing off that rates are correct
+  if(l.rateConfirmation) {
+    l.rateConfirmation.crDiscrepancy=false;
+    l.rateConfirmation.customerDiscrepancy=false;
+    if(l.rateConfirmation.receivers) {
+      l.rateConfirmation.receivers.forEach(function(r){r.discrepancy=false;});
+    }
+  }
   l.callins.push({status:'Rates Confirmed',time:nowStr(),note:'Rates verified by '+cap(currentUser),req:false,type:'note'});
   saveRecord('loads',l);
   renderBoard();renderDetail();
+  // Re-render accounting if open
+  var acctBody=document.getElementById('acct-body');if(acctBody)renderAccounting();
 }
 
 function logClaimToCarrier(l, note) {
@@ -5032,6 +5040,7 @@ var stgSort = {col:'tlNum', asc:true};
 var stgExpanded = {};
 var stgSel = null;
 var quoteSort = {asc:true};
+var stgDetailTab = 'info'; // 'info' | 'quotes'
 
 function renderStaging() {
   var q = (document.getElementById('stg-search').value||'').toLowerCase();
@@ -5120,6 +5129,7 @@ function renderStaging() {
   body.innerHTML = html;
   if(footer) footer.textContent = rows.length+' order'+(rows.length!==1?'s':'');
   if(stgSel) renderStgDetail();
+  setTimeout(function(){initResizableCols('stg-table');},30);
 }
 
 function selectStgRow(type, id) {
@@ -5129,6 +5139,7 @@ function selectStgRow(type, id) {
     renderStaging();
     return;
   }
+  if(!stgSel || stgSel.id !== id) stgDetailTab = 'info';
   stgSel = {type:type, id:id};
   renderStaging();
   renderStgDetail();
@@ -5160,89 +5171,137 @@ function renderStgDetail() {
   var obj = isLoad ? loads.find(function(x){return x.id===stgSel.id;}) : tempLoads.find(function(t){return t.id===stgSel.id;});
   if(!obj){pane.innerHTML='<div class="dempty">Order not found</div>';return;}
 
-  // Summary info
   var num = isLoad ? obj.loadNum : obj.tlNum;
-  var pcs=0,seats=0,vendors='';
-  if(isLoad){
-    obj.stops.forEach(function(s){(s.pos||[]).forEach(function(p){pcs+=(Number(p.pieces)||0);seats+=(Number(p.seats)||0);});});
+  var quoteCount = (obj.quotes||[]).length;
+
+  var header = '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;border-bottom:1px solid var(--bd);background:var(--sur)">'
+    +'<span style="font-size:18px;font-weight:800;color:var(--navy)">'+esc(num)+'</span>'
+    +'<div style="display:flex;gap:0;border:1.5px solid var(--bd2);border-radius:20px;overflow:hidden">'
+      +'<button onclick="stgDetailTab=\'info\';renderStgDetail()" style="height:28px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:'+(stgDetailTab==='info'?'#1B2A4A':'var(--sur)')+';color:'+(stgDetailTab==='info'?'#2ECC40':'var(--tx2)')+';font-family:var(--F)">Info</button>'
+      +'<button onclick="stgDetailTab=\'quotes\';renderStgDetail()" style="height:28px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:'+(stgDetailTab==='quotes'?'#1B2A4A':'var(--sur)')+';color:'+(stgDetailTab==='quotes'?'#2ECC40':'var(--tx2)')+';font-family:var(--F)">Quotes'+(quoteCount?' <span style="background:#2ECC40;color:#1B2A4A;border-radius:10px;font-size:9px;padding:1px 5px;font-weight:800">'+quoteCount+'</span>':'')+'</button>'
+    +'</div>'
+  +'</div>';
+
+  if(stgDetailTab==='quotes') {
+    pane.innerHTML = header + renderStgQuotePane(obj, isLoad);
+    return;
+  }
+
+  var pcs=0,seats=0,vendors='',readyDates=[];
+  if(isLoad) {
+    obj.stops.forEach(function(s){(s.pos||[]).forEach(function(p){pcs+=(Number(p.pieces)||0);seats+=(Number(p.seats)||0);if(p.ready)readyDates.push(p.ready);});});
     vendors=obj.vendor||'';
   } else {
     pcs=obj.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
     seats=obj.pos.reduce(function(a,p){return a+(Number(p.seats)||0);},0);
     vendors=[...new Set(obj.pos.map(function(p){return p.vendor;}).filter(Boolean))].join(', ');
+    obj.pos.forEach(function(p){if(p.ready)readyDates.push(p.ready);});
+  }
+  var latestReady='';
+  if(readyDates.length){var parsed=readyDates.map(function(d){var pt=d.split('/');return{disp:d,ts:pt.length===3?new Date(parseInt(pt[2]),parseInt(pt[0])-1,parseInt(pt[1])).getTime():0};}).sort(function(a,b){return b.ts-a.ts;});latestReady=parsed[0].disp;}
+
+  var poRows='';
+  if(!isLoad&&obj.pos&&obj.pos.length){
+    var groups=[],groupKeys=[];
+    obj.pos.forEach(function(p){
+      var k=(p.vendor||'').toLowerCase()+'|||'+(p.dealer||'').toLowerCase();
+      var gi=groupKeys.indexOf(k);
+      if(gi===-1){groupKeys.push(k);groups.push({vendor:p.vendor||'',dealer:p.dealer||'',pos:[]});gi=groups.length-1;}
+      groups[gi].pos.push(p);
+    });
+    var COLORS=['rgba(46,204,64,0.12)','rgba(27,42,74,0.09)'];
+    poRows='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">'
+      +'<thead><tr style="border-bottom:2px solid var(--bd)">'
+      +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">PO #</th>'
+      +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Vendor</th>'
+      +'<th style="text-align:center;padding:4px 8px;color:var(--tx2);font-weight:600">Pcs</th>'
+      +'<th style="text-align:center;padding:4px 8px;color:var(--tx2);font-weight:600">Seats</th>'
+      +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Ready</th>'
+      +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Dealer</th>'
+      +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">City, St</th>'
+      +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Notes</th>'
+      +'</tr></thead><tbody>';
+    groups.forEach(function(g,gi){
+      var bg=COLORS[gi%2];
+      g.pos.forEach(function(p){
+        poRows+='<tr style="border-bottom:1px solid var(--bd);background:'+bg+'">'
+          +'<td style="padding:5px 8px;font-weight:700;color:var(--navy)">'+esc(p.po||'')+'</td>'
+          +'<td style="padding:5px 8px">'+esc(p.vendor||'')+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">'+esc(String(p.pieces||0))+'</td>'
+          +'<td style="padding:5px 8px;text-align:center">'+esc(String(p.seats||0))+'</td>'
+          +'<td style="padding:5px 8px;font-size:11px;color:var(--tx2)">'+esc(p.ready||'--')+'</td>'
+          +'<td style="padding:5px 8px">'+esc(p.dealer||'')+'</td>'
+          +'<td style="padding:5px 8px;font-size:11px;color:var(--tx2)">'+esc((p.city||'')+(p.state?', '+p.state:''))+'</td>'
+          +'<td style="padding:5px 8px;font-size:11px;color:var(--tx2)">'+esc(p.addinfo||'')+'</td>'
+          +'</tr>';
+      });
+    });
+    poRows+='</tbody></table>';
   }
 
-  var quotes = (obj.quotes||[]).slice().sort(function(a,b){
-    var av=Number(a.rate)||0, bv=Number(b.rate)||0;
-    return quoteSort.asc ? av-bv : bv-av;
-  });
+  var notesField='<div style="margin-top:12px">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Notes</div>'
+    +'<textarea id="stg-detail-notes" style="width:100%;height:60px;font-size:12px;padding:8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;resize:vertical;background:var(--sur);color:var(--tx)" placeholder="Add notes..." onblur="saveStgNote(\''+stgSel.type+'\','+obj.id+',this.value)">'+esc(obj.notes||'')+'</textarea>'
+  +'</div>';
 
-  var stopsSummary = '';
-  if(isLoad) {
-    var pu=obj.stops.filter(function(s){return s.type==='pickup';}).length;
-    var dl=obj.stops.filter(function(s){return s.type==='delivery';}).length;
-    stopsSummary = pu+'P'+dl+'D';
-    var states=obj.stops.map(function(s){return s.state;}).filter(Boolean);
-    if(states.length>1) stopsSummary += ' | '+states[0]+'>'+states[states.length-1];
-  }
+  var pills='<div style="display:flex;gap:8px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--bd)">'
+    +(pcs?'<div class="dp">Pcs <strong>'+pcs+'</strong></div>':'')
+    +(seats?'<div class="dp">Seats <strong>'+seats+'</strong></div>':'')
+    +(vendors?'<div class="dp">Vendor <strong>'+esc(vendors)+'</strong></div>':'')
+    +(latestReady?'<div class="dp">Latest Ready <strong>'+esc(latestReady)+'</strong></div>':'')
+    +(isLoad?'<div class="dp">Status <strong>'+esc(obj.status||'')+'</strong></div>':'')
+    +(!isLoad?'<div class="dp">POs <strong>'+obj.pos.length+'</strong></div>':'')
+    +'<div style="margin-left:auto;display:flex;gap:6px">'
+      +(!isLoad?'<button onclick="openAddPOsModal('+obj.id+')" class="btn xs" style="border-color:var(--green);color:var(--navy);font-weight:700">+ POs</button>':'')
+      +(!isLoad?'<button onclick="convertTL('+obj.id+')" class="btn xs p" style="font-weight:700">Convert</button>':'')
+      +'<button onclick="'+(isLoad?'sendRFQFromLoad('+obj.id+')':'sendRFQEmail('+obj.id+')')+'" style="background:#1B2A4A;color:#2ECC40;border:none;height:26px;padding:0 9px;border-radius:var(--r);cursor:pointer;font-family:var(--F);font-size:11px;font-weight:700">&#9993; RFQ</button>'
+    +'</div>'
+  +'</div>';
 
-  var quoteRows = quotes.map(function(q,i){
-    return '<tr>'
-      +'<td style="font-weight:700;color:var(--navy)">$'+(Number(q.rate)||0).toLocaleString()+'</td>'
-      +'<td>'+esc(q.carrier||'')+'</td>'
-      +'<td style="font-size:11px;color:var(--tx2)">'+esc(q.pickDate||'')+'</td>'
-      +'<td style="font-size:11px;color:var(--tx2)">'+esc(q.note||'')+'</td>'
-      +'<td style="white-space:nowrap">'
-        +'<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:3px" onclick="acceptQuote('+i+')">Accept</button>'
-        +'<button class="btn xs d" onclick="deleteQuote('+i+')">✕</button>'
+  pane.innerHTML=header+pills+'<div style="padding:12px 16px;overflow-y:auto">'+poRows+notesField+'</div>';
+}
+
+function renderStgQuotePane(obj, isLoad) {
+  var quotes=(obj.quotes||[]).slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});
+  var quoteRows=quotes.map(function(q,i){
+    return '<tr style="border-bottom:1px solid var(--bd)">'
+      +'<td style="padding:6px 8px;font-weight:800;color:var(--navy);font-size:14px">$'+(Number(q.rate)||0).toLocaleString()+'</td>'
+      +'<td style="padding:6px 8px;font-weight:600">'+esc(q.carrier||'')+'</td>'
+      +'<td style="padding:6px 8px;font-size:11px;color:var(--tx2)">'+esc(q.pickDate||'--')+'</td>'
+      +'<td style="padding:6px 8px;font-size:11px;color:var(--tx2)">'+esc(q.note||'')+'</td>'
+      +'<td style="padding:6px 8px;white-space:nowrap">'
+        +'<button class="btn xs" style="background:#1B2A4A;color:#2ECC40;border:none;margin-right:4px" onclick="stgAcceptQuote('+obj.id+','+i+','+isLoad+')">Accept</button>'
+        +'<button class="btn xs d" onclick="stgDeleteQuote('+obj.id+','+i+','+isLoad+')">&#x2715;</button>'
       +'</td>'
       +'</tr>';
   }).join('');
-
-  pane.innerHTML = '<div style="padding:14px 16px">'
-    // Header
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
-      +'<span style="font-size:20px;font-weight:800;color:var(--navy)">'+esc(num)+'</span>'
-      +(isLoad?'<span style="font-size:11px;background:#1B2A4A;color:#2ECC40;border-radius:4px;padding:2px 7px">'+obj.status+'</span>':'')
-      +(stopsSummary?'<span style="font-size:11px;color:var(--tx2)">'+esc(stopsSummary)+'</span>':'')
-      +(vendors?'<span style="font-size:11px;color:var(--tx2)">'+esc(vendors)+'</span>':'')
-      +(pcs?'<span style="font-size:11px;color:var(--tx2)">'+pcs+' pcs / '+seats+' seats</span>':'')
-      +(isLoad?'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+obj.id+';}),\'header\')" style="background:var(--sur);color:var(--navy);border:2px solid var(--green);font-weight:700;font-size:11px;padding:2px 10px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Info</button>':'')
-      +(isLoad?'<button onclick="openLoadModal(loads.find(function(x){return x.id==='+obj.id+';}),\'stops\')" style="background:var(--sur);color:var(--navy);border:2px solid var(--green);font-weight:700;font-size:11px;padding:2px 10px;border-radius:6px;cursor:pointer;font-family:var(--F)">Edit Stops</button>':'')
-      +'<button onclick="'+(isLoad?'sendRFQFromLoad('+obj.id+')':'sendRFQEmail('+obj.id+')')+'" style="background:#1B2A4A;color:#2ECC40;border:none;font-weight:700;font-size:11px;padding:2px 10px;border-radius:6px;cursor:pointer;font-family:var(--F)">✉ RFQ</button>'
+  return '<div style="padding:12px 16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+      +'<span style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em">Quote Tracker</span>'
+      +'<button onclick="quoteSort.asc=!quoteSort.asc;renderStgDetail()" class="btn xs">'+(quoteSort.asc?'&#8593; Low&#8594;High':'&#8595; High&#8594;Low')+'</button>'
     +'</div>'
-    // Quote tracker
-    +'<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:12px">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-        +'<span style="font-size:12px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em">Quote Tracker</span>'
-        +'<div style="display:flex;align-items:center;gap:6px">'
-          +'<button onclick="quoteSort.asc=!quoteSort.asc;renderStgDetail()" class="btn xs" title="Toggle sort">'+(quoteSort.asc?'↑ Low→High':'↓ High→Low')+'</button>'
-        +'</div>'
-      +'</div>'
-      // Add quote row
-      +'<div style="display:grid;grid-template-columns:140px 100px 110px 1fr 80px;gap:6px;margin-bottom:10px;align-items:center">'
-        +'<div class="acw"><input id="qt-carrier" placeholder="Carrier / broker..." oninput="qtCarrierAC(this.value)" autocomplete="off" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx)"><div class="acl" id="ac-qt-carrier"></div></div>'
-        +'<input id="qt-rate" type="number" placeholder="Rate $" style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
-        +'<input id="qt-date" type="date" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
-        +'<input id="qt-note" placeholder="Note..." style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
-        +'<button onclick="addQuote()" style="background:#1B2A4A;color:#2ECC40;border:none;height:28px;padding:0 10px;border-radius:var(--r);cursor:pointer;font-family:var(--F);font-weight:700;font-size:12px;white-space:nowrap">+ Add</button>'
-      +'</div>'
-      +(quotes.length
-        ? '<table style="width:100%;border-collapse:collapse;font-size:12px">'
-          +'<thead><tr style="border-bottom:1px solid var(--bd)">'
-          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Rate</th>'
-          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Carrier</th>'
-          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Avail Date</th>'
-          +'<th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Note</th>'
-          +'<th></th>'
-          +'</tr></thead>'
-          +'<tbody>'+quoteRows+'</tbody>'
-          +'</table>'
-        : '<div style="text-align:center;padding:16px;color:var(--tx3);font-size:12px">No quotes yet — add one above</div>'
-      )
+    +'<div style="display:grid;grid-template-columns:180px 90px 130px 1fr 60px;gap:6px;margin-bottom:10px;align-items:center">'
+      +'<div class="acw"><input id="stgqt-carrier-'+obj.id+'" placeholder="Carrier / broker..." oninput="stgQTCarrierAC(this.value,'+obj.id+')" autocomplete="off" style="width:100%;height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx)"><div class="acl" id="ac-stgqt-'+obj.id+'"></div></div>'
+      +'<input id="stgqt-rate-'+obj.id+'" type="number" placeholder="Rate $" style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+      +'<input id="stgqt-date-'+obj.id+'" type="date" style="height:28px;font-size:12px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+      +'<input id="stgqt-note-'+obj.id+'" placeholder="Note..." style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%">'
+      +'<button onclick="stgAddQuote('+obj.id+','+isLoad+')" style="background:#1B2A4A;color:#2ECC40;border:none;height:28px;padding:0 10px;border-radius:var(--r);cursor:pointer;font-family:var(--F);font-weight:700;font-size:12px">+ Add</button>'
     +'</div>'
+    +(quotes.length
+      ?'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:2px solid var(--bd)"><th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Rate</th><th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Carrier</th><th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Avail Date</th><th style="text-align:left;padding:4px 8px;color:var(--tx2);font-weight:600">Note</th><th></th></tr></thead><tbody>'+quoteRows+'</tbody></table>'
+      :'<div style="text-align:center;padding:20px;color:var(--tx3);font-size:12px">No quotes yet -- add one above</div>'
+    )
   +'</div>';
 }
+
+function stgQTCarrierAC(q,oid){var list=document.getElementById('ac-stgqt-'+oid);if(!list)return;if(!q){list.style.display='none';return;}var m=carriers.filter(function(c){return(c.name||'').toLowerCase().includes(q.toLowerCase());}).slice(0,8);if(!m.length){list.style.display='none';return;}list.innerHTML=m.map(function(c){return'<div class="aci" onclick="stgQTPick(\''+esc(c.name||'')+'\','+oid+')"><div>'+esc(c.name||'')+'</div><div class="acs">MC: '+esc(c.mc||'--')+'</div></div>';}).join('');list.style.display='block';}
+function stgQTPick(name,oid){var el=document.getElementById('stgqt-carrier-'+oid);if(el)el.value=name;var list=document.getElementById('ac-stgqt-'+oid);if(list)list.style.display='none';}
+
+function stgAddQuote(oid,isLoad){var obj=isLoad?loads.find(function(x){return x.id===oid;}):tempLoads.find(function(t){return t.id===oid;});if(!obj)return;var carrier=(document.getElementById('stgqt-carrier-'+oid)||{}).value||'';var rate=(document.getElementById('stgqt-rate-'+oid)||{}).value||'';var date=(document.getElementById('stgqt-date-'+oid)||{}).value||'';var note=(document.getElementById('stgqt-note-'+oid)||{}).value||'';if(!carrier&&!rate){alert('Enter at least a carrier and rate.');return;}if(!obj.quotes)obj.quotes=[];obj.quotes.push({carrier:carrier,rate:parseFloat(rate)||0,pickDate:date,note:note,addedAt:nowStr()});saveRecord(isLoad?'loads':'temp_loads',obj);renderStgDetail();renderStaging();}
+
+function stgDeleteQuote(oid,idx,isLoad){var obj=isLoad?loads.find(function(x){return x.id===oid;}):tempLoads.find(function(t){return t.id===oid;});if(!obj||!obj.quotes)return;var sorted=obj.quotes.slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});var toRemove=sorted[idx];obj.quotes=obj.quotes.filter(function(q){return q!==toRemove;});saveRecord(isLoad?'loads':'temp_loads',obj);renderStgDetail();renderStaging();}
+
+function stgAcceptQuote(oid,idx,isLoad){if(!isLoad){alert('Convert this TL to a load first before accepting a quote.');return;}var l=loads.find(function(x){return x.id===oid;});if(!l)return;if(l.status!=='Available'){alert('Load must be Available (needs a PU appt) before accepting a quote.');return;}var sorted=(l.quotes||[]).slice().sort(function(a,b){return quoteSort.asc?(Number(a.rate)||0)-(Number(b.rate)||0):(Number(b.rate)||0)-(Number(a.rate)||0);});var q=sorted[idx];if(!q)return;if(!confirm('Accept '+esc(q.carrier)+' at $'+q.rate+'? Load will advance to Covered.'))return;l.carrier=q.carrier;l.cr=q.rate;l.status='Covered';if(!l.callins)l.callins=[];l.callins.push({status:'Available to Covered',time:nowStr(),note:'Carrier '+q.carrier+' accepted at $'+q.rate+' via quote tracker.',req:false,type:'note'});saveRecord('loads',l);stgSel=null;renderStaging();renderBoard();document.getElementById('stg-detail-pane').innerHTML='<div class="dempty">Load moved to Covered -- select another order</div>';}
 
 function qtCarrierAC(q) {
   var list=document.getElementById('ac-qt-carrier'); if(!list) return;
@@ -5337,73 +5396,205 @@ function saveStagingField(tlId, field, val) {
   if(footer) footer.textContent = tempLoads.length + ' staging load' + (tempLoads.length!==1?'s':'');
 }
 
+
+// ── NS (New Temp Load) row-based PO entry ─────────────────────────────────────
+
+var nsPORows = []; // [{po,pcs,seats,vendor,ready,dealer,phone,city,state,zip,addinfo}]
+
 function openNewStagingModal() {
-  ['ns-vendor','ns-pieces','ns-seats','ns-ready','ns-notes','ns-dealer','ns-phone','ns-city','ns-state','ns-zip'].forEach(function(id){
-    var el=document.getElementById(id); if(el) el.value='';
-  });
-  var list=document.getElementById('ns-po-list');
-  if(list) list.innerHTML='<div style="display:flex;gap:5px;align-items:center"><input class="ns-po-input" placeholder="SO / PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none"></div>';
+  nsPORows = [];
+  nsAddPORow();
+  document.getElementById('ns-group-legend').style.display = 'none';
   openM('m-new-staging');
-  setTimeout(function(){ var el=document.querySelector('#ns-po-list .ns-po-input'); if(el) el.focus(); }, 100);
+  setTimeout(function(){ var el = document.querySelector('#ns-po-rows .ns-po-input'); if(el) el.focus(); }, 100);
 }
 
-function nsVendorAC(q) {
-  var list=document.getElementById('ac-ns-vendor');
-  if(!q){list.style.display='none';return;}
-  var m=locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&l.name.toLowerCase().includes(q.toLowerCase());}).slice(0,8);
-  if(!m.length){list.style.display='none';return;}
-  list.innerHTML=m.map(function(l){return '<div class="aci" onclick="nsPickVendor(\''+esc(l.name)+'\')"><div>'+esc(l.name)+(l.locCode?' <span style="font-size:10px;background:#e0e7ff;color:var(--navy);padding:1px 4px;border-radius:3px">'+esc(l.locCode)+'</span>':'')+'</div><div class="acs">'+esc(l.city)+'</div></div>';}).join('');
-  list.style.display='block';
-}
-function nsPickVendor(n) {
-  document.getElementById('ns-vendor').value=n;
-  document.getElementById('ac-ns-vendor').style.display='none';
+function nsGetGroupKey(row) {
+  return (row.vendor||'').toLowerCase().trim() + '|||' + (row.dealer||'').toLowerCase().trim();
 }
 
-function nsDealerAC(q) {
-  var list=document.getElementById('ac-ns-dealer');
-  if(!q){list.style.display='none';return;}
-  var m=locations.filter(function(l){return (l.type==='Receiver'||l.type==='Both')&&(l.name.toLowerCase().includes(q.toLowerCase())||(l.city||'').toLowerCase().includes(q.toLowerCase()));}).slice(0,8);
-  if(!m.length){list.style.display='none';return;}
-  list.innerHTML=m.map(function(l){
-    var cs=(l.city||'').split(', ');
-    return '<div class="aci" onclick="nsPickDealer(\''+esc(l.name)+'\',\''+esc(l.phone||'')+'\',\''+esc((cs[0]||'').trim())+'\',\''+esc((cs[1]||'').trim())+'\',\''+esc(l.zip||'')+'\')"><div>'+esc(l.name)+'</div><div class="acs">'+esc(l.city)+'</div></div>';
+function nsGroupColors() {
+  var keys = [], colorMap = {};
+  var COLORS = ['#2ECC40','#1B2A4A','#16a34a','#0f3460','#15803d','#172554'];
+  var BG = ['rgba(46,204,64,0.10)','rgba(27,42,74,0.10)','rgba(22,163,74,0.10)','rgba(15,52,96,0.10)','rgba(21,128,61,0.10)','rgba(23,37,84,0.10)'];
+  nsPORows.forEach(function(r) {
+    var k = nsGetGroupKey(r);
+    if(keys.indexOf(k) === -1) keys.push(k);
+  });
+  keys.forEach(function(k, i) { colorMap[k] = {border: COLORS[i%COLORS.length], bg: BG[i%BG.length]}; });
+  return colorMap;
+}
+
+function nsRenderRows() {
+  var container = document.getElementById('ns-po-rows'); if(!container) return;
+  var colorMap = nsGroupColors();
+  container.innerHTML = nsPORows.map(function(row, idx) {
+    var k = nsGetGroupKey(row);
+    var c = colorMap[k] || {border:'var(--bd2)', bg:'transparent'};
+    var inputStyle = 'height:30px;font-size:12px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none;background:var(--sur);color:var(--tx);width:100%';
+    return '<div style="display:grid;grid-template-columns:140px 60px 60px 160px 120px 160px 32px;gap:6px;padding:5px 6px;margin-bottom:3px;border-left:3px solid '+c.border+';border-radius:var(--r);background:'+c.bg+'" id="ns-row-'+idx+'">'
+      // PO # with autocomplete
+      +'<div class="acw" style="position:relative">'
+        +'<input class="ns-po-input" value="'+esc(row.po||'')+'" placeholder="PO / SO #" style="'+inputStyle+'" oninput="nsPOInput('+idx+',this.value)" autocomplete="off">'
+        +'<div class="acl" id="ac-ns-po-'+idx+'"></div>'
+      +'</div>'
+      // Pcs
+      +'<input type="number" value="'+(row.pcs||'')+'" placeholder="0" style="'+inputStyle+'" onchange="nsPORows['+idx+'].pcs=this.value;nsRenderRows()">'
+      // Seats
+      +'<input type="number" value="'+(row.seats||'')+'" placeholder="0" style="'+inputStyle+'" onchange="nsPORows['+idx+'].seats=this.value;nsRenderRows()">'
+      // Vendor
+      +'<div class="acw" style="position:relative">'
+        +'<input value="'+esc(row.vendor||'')+'" placeholder="Vendor..." style="'+inputStyle+'" oninput="nsVendorInput('+idx+',this.value)" autocomplete="off">'
+        +'<div class="acl" id="ac-ns-v-'+idx+'"></div>'
+      +'</div>'
+      // Ready date
+      +'<input type="date" value="'+(row.ready||'')+'" style="'+inputStyle+'" onchange="nsPORows['+idx+'].ready=this.value;nsRenderRows()">'
+      // Dealer
+      +'<div class="acw" style="position:relative">'
+        +'<input value="'+esc(row.dealer||'')+'" placeholder="Dealer..." style="'+inputStyle+'" oninput="nsDealerInput('+idx+',this.value)" autocomplete="off">'
+        +'<div class="acl" id="ac-ns-d-'+idx+'"></div>'
+      +'</div>'
+      // Clear/remove
+      +'<button onclick="nsRemoveRow('+idx+')" style="height:30px;padding:0 8px;background:none;border:1px solid var(--bd2);border-radius:var(--r);cursor:pointer;color:var(--tx3);font-size:13px" title="Remove row">×</button>'
+    +'</div>';
   }).join('');
-  list.style.display='block';
+  nsUpdateLegend(colorMap);
 }
-function nsPickDealer(name,phone,city,state,zip) {
-  document.getElementById('ns-dealer').value=name;
-  document.getElementById('ac-ns-dealer').style.display='none';
-  if(phone) document.getElementById('ns-phone').value=phone;
-  if(city)  document.getElementById('ns-city').value=city;
-  if(state) document.getElementById('ns-state').value=state;
-  if(zip)   document.getElementById('ns-zip').value=zip;
+
+function nsUpdateLegend(colorMap) {
+  var legend = document.getElementById('ns-group-legend'); if(!legend) return;
+  var keys = Object.keys(colorMap);
+  if(keys.length <= 1) { legend.style.display='none'; return; }
+  legend.style.display = 'block';
+  legend.innerHTML = '<strong style="color:var(--tx)">Groups: </strong>' + keys.map(function(k,i) {
+    var c = colorMap[k];
+    var parts = k.split('|||');
+    var label = (parts[0]||'?')+' → '+(parts[1]||'?');
+    return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px">'
+      +'<span style="width:10px;height:10px;border-radius:2px;background:'+c.border+';display:inline-block"></span>'
+      +esc(label)
+    +'</span>';
+  }).join('');
+}
+
+function nsAddPORow() {
+  // Copy vendor/dealer from last row as default
+  var prev = nsPORows.length ? nsPORows[nsPORows.length-1] : {};
+  nsPORows.push({po:'', pcs:'', seats:'', vendor:prev.vendor||'', ready:'', dealer:prev.dealer||'', phone:prev.phone||'', city:prev.city||'', state:prev.state||'', zip:prev.zip||'', addinfo:''});
+  nsRenderRows();
+  // Focus the new PO input
+  setTimeout(function(){
+    var inputs = document.querySelectorAll('.ns-po-input');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function nsRemoveRow(idx) {
+  if(nsPORows.length <= 1) { nsPORows[0]={po:'',pcs:'',seats:'',vendor:'',ready:'',dealer:'',phone:'',city:'',state:'',zip:'',addinfo:''}; nsRenderRows(); return; }
+  nsPORows.splice(idx, 1);
+  nsRenderRows();
+}
+
+function nsPOInput(idx, val) {
+  nsPORows[idx].po = val;
+  // Search dealers array for matching PO
+  var d = dealers.find(function(x){ return (x.po||'').toLowerCase() === val.toLowerCase(); });
+  var list = document.getElementById('ac-ns-po-'+idx); if(!list) return;
+  // Autocomplete suggestions
+  if(!val) { list.style.display='none'; return; }
+  var matches = dealers.filter(function(x){ return (x.po||'').toLowerCase().startsWith(val.toLowerCase()); }).slice(0,8);
+  if(!matches.length) { list.style.display='none';
+    // Still auto-fill if exact match
+    if(d) nsAutoFillRow(idx, d);
+    return;
+  }
+  list.innerHTML = matches.map(function(m){
+    return '<div class="aci" onclick="nsPickPO('+idx+',\''+esc(m.po||'')+'\')"><div><strong>'+esc(m.po||'')+'</strong>'+(m.vendor?' — '+esc(m.vendor):'')+'</div><div class="acs">'+esc(m.dealer||'')+(m.city?', '+esc(m.city):'')+'</div></div>';
+  }).join('');
+  list.style.display = 'block';
+  if(d) nsAutoFillRow(idx, d);
+}
+
+function nsPickPO(idx, po) {
+  var d = dealers.find(function(x){ return (x.po||'').toLowerCase() === po.toLowerCase(); });
+  nsPORows[idx].po = po;
+  if(d) nsAutoFillRow(idx, d);
+  var list = document.getElementById('ac-ns-po-'+idx); if(list) list.style.display='none';
+  nsRenderRows();
+}
+
+function nsAutoFillRow(idx, d) {
+  var r = nsPORows[idx]; if(!r) return;
+  r.pcs = d.pieces||'';
+  r.seats = d.seats||'';
+  r.vendor = d.vendor||'';
+  r.ready = d.ready ? (function(rd){var p=rd.split('/');return p.length===3?p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'):rd;})(d.ready) : '';
+  r.dealer = d.dealer||'';
+  r.phone = d.phone||'';
+  r.city = d.city||'';
+  r.state = d.state||'';
+  r.zip = d.zip||'';
+  r.addinfo = d.addinfo||'';
+  nsRenderRows();
+}
+
+function nsVendorInput(idx, val) {
+  nsPORows[idx].vendor = val;
+  var list = document.getElementById('ac-ns-v-'+idx); if(!list) return;
+  if(!val){list.style.display='none';nsRenderRows();return;}
+  var m = locations.filter(function(l){return (l.type==='Shipper'||l.type==='Both')&&(l.name||'').toLowerCase().includes(val.toLowerCase());}).slice(0,6);
+  if(!m.length){list.style.display='none';nsRenderRows();return;}
+  list.innerHTML = m.map(function(l){return '<div class="aci" onclick="nsPickVendor2('+idx+',\''+esc(l.name||'')+'\')">'+esc(l.name||'')+(l.city?' <span class="acs">'+esc(l.city)+'</span>':'')+'</div>';}).join('');
+  list.style.display = 'block';
+  nsRenderRows();
+}
+function nsPickVendor2(idx, name) {
+  nsPORows[idx].vendor = name;
+  var list = document.getElementById('ac-ns-v-'+idx); if(list) list.style.display='none';
+  nsRenderRows();
+}
+
+function nsDealerInput(idx, val) {
+  nsPORows[idx].dealer = val;
+  var list = document.getElementById('ac-ns-d-'+idx); if(!list) return;
+  if(!val){list.style.display='none';nsRenderRows();return;}
+  var m = locations.filter(function(l){return (l.type==='Receiver'||l.type==='Both')&&(l.name||'').toLowerCase().includes(val.toLowerCase());}).slice(0,6);
+  if(!m.length){list.style.display='none';nsRenderRows();return;}
+  list.innerHTML = m.map(function(l){
+    var cs = (l.city||'').split(',');
+    return '<div class="aci" onclick="nsPickDealer2('+idx+',\''+esc(l.name||'')+'\',\''+esc(l.phone||'')+'\',\''+esc((cs[0]||'').trim())+'\',\''+esc((cs[1]||'').trim())+'\',\''+esc(l.zip||'')+'\')">'+esc(l.name||'')+(l.city?' <span class="acs">'+esc(l.city)+'</span>':'')+'</div>';
+  }).join('');
+  list.style.display = 'block';
+  nsRenderRows();
+}
+function nsPickDealer2(idx, name, phone, city, state, zip) {
+  var r = nsPORows[idx]; if(!r) return;
+  r.dealer=name; r.phone=phone; r.city=city; r.state=state; r.zip=zip;
+  var list = document.getElementById('ac-ns-d-'+idx); if(list) list.style.display='none';
+  nsRenderRows();
 }
 
 function saveNewStaging() {
-  var f=function(id){return (document.getElementById(id)||{}).value||'';};
-  var pos = getNsPOs();
-  if(!pos.length){alert('At least one SO / PO # is required.');return;}
-  // Check duplicates
-  var dupes = pos.filter(function(so){
-    return tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').toLowerCase()===so.toLowerCase();});});
+  var valid = nsPORows.filter(function(r){return r.po && r.po.trim();});
+  if(!valid.length){alert('At least one PO # is required.');return;}
+  // Duplicate check
+  var dupes = valid.filter(function(r){
+    return tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').toLowerCase()===(r.po||'').toLowerCase();});});
   });
-  if(dupes.length){alert('SO # "'+dupes[0]+'" already exists in staging.');return;}
-  var ready=f('ns-ready');
-  var readyDisp=ready?(function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})():'';
-  var tlNum='TL-'+String(1000+nTL);
-  var poList = pos.map(function(so){
-    return {po:so,vendor:f('ns-vendor'),pieces:parseFloat(f('ns-pieces'))||0,seats:parseFloat(f('ns-seats'))||0,
-      ready:readyDisp,dealer:f('ns-dealer'),phone:f('ns-phone'),addr:'',city:f('ns-city'),state:f('ns-state'),zip:f('ns-zip')};
+  if(dupes.length){alert('PO # "'+dupes[0].po+'" already exists in Temp Loads.');return;}
+  var tlNum = 'TL-'+String(1000+nTL);
+  var poList = valid.map(function(r){
+    var readyDisp = r.ready ? (function(){var p=r.ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
+    return {po:r.po.trim(), vendor:r.vendor||'', pieces:parseFloat(r.pcs)||0, seats:parseFloat(r.seats)||0,
+      ready:readyDisp, dealer:r.dealer||'', phone:r.phone||'', addr:'', city:r.city||'', state:r.state||'', zip:r.zip||'', addinfo:r.addinfo||''};
   });
-  var tl={id:nTL++,tlNum:tlNum,notes:f('ns-notes'),createdAt:nowStr(),createdBy:cap(currentUser),pos:poList,quotes:[]};
+  var tl = {id:nTL++, tlNum:tlNum, notes:'', createdAt:nowStr(), createdBy:cap(currentUser), pos:poList, quotes:[]};
   tempLoads.push(tl);
-  saveRecord('temp_loads',tl);
+  saveRecord('temp_loads', tl);
   closeM('m-new-staging');
-  goPage('staging',document.getElementById('ntab-staging'));
+  goPage('staging', document.getElementById('ntab-staging'));
   renderStaging();
 }
-
 
 function openMailto(subject, body) {
   var a = document.createElement('a');
@@ -5672,29 +5863,25 @@ function renderDealer(){
     r=av.toString().localeCompare(bv.toString());
     return dealerSort.asc?r:-r;
   });
-  ['po','vendor','pieces','seats','ready','dealer','city','state'].forEach(function(c){
+  ['po','addinfo','vendor','pieces','seats','ready','dealer','city','state'].forEach(function(c){
     var el=document.getElementById('dth-'+c);
     if(!el)return;
-    var base={'po':'PO #','vendor':'Vendor','pieces':'Pieces','seats':'Seats','ready':'Ready Date','dealer':'Dealer Name','city':'City','state':'State'}[c];
+    var base={'po':'PO #','addinfo':'Notes','vendor':'Vendor','pieces':'Pieces','seats':'Seats','ready':'Ready Date','dealer':'Dealer Name','city':'City','state':'State'}[c];
     el.innerHTML=base+(dealerSort.col===c?' <span style="color:var(--green);font-size:10px">'+(dealerSort.asc?'▲':'▼')+'</span>':'');
   });
   document.getElementById('dealer-body').innerHTML=rows.length?rows.map(function(d){
-        var hasExtra = d.addinfo && d.addinfo.trim();
     return '<tr class="'+(d.sel?'psel':'')+'">'
       +'<td><input type="checkbox"'+(d.sel?' checked':'')+' onchange="toggleDealer('+d.id+',this.checked)"></td>'
-      +'<td style="font-weight:700">'+esc(d.po||'')
-        +(hasExtra?'<span style="margin-left:5px;font-size:9px;background:var(--navy);color:#fff;border-radius:3px;padding:1px 4px">info</span>':'')
-        +'</td>'
+      +'<td style="font-weight:700">'+esc(d.po||'')+'</td>'
+      +'<td style="font-size:11px;color:var(--tx2)">'+esc(d.addinfo||'')+'</td>'
       +'<td>'+esc(d.vendor||'')+'</td><td>'+esc(d.pieces||'')+'</td><td>'+esc(d.seats||'')+'</td>'
       +'<td>'+esc(fmtDate(d.ready||''))+'</td><td>'+esc(d.dealer||'')+'</td><td>'+esc(d.phone||'')+'</td>'
       +'<td>'+esc(d.addr||'')+'</td><td>'+esc(d.city||'')+'</td><td>'+esc(d.state||'')+'</td>'
       +'<td><button class="btn xs" onclick="openDealerModal('+d.id+')">Edit</button></td>'
-      +'</tr>'
-      +(hasExtra?'<tr style="background:#fefce8"><td colspan="12" style="padding:5px 14px 8px 36px;font-size:11px;color:var(--tx2)">'
-        +'<span style="font-weight:600;color:var(--navy)">Additional Info:</span> '+esc(d.addinfo)
-        +'</td></tr>':'');
-  }).join(''):'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--tx3)">No dealer orders. Import a CSV or add manually.</td></tr>';
+      +'</tr>';
+  }).join(''):'<tr><td colspan="13" style="text-align:center;padding:28px;color:var(--tx3)">No dealer orders. Import a CSV or add manually.</td></tr>';
   updateDKPIs();
+  setTimeout(function(){initResizableCols('dealer-table');},30);
 }
 function sortDealer(col){dealerSort.asc=dealerSort.col===col?!dealerSort.asc:true;dealerSort.col=col;renderDealer();}
 function toggleDealer(id,v){var x=dealers.find(function(d){return d.id===id;});if(x){x.sel=v;renderDealer();}}
@@ -5711,16 +5898,6 @@ function addDealerPORow() {
   var row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:5px;align-items:center';
   row.innerHTML = '<input class="df-po-input" placeholder="PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">'
-    + '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:16px;padding:0 4px;line-height:1">×</button>';
-  list.appendChild(row);
-  row.querySelector('input').focus();
-}
-
-function addNsPORow() {
-  var list = document.getElementById('ns-po-list'); if(!list) return;
-  var row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:5px;align-items:center';
-  row.innerHTML = '<input class="ns-po-input" placeholder="SO / PO #" style="flex:1;height:32px;font-size:13px;padding:0 10px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);outline:none">'
     + '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:16px;padding:0 4px;line-height:1">×</button>';
   list.appendChild(row);
   row.querySelector('input').focus();
@@ -7411,12 +7588,19 @@ function renderAccounting() {
     var confirmedMargin = rc ? (rc.confirmedCustR - rc.confirmedCr) : null;
     var hasCrDisc = rc && rc.crDiscrepancy;
     var hasCustDisc = rc && rc.customerDiscrepancy;
+    var hasDisc = hasCrDisc || hasCustDisc;
 
     // Status badge
     var statusBadge = rc
-      ? (hasCrDisc||hasCustDisc
-          ? '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">⚠ Discrepancy</span>'
-          : '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#dcfce7;color:#14532d">✓ Confirmed</span>')
+      ? (hasDisc
+          ? '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#fee2e2;color:#991b1b">&#9888; Discrepancy</span>'
+            +'<button onclick="verifyRates('+l.id+')" style="margin-left:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;cursor:pointer">Sign Off</button>'
+          : (l.ratesVerified
+              ? '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#1B2A4A;color:#2ECC40">&#10003; Ready to Bill</span>'
+              : '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#dcfce7;color:#14532d">&#10003; Confirmed</span>'
+                +'<button onclick="verifyRates('+l.id+')" style="margin-left:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#1B2A4A;color:#2ECC40;border:none;cursor:pointer">Mark Ready</button>'
+            )
+        )
       : '<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#fef3c7;color:#92400e">Pending</span>';
 
     // Carrier confirmed cell
