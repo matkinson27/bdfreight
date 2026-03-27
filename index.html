@@ -10134,10 +10134,7 @@ var LP_STATE_CENTERS = {
 };
 
 function lpInit() {
-  if(!LP._inited) {
-    LP._inited = true;
-    lpBuildMap();
-  }
+  lpBuildMap();
   lpPopulateFilters();
   lpRenderPool();
   lpRenderTLLanes();
@@ -10745,10 +10742,8 @@ async function lpFetchRouteForTL(tl) {
     +'&vehicleHeight='+LP_TRUCK.height
     +'&vehicleWidth='+LP_TRUCK.width
     +'&vehicleLength='+LP_TRUCK.length
-    +'&vehicleLoadType=otherHazmatHarmful'  // conservative — avoids known restricted routes
     +'&routeType=shortest'
-    +'&traffic=false'  // consistent mileage regardless of time of day
-    +'&instructionsType=none'
+    +'&traffic=false'
     +'&routeRepresentation=polyline';
 
   try {
