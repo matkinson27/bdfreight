@@ -1916,6 +1916,11 @@ var locations = [];
 var rates = [];
 var tempLoads = [];
 var nDealer = 1, nCarrier = 1, nLoc = 1, nRate = 1, nTL = 1;
+// ID generators — use timestamp+random so local id matches what Supabase stores,
+// preventing realtime INSERT from pushing a duplicate entry
+function newDealerId() { return Date.now() * 1000 + Math.floor(Math.random()*1000); }
+function newLocId()    { return Date.now() * 1000 + Math.floor(Math.random()*1000) + 1; }
+function newRateId()   { return Date.now() * 1000 + Math.floor(Math.random()*1000) + 2; }
 
 // ============================
 // ============================================================
@@ -2962,7 +2967,7 @@ function updateBKPIs() {
   }).length;
   document.getElementById('kpi-board').innerHTML = kpiH('Active',act)+kpiH('Overdue',ovd,ovd>0?'r':'')+kpiH('Issues',iss,iss>0?'r':'')+kpiH('Delivered',del)+kpiH('Archived',arc);
   
-  var ti=document.getElementById('tb-issue');ti.style.display=iss>0?'':'none';ti.textContent=iss+' Issue'+(iss!==1?'s':'');
+  var ti=document.getElementById('tb-issue');if(ti){ti.style.display=iss>0?'':'none';ti.textContent=iss+' Issue'+(iss!==1?'s':'');}
   var lateCount=loads.filter(function(l){return l.callins&&l.callins.some(function(c){return c.type==='late';});}).length;
   var lateCnt=document.getElementById('late-cnt');
   if(lateCnt){lateCnt.textContent=lateCount;lateCnt.style.display=lateCount>0?'':'none';}
@@ -3227,7 +3232,7 @@ function delSelLoads(){
     l.stops.filter(function(s){return s.type==='pickup';}).forEach(function(s){
       (s.pos||[]).forEach(function(p){
         if(p.po){
-          dealers.push({id:nDealer++,po:p.po,vendor:l.vendor||'',pieces:p.pieces||0,seats:p.seats||0,
+          dealers.push({id:newDealerId(),po:p.po,vendor:l.vendor||'',pieces:p.pieces||0,seats:p.seats||0,
             ready:'',dealer:p.dealer||'',phone:'',addr:'',city:'',state:'',zip:'',sel:false});
         }
       });
@@ -4684,7 +4689,12 @@ function addPORow(si,po){
   var shipFromCell = '';
   if(isDel) {
     var puStops = stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
-    if(!p.shipFrom && puStops.length===1) { p.shipFrom = String(puStops[0].idx); syncPOToStop(si,p,String(puStops[0].idx),'pu'); }
+    if(!p.shipFrom && puStops.length===1) {
+      p.shipFrom = String(puStops[0].idx);
+      // Only mirror to PU if the PU stop doesn't already have this PO (pre-populated from TL/dealer selection)
+      var puAlreadyHas = puStops[0].s.pos && puStops[0].s.pos.some(function(x){return x.po===p.po;});
+      if(!puAlreadyHas) syncPOToStop(si,p,String(puStops[0].idx),'pu');
+    }
     var opts = puStops.map(function(ps){
       var label = ps.s.name||(ps.s.city?(ps.s.city+(ps.s.state?', '+ps.s.state:'')):'PU '+(ps.idx+1));
       return '<option value="'+ps.idx+'"'+(p.shipFrom===String(ps.idx)?' selected':'')+'>'+esc(label)+'</option>';
@@ -5222,7 +5232,7 @@ function saveLoad(){
   });
   fs.forEach(function(s){
     if(s.name&&!locations.find(function(l){return l.name.toLowerCase()===s.name.toLowerCase();}))
-      locations.push({id:nLoc++,name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[],sel:false});
+      locations.push({id:newLocId(),name:s.name,type:'Both',addr:s.addr||'',city:(s.city||'')+(s.state?', '+s.state:''),contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[],sel:false});
   });
   var isNew=!editingLoad;
   var typedNum = fv('lf-num').trim ? fv('lf-num').trim() : fv('lf-num');
@@ -5413,7 +5423,7 @@ function buildLoadFromPOs(sel) {
   });
   Object.values(dm).forEach(function(g){
     if(!locations.find(function(l){return l.name.toLowerCase()===g.dealer.toLowerCase();}))
-      locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[{name:g.dealer,phone1:'',phone2:''}],sel:false});
+      locations.push({id:newLocId(),name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[{name:g.dealer,phone1:'',phone2:''}],sel:false});
   });
   openLoadModalWithStops(puStops, dlStops, 'New Load from '+sel.length+' PO'+(sel.length!==1?'s':''), vendors[0]||'', sel);
 }
@@ -6223,7 +6233,7 @@ function sendRFQEmail(tlId) {
 function removePOFromTL(tlId,po){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
   var p=tl.pos.find(function(x){return x.po===po;});if(!p)return;
-  dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
+  dealers.push({id:newDealerId(),po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
   tl.pos=tl.pos.filter(function(x){return x.po!==po;});
   if(!tl.pos.length)tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
   saveState(); // bulk: tempLoads + dealers changed
@@ -6233,7 +6243,7 @@ function dissolveTL(tlId){
   var tl=tempLoads.find(function(t){return t.id===tlId;});if(!tl)return;
   if(!confirm('Dissolve '+tl.tlNum+'? All POs return to Active pool.'))return;
   tl.pos.forEach(function(p){
-    dealers.push({id:nDealer++,po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
+    dealers.push({id:newDealerId(),po:p.po,vendor:p.vendor,pieces:p.pieces,seats:p.seats,ready:p.ready,dealer:p.dealer,phone:p.phone||'',addr:p.addr||'',city:p.city,state:p.state,zip:p.zip||'',sel:false});
   });
   tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
   saveState(); // bulk: tempLoads + multiple dealers changed
@@ -6261,7 +6271,7 @@ function convertTL(tlId){
   });
   Object.values(dm).forEach(function(g){
     if(!locations.find(function(l){return l.name.toLowerCase()===g.dealer.toLowerCase();}))
-      locations.push({id:nLoc++,name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[{name:g.dealer,phone1:'',phone2:''}],sel:false});
+      locations.push({id:newLocId(),name:g.dealer,type:'Receiver',addr:g.addr,city:g.city+', '+g.state,contact:'',phone:'',hours:'',dock:'',notes:'',contacts:[{name:g.dealer,phone1:'',phone2:''}],sel:false});
   });
   openLoadModalWithStops(puStops, dlStops, 'Convert '+tl.tlNum+' to Load', vendors[0]||'');
   pendingConvertTL=tlId;
@@ -6445,18 +6455,18 @@ function saveDealer(){
     var ex=dealers.find(function(x){return x.id===editingDealerId;});
     if(ex) { Object.assign(ex,base); ex.po=pos[0]; saveRecord('dealers',ex); }
     pos.slice(1).forEach(function(po){
-      var nd=Object.assign({},base,{po:po,id:nDealer++});
+      var nd=Object.assign({},base,{po:po,id:newDealerId()});
       dealers.push(nd); saveRecord('dealers',nd);
     });
   } else {
     pos.forEach(function(po){
-      var nd=Object.assign({},base,{po:po,id:nDealer++});
+      var nd=Object.assign({},base,{po:po,id:newDealerId()});
       dealers.push(nd); saveRecord('dealers',nd);
     });
   }
   var dealerName=f('df-dealer');
   if(dealerName&&!locations.find(function(l){return l.name.toLowerCase()===dealerName.toLowerCase();})) {
-    var newLoc={id:nLoc++,name:dealerName,type:'Receiver',addr:(f('df-addr')||'')+', '+(f('df-city')||'')+', '+(f('df-state')||''),city:(f('df-city')||'')+', '+(f('df-state')||''),contact:'',phone:f('df-phone')||'',hours:'',dock:'',notes:'',contacts:[{name:dealerName,phone1:f('df-phone')||'',phone2:''}],sel:false};
+    var newLoc={id:newLocId(),name:dealerName,type:'Receiver',addr:(f('df-addr')||'')+', '+(f('df-city')||'')+', '+(f('df-state')||''),city:(f('df-city')||'')+', '+(f('df-state')||''),contact:'',phone:f('df-phone')||'',hours:'',dock:'',notes:'',contacts:[{name:dealerName,phone1:f('df-phone')||'',phone2:''}],sel:false};
     locations.push(newLoc); saveRecord('locations',newLoc);
   }
   closeM('m-dealer');renderDealer();
@@ -6566,9 +6576,9 @@ function importDealerCSV(input){
         var inTL=d.po?tempLoads.some(function(tl){return tl.pos.some(function(p){return p.po===d.po;});}):false;
         if(ei>=0){Object.assign(dealers[ei],d);updated++;}
         else if(inTL){tempLoads.forEach(function(tl){tl.pos.forEach(function(p){if(p.po===d.po)Object.assign(p,d);});});updated++;}
-        else{d.id=nDealer++;d.sel=false;if(!d.zip)d.zip='';dealers.push(d);added++;}
+        else{d.id=newDealerId();d.sel=false;if(!d.zip)d.zip='';dealers.push(d);added++;}
         if(d.dealer&&!locations.find(function(l){return l.name.toLowerCase()===(d.dealer||'').toLowerCase();}))
-          locations.push({id:nLoc++,name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
+          locations.push({id:newLocId(),name:d.dealer,type:'Receiver',addr:(d.addr||'')+', '+(d.city||'')+', '+(d.state||''),city:(d.city||'')+', '+(d.state||''),contact:'',phone:d.phone||'',hours:'',dock:'',notes:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false});
       });
       // Auto-match blank dealer names to Location DB by city+state
       var matched = 0;
@@ -6863,7 +6873,8 @@ function updateSCKPIs(){
     };
   });
 
-  document.getElementById('kpi-sc').innerHTML =
+  var kpiSc = document.getElementById('kpi-sc'); if(!kpiSc) return;
+  kpiSc.innerHTML =
     block1 +
     (top3m.length ? podiumKPI('Top 3 by Margin', top3m) : kpiH('Top 3 by Margin', '-')) +
     (top3g.length ? podiumKPI('Top 3 by Grade',  top3g) : kpiH('Top 3 by Grade',  '-')) +
@@ -7975,7 +7986,7 @@ function saveLoc(){
       ex.contacts=contacts; ex.isMain=newIsMain; ex.locCode=newLocCode;
     }
   } else {
-    locations.push({id:nLoc++,name:f('locf-name'),type:f('locf-type'),addr:f('locf-addr'),
+    locations.push({id:newLocId(),name:f('locf-name'),type:f('locf-type'),addr:f('locf-addr'),
       city:cityState,zip:f('locf-zip'),phone:legacyPhone,email:f('locf-email'),
       dealerNum:f('locf-dealer'),coach:f('locf-coach'),hours:f('locf-hours'),
       dock:f('locf-dock'),notes:f('locf-notes'),contacts:contacts,isMain:newIsMain,locCode:newLocCode,sel:false});
@@ -8059,7 +8070,7 @@ function importLocTSV(input) {
           if(existing.contacts.length===0) existing.contacts=[ct]; else existing.contacts[0]=ct;
           updated++;
         } else {
-          locations.push({id:nLoc++,name:name,type:locType,addr:addr,city:cityState,zip:zip,
+          locations.push({id:newLocId(),name:name,type:locType,addr:addr,city:cityState,zip:zip,
             phone:phone,email:email,dealerNum:dealerNum,coach:coach,hours:hours,dock:dock,notes:notes,
             contacts:[ct],sel:false});
           added++;
@@ -8706,7 +8717,7 @@ function saveRate(){
   var f=function(id){return document.getElementById(id).value;};
   var m=parseFloat(f('rf-miles'))||0,fl=parseFloat(f('rf-flat'))||0;
   var rpm=parseFloat(f('rf-rpm'))||(m>0?parseFloat((fl/m).toFixed(2)):0);
-  rates.push({id:nRate++,origin:f('rf-origin'),dest:f('rf-dest'),carrier:f('rf-carrier'),miles:m,flat:fl,rpm:rpm,fuel:parseFloat(f('rf-fuel'))||0,date:f('rf-date'),sel:false});
+  rates.push({id:newRateId(),origin:f('rf-origin'),dest:f('rf-dest'),carrier:f('rf-carrier'),miles:m,flat:fl,rpm:rpm,fuel:parseFloat(f('rf-fuel'))||0,date:f('rf-date'),sel:false});
   var rateToSave = rates[rates.length-1];
   if(rateToSave) saveRecord('rates', rateToSave);
   closeM('m-rate');renderRates();updateRatesKPIs();
@@ -10169,13 +10180,13 @@ function commitPasteOrders() {
     var ei = d.po ? dealers.findIndex(function(x){return x.po===d.po;}) : -1;
     if(ei>=0) { Object.assign(dealers[ei], d); saveRecord('dealers', dealers[ei]); updated++; }
     else {
-      d.id = nDealer++;
+      d.id = newDealerId();
       dealers.push(d);
       saveRecord('dealers', d);
       added++;
       // Auto-add to location DB if dealer name found and not already there
       if(d.dealer && !locations.find(function(l){return l.name.toLowerCase()===d.dealer.toLowerCase();})) {
-        var newLoc = {id:nLoc++,name:d.dealer,type:'Receiver',addr:d.addr||'',city:d.city+(d.state?', '+d.state:''),zip:d.zip||'',phone:d.phone||'',email:'',hours:'',dock:'',notes:'',dealerNum:'',coach:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false};
+        var newLoc = {id:newLocId(),name:d.dealer,type:'Receiver',addr:d.addr||'',city:d.city+(d.state?', '+d.state:''),zip:d.zip||'',phone:d.phone||'',email:'',hours:'',dock:'',notes:'',dealerNum:'',coach:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false};
         locations.push(newLoc);
         saveRecord('locations', newLoc);
       }
@@ -10300,104 +10311,53 @@ async function recalcAllLoadMiles() {
 // LOAD PLANNER
 // ══════════════════════════════════════════════════════════════════════════════
 
-var LP_TOMTOM_KEY = 'Vk2C0pBZIBvecul6Osbfejei9BPBSQl3';
-
 var LP = {
-  poolSel:     {},
+  poolSel: {},
   stateFilter: null,
   tlColors: ['#2563eb','#dc2626','#16a34a','#9333ea','#ea580c','#0891b2','#be185d','#ca8a04','#0f766e','#7c3aed'],
-  routeCache:  {}
+  routeCache: {},
+  mapBuilt: false
 };
 
-var LP_TRUCK = {
-  weightPerAxle: 9979,
-  totalWeight:   36287,
-  height:        408,
-  width:         259,
-  length:        2134
-};
+var LP_TOMTOM_KEY = 'Vk2C0pBZIBvecul6Osbfejei9BPBSQl3';
+var LP_TRUCK = { totalWeight:36287, weightPerAxle:9979, height:408, width:259, length:2134 };
 
-var LP_USA_PATHS = {
-  "AL":"M 550 390 L 570 390 L 573 440 L 545 440 L 547 415 Z",
-  "AK":"M 120 480 L 170 480 L 200 520 L 160 540 L 120 530 Z",
-  "AZ":"M 150 320 L 225 320 L 228 395 L 160 395 L 148 360 Z",
-  "AR":"M 490 340 L 545 338 L 547 380 L 492 380 Z",
-  "CA":"M 85 220 L 152 240 L 145 330 L 95 380 L 70 340 L 68 260 Z",
-  "CO":"M 225 270 L 340 268 L 340 330 L 225 330 Z",
-  "CT":"M 685 205 L 710 205 L 710 220 L 685 222 Z",
-  "DE":"M 666 248 L 680 248 L 680 270 L 663 268 Z",
-  "FL":"M 548 440 L 610 440 L 635 475 L 610 510 L 580 500 L 552 470 Z",
-  "GA":"M 570 390 L 618 388 L 615 445 L 573 440 Z",
-  "HI":"M 230 550 L 310 550 L 310 570 L 230 570 Z",
-  "ID":"M 155 145 L 220 143 L 225 235 L 185 250 L 158 215 Z",
-  "IL":"M 510 240 L 548 238 L 550 315 L 512 318 Z",
-  "IN":"M 548 240 L 580 238 L 582 305 L 549 308 Z",
-  "IA":"M 440 215 L 510 213 L 512 260 L 442 262 Z",
-  "KS":"M 340 295 L 458 293 L 458 340 L 340 340 Z",
-  "KY":"M 548 305 L 620 300 L 623 335 L 550 340 Z",
-  "LA":"M 468 400 L 545 398 L 546 436 L 500 445 L 468 435 Z",
-  "ME":"M 720 135 L 760 130 L 762 185 L 720 188 Z",
-  "MD":"M 630 258 L 672 255 L 674 280 L 630 282 Z",
-  "MA":"M 695 190 L 748 188 L 750 210 L 695 212 Z",
-  "MI":"M 548 175 L 610 170 L 615 215 L 549 218 Z",
-  "MN":"M 418 140 L 508 135 L 510 215 L 440 215 Z",
-  "MS":"M 500 375 L 548 373 L 549 440 L 503 442 Z",
-  "MO":"M 458 290 L 552 285 L 553 345 L 460 348 Z",
-  "MT":"M 160 115 L 370 110 L 370 178 L 162 183 Z",
-  "NE":"M 338 245 L 455 242 L 457 295 L 340 295 Z",
-  "NV":"M 95 215 L 163 210 L 162 320 L 95 345 Z",
-  "NH":"M 700 163 L 720 160 L 722 205 L 700 207 Z",
-  "NJ":"M 660 228 L 685 225 L 686 260 L 660 262 Z",
-  "NM":"M 220 328 L 320 325 L 320 400 L 220 402 Z",
-  "NY":"M 620 170 L 700 165 L 703 235 L 621 238 Z",
-  "NC":"M 600 308 L 688 302 L 690 342 L 600 346 Z",
-  "ND":"M 338 130 L 418 125 L 420 178 L 340 180 Z",
-  "OH":"M 578 238 L 625 235 L 628 300 L 579 303 Z",
-  "OK":"M 320 340 L 460 335 L 462 390 L 322 392 Z",
-  "OR":"M 85 145 L 190 140 L 188 210 L 87 215 Z",
-  "PA":"M 618 210 L 672 207 L 674 255 L 619 258 Z",
-  "RI":"M 712 205 L 728 205 L 728 220 L 712 222 Z",
-  "SC":"M 600 340 L 647 336 L 650 380 L 600 383 Z",
-  "SD":"M 338 180 L 420 176 L 422 245 L 340 245 Z",
-  "TN":"M 520 335 L 618 330 L 620 368 L 522 370 Z",
-  "TX":"M 275 345 L 462 340 L 465 460 L 380 500 L 275 495 Z",
-  "UT":"M 163 245 L 230 242 L 232 325 L 165 328 Z",
-  "VT":"M 688 160 L 703 158 L 705 205 L 688 207 Z",
-  "VA":"M 600 270 L 680 263 L 682 308 L 601 313 Z",
-  "WA":"M 85 100 L 198 96 L 200 148 L 87 153 Z",
-  "WV":"M 598 265 L 640 260 L 642 300 L 600 303 Z",
-  "WI":"M 468 158 L 528 153 L 530 228 L 470 230 Z",
-  "WY":"M 220 180 L 338 176 L 340 245 L 222 247 Z",
-  "DC":"M 652 268 L 660 268 L 660 276 L 652 276 Z"
-};
-
+// Real lat/lng state centers for geocode fallback
 var LP_STATE_CENTERS = {
-  "AL":[556,415],"AK":[155,510],"AZ":[185,357],"AR":[518,359],"CA":[112,295],
-  "CO":[282,299],"CT":[697,213],"DE":[671,259],"FL":[585,475],"GA":[592,416],
-  "HI":[270,560],"ID":[190,193],"IL":[529,278],"IN":[563,272],"IA":[476,237],
-  "KS":[399,316],"KY":[585,317],"LA":[507,417],"ME":[740,158],"MD":[651,269],
-  "MA":[721,200],"MI":[580,192],"MN":[463,175],"MS":[524,407],"MO":[505,316],
-  "MT":[265,146],"NE":[396,268],"NV":[128,277],"NH":[710,183],"NJ":[672,243],
-  "NM":[270,362],"NY":[661,200],"NC":[644,324],"ND":[378,152],"OH":[601,268],
-  "OK":[390,362],"OR":[137,177],"PA":[645,232],"RI":[720,213],"SC":[623,359],
-  "SD":[379,210],"TN":[569,352],"TX":[368,420],"UT":[196,283],"VT":[696,183],
-  "VA":[640,287],"WA":[142,124],"WV":[619,281],"WI":[499,190],"WY":[280,212],
-  "DC":[656,272]
+  "AL":[-86.79,32.79],"AK":[-152.40,61.37],"AZ":[-111.09,34.05],"AR":[-92.44,34.90],
+  "CA":[-119.68,36.78],"CO":[-105.55,39.06],"CT":[-72.73,41.60],"DE":[-75.50,38.99],
+  "FL":[-81.52,27.77],"GA":[-83.44,32.17],"HI":[-157.50,20.27],"ID":[-114.74,44.24],
+  "IL":[-89.20,40.35],"IN":[-86.13,40.27],"IA":[-93.21,42.01],"KS":[-98.48,38.53],
+  "KY":[-84.67,37.67],"LA":[-91.87,31.17],"ME":[-69.38,44.69],"MD":[-76.80,39.06],
+  "MA":[-71.53,42.23],"MI":[-85.44,44.31],"MN":[-93.90,46.39],"MS":[-89.68,32.74],
+  "MO":[-92.29,38.46],"MT":[-110.45,47.05],"NE":[-99.90,41.49],"NV":[-116.42,38.31],
+  "NH":[-71.57,43.19],"NJ":[-74.52,40.06],"NM":[-106.11,34.31],"NY":[-74.95,42.17],
+  "NC":[-79.81,35.63],"ND":[-100.47,47.53],"OH":[-82.91,40.42],"OK":[-97.09,35.56],
+  "OR":[-120.55,44.57],"PA":[-77.21,40.59],"RI":[-71.47,41.68],"SC":[-80.95,33.90],
+  "SD":[-100.23,44.44],"TN":[-86.69,35.86],"TX":[-99.33,31.47],"UT":[-111.09,39.32],
+  "VT":[-72.71,44.05],"VA":[-78.66,37.43],"WA":[-120.74,47.75],"WV":[-80.95,38.49],
+  "WI":[-89.62,44.27],"WY":[-107.55,43.08],"DC":[-77.04,38.91]
 };
+
+var _lpGeoCache = {};
+var _lpMap = null, _lpDotLayer = null, _lpRouteLayers = {};
+
+function lpTLColor(idx){ return LP.tlColors[idx % LP.tlColors.length]; }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 function lpInit() {
-  lpBuildMap();
-  lpPopulateFilters();
-  lpRenderPool();
-  lpRenderTLLanes();
-  lpColorStates();
-  lpRenderDots();
-  lpRenderLegend();
-  setTimeout(lpFetchAllRoutes, 400);
+  try {
+    lpPopulateFilters();
+    lpRenderPool();
+    lpRenderTLLanes();
+    lpBuildMap();
+  } catch(e) {
+    console.error('lpInit error:', e);
+    var el = document.getElementById('lp-pool-list');
+    if(el) el.innerHTML = '<div style="color:red;padding:10px;font-size:11px">Error: '+e.message+'</div>';
+  }
 }
 
-// ── Data helpers ─────────────────────────────────────────────────────────────
 function lpGetUnassignedDealers() {
   var used = {};
   tempLoads.forEach(function(tl){ tl.pos.forEach(function(p){ used[p.po]=1; }); });
@@ -10408,205 +10368,118 @@ function lpGetUnassignedDealers() {
   return dealers.filter(function(d){ return d.po && !used[d.po]; });
 }
 
-function lpTLColor(idx) { return LP.tlColors[idx % LP.tlColors.length]; }
-
-function lpStateColor(state) {
-  var keys = Object.keys(LP_STATE_CENTERS).sort();
-  var palette = ['#3b82f6','#ef4444','#22c55e','#a855f7','#f97316','#06b6d4','#ec4899','#eab308','#14b8a6','#8b5cf6'];
-  return palette[keys.indexOf(state) % palette.length];
-}
-
-// ── Filters ──────────────────────────────────────────────────────────────────
 function lpPopulateFilters() {
   var u = lpGetUnassignedDealers();
-  var states  = [...new Set(u.map(function(d){return d.state||'';}).filter(Boolean))].sort();
+  var states = [...new Set(u.map(function(d){return d.state||'';}).filter(Boolean))].sort();
   var vendors = [...new Set(u.map(function(d){return d.vendor||'';}).filter(Boolean))].sort();
   var ss = document.getElementById('lp-state-filter');
   var vs = document.getElementById('lp-vendor-filter');
   if(!ss||!vs) return;
-  var cs=ss.value, cv=vs.value;
-  ss.innerHTML = '<option value="">All States</option>'+states.map(function(s){return '<option value="'+s+'"'+(s===cs?' selected':'')+'>'+s+'</option>';}).join('');
-  vs.innerHTML = '<option value="">All Vendors</option>'+vendors.map(function(v){return '<option value="'+esc(v)+'"'+(v===cv?' selected':'')+'>'+esc(v)+'</option>';}).join('');
+  var cs = ss.value, cv = vs.value;
+  ss.innerHTML = '<option value="">All States</option>' + states.map(function(s){return '<option'+(s===cs?' selected':'')+'>'+s+'</option>';}).join('');
+  vs.innerHTML = '<option value="">All Vendors</option>' + vendors.map(function(v){return '<option'+(v===cv?' selected':'')+'>'+esc(v)+'</option>';}).join('');
 }
 
-// ── Pool panel ───────────────────────────────────────────────────────────────
 function lpRenderPool() {
-  var el = document.getElementById('lp-pool-list');
+  var container = document.getElementById('lp-pool-list');
   var footer = document.getElementById('lp-pool-footer');
-  if(!el) return;
-  var q   = (document.getElementById('lp-pool-search')||{}).value||'';
-  var sf  = LP.stateFilter || (document.getElementById('lp-state-filter')||{}).value||'';
-  var vf  = (document.getElementById('lp-vendor-filter')||{}).value||'';
-  var all = lpGetUnassignedDealers();
-  var filt = all.filter(function(d){
-    if(sf && d.state!==sf) return false;
-    if(vf && d.vendor!==vf) return false;
-    if(q){ var h=((d.po||'')+' '+(d.dealer||'')+' '+(d.state||'')+' '+(d.vendor||'')+' '+(d.city||'')).toLowerCase(); if(!h.includes(q.toLowerCase())) return false; }
+  if(!container) return;
+  var q = (document.getElementById('lp-pool-search')||{}).value||'';
+  var sf = LP.stateFilter || (document.getElementById('lp-state-filter')||{}).value||'';
+  var vf = (document.getElementById('lp-vendor-filter')||{}).value||'';
+  var u = lpGetUnassignedDealers().filter(function(d){
+    if(sf && d.state !== sf) return false;
+    if(vf && d.vendor !== vf) return false;
+    if(q) { var h=((d.po||'')+' '+(d.dealer||'')+' '+(d.state||'')+' '+(d.vendor||'')+' '+(d.city||'')).toLowerCase(); if(!h.includes(q.toLowerCase())) return false; }
     return true;
   });
   var byState={};
-  filt.forEach(function(d){ var s=d.state||'?'; if(!byState[s])byState[s]=[]; byState[s].push(d); });
-
+  u.forEach(function(d){var s=d.state||'?';if(!byState[s])byState[s]=[];byState[s].push(d);});
   var selCount = Object.keys(LP.poolSel).length;
-  ['lp-add-btn','lp-new-btn','lp-clr-btn'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.display=selCount?'':'none'; });
-  var sc=document.getElementById('lp-sel-count'); if(sc) sc.textContent=selCount?selCount+' PO'+(selCount!==1?'s':'')+' selected':'';
-
-  if(!filt.length){ el.innerHTML='<div style="padding:20px 8px;text-align:center;font-size:12px;color:var(--tx3)">No unassigned orders'+(sf?' in '+sf:'')+'</div>'; }
-  else {
-    var html='';
-    Object.keys(byState).sort().forEach(function(state){
-      html+='<div style="margin-bottom:4px">'
-        +'<div style="font-size:10px;font-weight:700;color:var(--tx3);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.06em">'
-          +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+lpStateColor(state)+';margin-right:4px"></span>'
-          +state+' ('+byState[state].length+')</div>';
-      byState[state].forEach(function(d){
-        var sel=!!LP.poolSel[d.po];
-        html+='<div draggable="true" ondragstart="lpDragStart(event,\''+esc(d.po)+'\')" onclick="lpTogglePoolSel(\''+esc(d.po)+'\')" '
-          +'style="background:'+(sel?'#dbeafe':'#fff')+';border:1px solid '+(sel?'#93c5fd':'var(--bd)')+';border-radius:5px;padding:6px 8px;margin-bottom:3px;cursor:pointer;font-size:11px;user-select:none">'
-          +'<div style="display:flex;justify-content:space-between;align-items:center">'
-            +'<span style="font-weight:700;color:var(--navy)">'+esc(d.po||'—')+'</span>'
-            +'<span style="font-size:10px;background:'+lpStateColor(state)+';color:#fff;border-radius:3px;padding:1px 5px">'+state+'</span>'
-          +'</div>'
-          +'<div style="color:var(--tx2);margin-top:1px">'+esc(d.dealer||d.city||'')+'</div>'
-          +'<div style="color:var(--tx3);font-size:10px">'+esc(d.vendor||'')+(d.pieces?' · '+d.pieces+' pc':'')+(d.ready?' · Rdy '+d.ready:'')+'</div>'
-        +'</div>';
-      });
-      html+='</div>';
+  ['lp-add-btn','lp-new-btn','lp-clr-btn'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display=selCount?'':'none';});
+  var cntEl = document.getElementById('lp-sel-count');
+  if(cntEl) cntEl.textContent = selCount ? selCount+' selected' : '';
+  if(!u.length){container.innerHTML='<div style="padding:18px 8px;text-align:center;font-size:12px;color:var(--tx3)">No unassigned orders'+(sf?' in '+sf:'')+'</div>';if(footer)footer.textContent='';return;}
+  var html='';
+  Object.keys(byState).sort().forEach(function(state){
+    var ds=byState[state];
+    html+='<div style="margin-bottom:3px"><div style="font-size:10px;font-weight:700;color:var(--tx3);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.06em">'+state+' ('+ds.length+')</div>';
+    ds.forEach(function(d){
+      var sel=!!LP.poolSel[d.po];
+      html+='<div draggable="true" ondragstart="lpDragStart(event,\''+esc(d.po)+'\')" onclick="lpTogglePoolSel(\''+esc(d.po)+'\')" '
+        +'style="background:'+(sel?'#dbeafe':'#fff')+';border:1px solid '+(sel?'#93c5fd':'var(--bd)')+';border-radius:5px;padding:5px 8px;margin-bottom:2px;cursor:pointer;font-size:11px;user-select:none">'
+        +'<div style="display:flex;justify-content:space-between"><span style="font-weight:700;color:var(--navy)">'+esc(d.po||'—')+'</span><span style="font-size:10px;color:var(--tx3)">'+esc(d.state||'')+'</span></div>'
+        +'<div style="color:var(--tx2)">'+esc(d.dealer||d.city||'')+'</div>'
+        +'<div style="color:var(--tx3);font-size:10px">'+esc(d.vendor||'')+(d.pieces?' · '+d.pieces+' pc':'')+'</div>'
+      +'</div>';
     });
-    el.innerHTML=html;
-  }
-  if(footer) footer.textContent=filt.length+' unassigned of '+all.length+' total';
+    html+='</div>';
+  });
+  container.innerHTML=html;
+  if(footer) footer.textContent=u.length+' unassigned of '+lpGetUnassignedDealers().length+' total';
 }
 
-function lpTogglePoolSel(po){ if(LP.poolSel[po]) delete LP.poolSel[po]; else LP.poolSel[po]=true; lpRenderPool(); }
+function lpTogglePoolSel(po){
+  if(LP.poolSel[po]) delete LP.poolSel[po]; else LP.poolSel[po]=true;
+  lpRenderPool();
+}
 function lpClearPoolSel(){ LP.poolSel={}; lpRenderPool(); }
 
-// ── Pool → TL assignment ─────────────────────────────────────────────────────
-function lpAddSelectedToTL(){
-  if(!tempLoads.length){ lpCreateTLFromSelected(); return; }
-  var sel=Object.keys(LP.poolSel);
-  var html='<div style="padding:14px 16px"><div style="font-weight:700;font-size:13px;color:var(--navy);margin-bottom:10px">Add '+sel.length+' PO(s) to which TL?</div>';
-  tempLoads.forEach(function(tl){
-    html+='<div onclick="lpDoAddToTL(\''+tl.id+'\')" style="padding:7px 10px;border:1px solid var(--bd);border-radius:5px;margin-bottom:6px;cursor:pointer;font-size:12px;background:#fff" onmouseover="this.style.background=\'#f0f9ff\'" onmouseout="this.style.background=\'#fff\'">'
-      +'<strong>'+esc(tl.tlNum)+'</strong> — '+tl.pos.length+' POs</div>';
-  });
-  html+='<button class="btn g" style="width:100%;margin-top:4px" onclick="lpCreateTLFromSelected()">+ New TL</button></div>'
-      +'<div style="padding:0 16px 12px"><button class="btn" style="width:100%" onclick="document.getElementById(\'lp-tl-picker\').remove()">Cancel</button></div>';
-  var p=document.getElementById('lp-tl-picker');
-  if(!p){p=document.createElement('div');p.id='lp-tl-picker';p.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:200;min-width:240px';document.body.appendChild(p);}
-  p.innerHTML=html;
-}
-
-function lpDoAddToTL(tlId){
-  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
-  var u=lpGetUnassignedDealers();
-  Object.keys(LP.poolSel).forEach(function(po){
-    if(tl.pos.some(function(p){return p.po===po;})) return;
-    var d=u.find(function(x){return x.po===po;});
-    if(d) tl.pos.push({po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''});
-  });
-  saveRecord('temp_loads',tl);
-  LP.poolSel={}; LP.routeCache[tlId]=null;
-  var p=document.getElementById('lp-tl-picker'); if(p) p.remove();
-  lpRenderPool(); lpRenderTLLanes(); lpColorStates(); lpRenderDots(); lpRenderLegend();
-  setTimeout(function(){lpFetchRouteForTL(tl);},100);
-}
-
-function lpCreateTLFromSelected(){
-  var sel=Object.keys(LP.poolSel); if(!sel.length){alert('Select at least one PO first.');return;}
-  var u=lpGetUnassignedDealers();
-  var pos=sel.map(function(po){return u.find(function(d){return d.po===po;});}).filter(Boolean);
-  if(!pos.length) return;
-  var tlNum='TL-'+String(tempLoads.length+1+Date.now()%1000).padStart(5,'0');
-  var tlId='lp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  var tl={id:tlId,tlNum:tlNum,notes:'',createdAt:nowStr(),createdBy:currentUser||'',pos:pos.map(function(d){return {po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''};}),quotes:[]};
-  tempLoads.push(tl); saveRecord('temp_loads',tl);
-  LP.poolSel={}; LP.routeCache[tlId]=null;
-  var p=document.getElementById('lp-tl-picker'); if(p) p.remove();
-  lpRenderPool(); lpRenderTLLanes(); lpColorStates(); lpRenderDots(); lpRenderLegend();
-  setTimeout(function(){lpFetchRouteForTL(tl);},100);
-}
-
-function lpNewBlankTL(){
-  var tlNum='TL-'+String(tempLoads.length+1+Date.now()%1000).padStart(5,'0');
-  var tlId='lp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  var tl={id:tlId,tlNum:tlNum,notes:'',createdAt:nowStr(),createdBy:currentUser||'',pos:[],quotes:[]};
-  tempLoads.push(tl); saveRecord('temp_loads',tl);
-  lpRenderTLLanes(); lpRenderLegend();
-}
-
-// ── TL lanes panel ────────────────────────────────────────────────────────────
 function lpRenderTLLanes(){
-  var el=document.getElementById('lp-tl-lanes');
-  var footer=document.getElementById('lp-tl-footer');
-  if(!el) return;
-  if(!tempLoads.length){
-    el.innerHTML='<div style="padding:20px 8px;text-align:center;font-size:12px;color:var(--tx3)">No truck loads yet.<br>Select POs and click New TL.</div>';
-    if(footer) footer.textContent='';
-    return;
-  }
-  var totalPOs=0,totalPcs=0,html='';
+  var c=document.getElementById('lp-tl-lanes'), f=document.getElementById('lp-tl-footer');
+  if(!c) return;
+  if(!tempLoads.length){c.innerHTML='<div style="padding:20px 8px;text-align:center;font-size:12px;color:var(--tx3)">No TLs yet. Select POs and click New TL.</div>';if(f)f.textContent='';return;}
+  var html='',tp=0,tpcs=0;
   tempLoads.forEach(function(tl,idx){
     var color=lpTLColor(idx);
     var pcs=tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
-    var states=[...new Set(tl.pos.map(function(p){return p.state;}).filter(Boolean))];
     var rc=LP.routeCache[tl.id];
-    var milesTxt=rc&&rc.miles?Math.round(rc.miles).toLocaleString()+' mi':(tl.pos.length>1?'…':'');
-    totalPOs+=tl.pos.length; totalPcs+=pcs;
+    var mi=rc&&rc.miles?Math.round(rc.miles).toLocaleString()+' mi':'';
+    tp+=tl.pos.length; tpcs+=pcs;
     html+='<div ondragover="event.preventDefault()" ondrop="lpDropOnTL(event,\''+tl.id+'\')" '
       +'style="background:#fff;border:2px solid '+color+';border-radius:7px;margin-bottom:8px;overflow:hidden">'
-      +'<div style="background:'+color+';color:#fff;padding:6px 10px;display:flex;align-items:center;justify-content:space-between">'
+      +'<div style="background:'+color+';color:#fff;padding:5px 10px;display:flex;align-items:center;justify-content:space-between">'
         +'<span style="font-weight:700;font-size:12px">'+esc(tl.tlNum)+'</span>'
         +'<div style="display:flex;gap:4px;align-items:center">'
-          +(milesTxt?'<span style="font-size:10px;background:rgba(255,255,255,.25);padding:1px 6px;border-radius:3px">'+milesTxt+'</span>':'')
-          +'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:1px 6px;border-radius:3px">'+tl.pos.length+' PO'+(tl.pos.length!==1?'s':'')+' · '+pcs+' pc</span>'
-          +'<button onclick="lpDeleteTL(\''+tl.id+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:18px;height:18px;border-radius:3px;cursor:pointer;font-size:10px;padding:0">✕</button>'
+          +(mi?'<span style="font-size:10px;background:rgba(255,255,255,.25);padding:1px 5px;border-radius:3px">'+mi+'</span>':'')
+          +'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:1px 5px;border-radius:3px">'+tl.pos.length+' POs · '+pcs+' pc</span>'
+          +'<button onclick="lpDeleteTL(\''+tl.id+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:18px;height:18px;border-radius:3px;cursor:pointer;font-size:11px;padding:0">✕</button>'
         +'</div>'
       +'</div>'
-      +(states.length?'<div style="padding:3px 8px 0;display:flex;gap:3px;flex-wrap:wrap">'+states.map(function(s){return '<span style="font-size:9px;background:#f1f5f9;color:#475569;border-radius:3px;padding:1px 5px">'+s+'</span>';}).join('')+'</div>':'')
-      +'<div style="padding:5px 8px;min-height:28px">';
+      +'<div style="padding:5px 8px;min-height:24px">';
     tl.pos.forEach(function(p){
       html+='<div draggable="true" ondragstart="lpDragStartFromTL(event,\''+tl.id+'\',\''+esc(p.po)+'\')" '
-        +'style="display:flex;align-items:center;justify-content:space-between;padding:3px 5px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:2px;font-size:11px;cursor:grab">'
+        +'style="display:flex;align-items:center;justify-content:space-between;padding:2px 5px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:2px;font-size:11px;cursor:grab">'
         +'<span><strong style="color:var(--navy)">'+esc(p.po||'—')+'</strong> <span style="color:var(--tx3)">'+esc(p.state||'')+'</span> <span style="color:var(--tx2)">'+esc(p.dealer||p.city||'')+'</span></span>'
-        +'<button onclick="lpRemovePOFromTL(\''+tl.id+'\',\''+esc(p.po)+'\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;padding:0 2px">✕</button>'
+        +'<button onclick="lpRemovePOFromTL(\''+tl.id+'\',\''+esc(p.po)+'\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;padding:0 2px;line-height:1">✕</button>'
       +'</div>';
     });
-    if(!tl.pos.length) html+='<div style="text-align:center;font-size:11px;color:#94a3b8;padding:6px 0">Drop POs here</div>';
+    if(!tl.pos.length) html+='<div style="text-align:center;font-size:11px;color:#94a3b8;padding:4px">Drop POs here</div>';
     html+='</div>'
-      +'<div style="padding:4px 8px 6px;display:flex;gap:4px;border-top:1px solid #e2e8f0">'
-        +'<button class="btn xs" onclick="lpBuildRouteView(\''+tl.id+'\')" style="flex:1">🗺 Route</button>'
-        +'<button class="btn xs p" onclick="lpConvertTL(\''+tl.id+'\')" style="flex:1">→ Load</button>'
+      +'<div style="padding:4px 8px 5px;display:flex;gap:4px;border-top:1px solid #e2e8f0">'
+        +'<button class="btn xs" onclick="lpRouteModal(\''+tl.id+'\')" style="flex:1;font-size:10px">🗺 Route</button>'
+        +'<button class="btn xs p" onclick="lpConvertTL(\''+tl.id+'\')" style="flex:1;font-size:10px">→ Load</button>'
       +'</div>'
     +'</div>';
   });
-  el.innerHTML=html;
-  if(footer) footer.textContent=tempLoads.length+' TL'+(tempLoads.length!==1?'s':'')+' · '+totalPOs+' POs · '+totalPcs+' pcs';
+  c.innerHTML=html;
+  if(f) f.textContent=tempLoads.length+' TLs · '+tp+' POs · '+tpcs+' pcs';
+  lpRenderLegend();
 }
 
-function lpRemovePOFromTL(tlId,po){
-  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
-  tl.pos=tl.pos.filter(function(p){return p.po!==po;});
-  if(!tl.pos.length){tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});saveState();}
-  else saveRecord('temp_loads',tl);
-  LP.routeCache[tlId]=null;
-  lpRenderPool(); lpRenderTLLanes(); lpColorStates(); lpRenderDots(); lpRenderLegend();
-  setTimeout(function(){var t2=tempLoads.find(function(t){return t.id===tlId;});if(t2)lpFetchRouteForTL(t2);},100);
-}
-
-function lpDeleteTL(tlId){
-  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
-  if(!confirm('Delete '+tl.tlNum+'? All POs return to pool.')) return;
-  tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
-  saveState(); LP.routeCache[tlId]=null;
-  lpRenderPool(); lpRenderTLLanes(); lpColorStates(); lpRenderDots(); lpDrawCachedRoutes(); lpRenderLegend();
-}
-
-function lpConvertTL(tlId){
-  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl){alert('TL not found.');return;}
-  if(!tl.pos.length){alert('Add POs before converting.');return;}
-  if(typeof convertTL==='function') convertTL(tlId);
-  else goPage('staging',document.getElementById('ntab-staging'));
+function lpRenderLegend(){
+  var el=document.getElementById('lp-legend'); if(!el) return;
+  if(!tempLoads.length){el.innerHTML='<span style="font-size:11px;color:var(--tx3)">Create TLs to see routes</span>';return;}
+  var h='<span style="font-size:10px;color:var(--tx3);margin-right:4px">TLs:</span>';
+  tempLoads.forEach(function(tl,idx){
+    var color=lpTLColor(idx), rc=LP.routeCache[tl.id];
+    h+='<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:10px;cursor:pointer" onclick="lpRouteModal(\''+tl.id+'\')">'
+      +'<span style="display:inline-block;width:18px;height:4px;background:'+color+';border-radius:2px"></span>'
+      +esc(tl.tlNum)
+      +(rc&&rc.miles?' <span style="color:var(--tx3)">'+Math.round(rc.miles).toLocaleString()+' mi'+(rc.duration?' · '+Math.floor(rc.duration/3600)+'h'+Math.round((rc.duration%3600)/60)+'m':'')+'</span>':'')
+    +'</span>';
+  });
+  el.innerHTML=h;
 }
 
 // ── Drag & Drop ───────────────────────────────────────────────────────────────
@@ -10616,201 +10489,179 @@ function lpDragStartFromTL(e,tlId,po){_lpDragPO=po;_lpDragFromTL=tlId;e.dataTran
 function lpDropOnTL(e,tlId){
   e.preventDefault();
   var po=_lpDragPO||e.dataTransfer.getData('text/plain'); if(!po) return;
-  if(_lpDragFromTL && _lpDragFromTL!==tlId){
-    var from=tempLoads.find(function(t){return t.id===_lpDragFromTL;});
-    var to=tempLoads.find(function(t){return t.id===tlId;});
-    if(from&&to){
-      var obj=from.pos.find(function(p){return p.po===po;});
-      if(obj&&!to.pos.some(function(p){return p.po===po;})){
-        to.pos.push(obj); from.pos=from.pos.filter(function(p){return p.po!==po;});
-        if(!from.pos.length){tempLoads=tempLoads.filter(function(t){return t.id!==_lpDragFromTL;});saveState();}
-        else saveRecord('temp_loads',from);
-        saveRecord('temp_loads',to);
-        LP.routeCache[_lpDragFromTL]=null; LP.routeCache[tlId]=null;
-      }
-    }
+  if(_lpDragFromTL&&_lpDragFromTL!==tlId){
+    var from=tempLoads.find(function(t){return t.id===_lpDragFromTL;}), to=tempLoads.find(function(t){return t.id===tlId;});
+    if(from&&to){var obj=from.pos.find(function(p){return p.po===po;});if(obj&&!to.pos.some(function(p){return p.po===po;})){to.pos.push(obj);from.pos=from.pos.filter(function(p){return p.po!==po;});if(!from.pos.length){tempLoads=tempLoads.filter(function(t){return t.id!==_lpDragFromTL;});saveState();}else{saveRecord('temp_loads',from);}saveRecord('temp_loads',to);LP.routeCache[_lpDragFromTL]=null;LP.routeCache[tlId]=null;}}
   } else if(!_lpDragFromTL){
-    var to2=tempLoads.find(function(t){return t.id===tlId;});
-    if(to2&&!to2.pos.some(function(p){return p.po===po;})){
-      var d=lpGetUnassignedDealers().find(function(x){return x.po===po;});
-      if(d){to2.pos.push({po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''});saveRecord('temp_loads',to2);LP.routeCache[tlId]=null;}
-    }
+    var tl=tempLoads.find(function(t){return t.id===tlId;});
+    if(tl&&!tl.pos.some(function(p){return p.po===po;})){var d=lpGetUnassignedDealers().find(function(x){return x.po===po;});if(d){tl.pos.push({po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''});saveRecord('temp_loads',tl);LP.routeCache[tlId]=null;}}
   }
-  _lpDragPO=null; _lpDragFromTL=null;
-  lpRenderPool(); lpRenderTLLanes(); lpColorStates(); lpRenderDots(); lpRenderLegend();
+  _lpDragPO=null;_lpDragFromTL=null;
+  lpRenderPool();lpRenderTLLanes();lpRenderMapDots();
   setTimeout(function(){var t=tempLoads.find(function(t){return t.id===tlId;});if(t)lpFetchRouteForTL(t);},100);
 }
 
-// ── Map ───────────────────────────────────────────────────────────────────────
-function lpBuildMap(){
-  var container=document.getElementById('lp-map-container');
-  if(!container){console.warn('LP: lp-map-container missing');return;}
-  container.innerHTML=
-    '<svg id="lp-map-svg" viewBox="0 0 960 620" style="width:100%;height:100%;display:block;cursor:pointer" preserveAspectRatio="xMidYMid meet">'
-      +'<g id="lp-states-g"></g><g id="lp-routes-g"></g><g id="lp-dots-g"></g>'
-    +'</svg>'
-    +'<div id="lp-map-tooltip" style="display:none;position:absolute;background:#1B2A4A;color:#fff;font-size:11px;padding:5px 9px;border-radius:5px;pointer-events:none;z-index:20;max-width:220px;line-height:1.6;white-space:pre-line"></div>'
-    +'<div id="lp-route-loading" style="display:none;position:absolute;top:8px;right:8px;background:#1B2A4A;color:#2ECC40;font-size:11px;font-weight:600;padding:5px 12px;border-radius:5px;z-index:30">⏳ Routing...</div>';
-
-  var g=document.getElementById('lp-states-g'); if(!g) return;
-  var html='';
-  Object.keys(LP_USA_PATHS).forEach(function(state){
-    html+='<path id="lp-st-'+state+'" d="'+LP_USA_PATHS[state]+'" fill="#e2e8f0" stroke="#fff" stroke-width="1.5" '
-      +'onclick="lpClickState(\''+state+'\')" '
-      +'onmouseover="lpStateHover(\''+state+'\',event)" '
-      +'onmouseout="lpHideTooltip()" '
-      +'style="cursor:pointer;transition:fill .15s" />';
-    var c=LP_STATE_CENTERS[state];
-    if(c) html+='<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="7" fill="#64748b" pointer-events="none" style="user-select:none">'+state+'</text>';
-  });
-  g.innerHTML=html;
+// ── TL Actions ────────────────────────────────────────────────────────────────
+function lpAddSelectedToTL(){
+  var tls=tempLoads;
+  if(!tls.length){lpCreateTLFromSelected();return;}
+  var sel=Object.keys(LP.poolSel); if(!sel.length) return;
+  var html='<div style="padding:14px 16px"><div style="font-weight:700;font-size:13px;color:var(--navy);margin-bottom:10px">Add '+sel.length+' PO(s) to:</div>';
+  tls.forEach(function(tl){html+='<div onclick="lpDoAddToTL(\''+tl.id+'\')" style="padding:7px 10px;border:1px solid var(--bd);border-radius:5px;margin-bottom:6px;cursor:pointer;font-size:12px;background:#fff" onmouseover="this.style.background=\'#f0f9ff\'" onmouseout="this.style.background=\'#fff\'"><strong>'+esc(tl.tlNum)+'</strong> — '+tl.pos.length+' POs</div>';});
+  html+='<button class="btn g" style="width:100%;margin-top:4px" onclick="lpCreateTLFromSelected()">+ New TL</button></div>';
+  var p=document.getElementById('lp-picker'); if(!p){p=document.createElement('div');p.id='lp-picker';p.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:200;min-width:240px;max-width:320px';document.body.appendChild(p);}
+  p.innerHTML=html+'<div style="padding:0 16px 12px"><button class="btn" style="width:100%" onclick="document.getElementById(\'lp-picker\').remove()">Cancel</button></div>';
 }
-
-function lpColorStates(){
+function lpDoAddToTL(tlId){
+  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
   var u=lpGetUnassignedDealers();
-  var cnt={};
-  u.forEach(function(d){var s=d.state||'';if(s)cnt[s]=(cnt[s]||0)+1;});
-  Object.keys(LP_USA_PATHS).forEach(function(state){
-    var el=document.getElementById('lp-st-'+state); if(!el) return;
-    var n=cnt[state]||0;
-    var active=LP.stateFilter===state;
-    if(active){el.setAttribute('fill','#1d4ed8');el.setAttribute('stroke','#93c5fd');el.setAttribute('stroke-width','2.5');return;}
-    if(!n){el.setAttribute('fill','#e2e8f0');el.setAttribute('stroke','#fff');el.setAttribute('stroke-width','1.5');return;}
-    var t=Math.min(n/8,1);
-    el.setAttribute('fill','rgb('+Math.round(59+(29-59)*t)+','+Math.round(130+(78-130)*t)+','+Math.round(246+(216-246)*t)+')');
-    el.setAttribute('stroke','#fff'); el.setAttribute('stroke-width','1.5');
-  });
+  Object.keys(LP.poolSel).forEach(function(po){if(!tl.pos.some(function(p){return p.po===po;})){var d=u.find(function(x){return x.po===po;});if(d)tl.pos.push({po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''});}});
+  saveRecord('temp_loads',tl); LP.poolSel={}; LP.routeCache[tlId]=null;
+  var p=document.getElementById('lp-picker'); if(p) p.remove();
+  lpRenderPool();lpRenderTLLanes();lpRenderMapDots();
+  setTimeout(function(){lpFetchRouteForTL(tl);},100);
 }
-
-function lpRenderDots(){
-  var g=document.getElementById('lp-dots-g'); if(!g) return;
-  if(!(document.getElementById('lp-show-dots')||{}).checked){g.innerHTML='';return;}
-  var html='';
+function lpCreateTLFromSelected(){
+  var sel=Object.keys(LP.poolSel); if(!sel.length){alert('Select POs first.');return;}
   var u=lpGetUnassignedDealers();
-  var byState={};
-  u.forEach(function(d){var s=d.state||'?';if(!byState[s])byState[s]=[];byState[s].push(d);});
-  Object.keys(byState).forEach(function(state){
-    var c=LP_STATE_CENTERS[state]; if(!c) return;
-    byState[state].forEach(function(d,i){
-      var ox=(i%5-2)*4, oy=(Math.floor(i/5)-1)*4;
-      var tip=esc(d.po||'')+'\n'+esc(d.dealer||d.city||'')+'\n'+esc(d.vendor||'');
-      html+='<circle cx="'+(c[0]+ox)+'" cy="'+(c[1]+oy)+'" r="3.5" fill="#64748b" fill-opacity=".7" stroke="#fff" stroke-width=".8" '
-        +'onmouseover="lpShowTooltip(event,this.dataset.tip)" data-tip="'+tip.replace(/"/g,'&quot;')+'" '
-        +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
-    });
-  });
-  tempLoads.forEach(function(tl,idx){
-    var color=lpTLColor(idx);
-    var dlv={};
-    tl.pos.forEach(function(p){if(p.state)dlv[p.state]=(dlv[p.state]||[]).concat(p);});
-    Object.keys(dlv).forEach(function(state){
-      var c=LP_STATE_CENTERS[state]; if(!c) return;
-      dlv[state].forEach(function(p,i){
-        var ox=(i%4-1.5)*5, oy=Math.floor(i/4)*5-5;
-        var tip=esc(tl.tlNum)+'\n'+esc(p.po)+'\n'+esc(p.dealer||p.city||'');
-        html+='<circle cx="'+(c[0]+ox)+'" cy="'+(c[1]+oy)+'" r="4" fill="'+color+'" stroke="#fff" stroke-width="1" '
-          +'onmouseover="lpShowTooltip(event,this.dataset.tip)" data-tip="'+tip.replace(/"/g,'&quot;')+'" '
-          +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
-      });
-    });
-  });
-  g.innerHTML=html;
+  var pos=sel.map(function(po){return u.find(function(d){return d.po===po;});}).filter(Boolean);
+  if(!pos.length) return;
+  var tlId='lp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  var tlNum='TL-'+String(tempLoads.length+1+Date.now()%1000).padStart(5,'0');
+  var tl={id:tlId,tlNum:tlNum,notes:'',createdAt:nowStr(),createdBy:currentUser||'',pos:pos.map(function(d){return {po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''};}),quotes:[]};
+  tempLoads.push(tl); saveRecord('temp_loads',tl); LP.poolSel={};
+  var p=document.getElementById('lp-picker'); if(p) p.remove();
+  lpRenderPool();lpRenderTLLanes();lpRenderMapDots();
+  setTimeout(function(){lpFetchRouteForTL(tl);},100);
 }
-
-function lpRenderLegend(){
-  var el=document.getElementById('lp-legend'); if(!el) return;
-  if(!tempLoads.length){el.innerHTML='<span style="font-size:11px;color:var(--tx3)">Create TLs to see route legend</span>';return;}
-  var html='<span style="font-size:10px;color:var(--tx3);margin-right:4px">TLs:</span>';
-  tempLoads.forEach(function(tl,idx){
-    var color=lpTLColor(idx);
-    var rc=LP.routeCache[tl.id];
-    html+='<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:10px">'
-      +'<span style="display:inline-block;width:22px;height:4px;background:'+color+';border-radius:2px"></span>'
-      +esc(tl.tlNum)
-      +(rc&&rc.miles?' <span style="color:var(--tx3)">'+Math.round(rc.miles).toLocaleString()+' mi'+(rc.duration?' · '+Math.floor(rc.duration/3600)+'h'+Math.round((rc.duration%3600)/60)+'m':'')+'</span>':'')
-    +'</span>';
-  });
-  el.innerHTML=html;
+function lpNewBlankTL(){
+  var tlId='lp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  var tlNum='TL-'+String(tempLoads.length+1+Date.now()%1000).padStart(5,'0');
+  var tl={id:tlId,tlNum:tlNum,notes:'',createdAt:nowStr(),createdBy:currentUser||'',pos:[],quotes:[]};
+  tempLoads.push(tl); saveRecord('temp_loads',tl);
+  lpRenderTLLanes();
 }
-
-function lpClickState(state){
-  LP.stateFilter=(LP.stateFilter===state)?null:state;
-  var cb=document.getElementById('lp-clear-state-btn'); if(cb) cb.style.display=LP.stateFilter?'':'none';
-  var ss=document.getElementById('lp-state-filter'); if(ss) ss.value=LP.stateFilter||'';
-  var sl=document.getElementById('lp-state-label'); if(sl) sl.textContent=LP.stateFilter?'Showing: '+LP.stateFilter:'Click a state to filter pool';
-  lpColorStates(); lpRenderPool();
+function lpRemovePOFromTL(tlId,po){
+  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
+  tl.pos=tl.pos.filter(function(p){return p.po!==po;});
+  if(!tl.pos.length){tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});saveState();}
+  else{saveRecord('temp_loads',tl);}
+  LP.routeCache[tlId]=null;
+  lpRenderPool();lpRenderTLLanes();lpRenderMapDots();
 }
-
+function lpDeleteTL(tlId){
+  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
+  if(!confirm('Delete '+tl.tlNum+'? POs return to pool.')) return;
+  tempLoads=tempLoads.filter(function(t){return t.id!==tlId;});
+  saveState(); LP.routeCache[tlId]=null;
+  if(_lpRouteLayers[tlId]&&_lpMap){try{_lpMap.removeLayer(_lpRouteLayers[tlId]);}catch(e){}delete _lpRouteLayers[tlId];}
+  lpRenderPool();lpRenderTLLanes();lpRenderLegend();
+}
+function lpConvertTL(tlId){
+  var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
+  if(!tl.pos.length){alert('Add POs first.');return;}
+  if(typeof convertTL==='function'){convertTL(tlId);}else{goPage('staging',document.getElementById('ntab-staging'));}
+}
 function lpClearStateFilter(){
   LP.stateFilter=null;
-  var cb=document.getElementById('lp-clear-state-btn'); if(cb) cb.style.display='none';
-  var ss=document.getElementById('lp-state-filter'); if(ss) ss.value='';
-  var sl=document.getElementById('lp-state-label'); if(sl) sl.textContent='Click a state to filter pool';
-  lpColorStates(); lpRenderPool();
+  var b=document.getElementById('lp-clear-state-btn'); if(b) b.style.display='none';
+  var s=document.getElementById('lp-state-filter'); if(s) s.value='';
+  lpRenderPool();lpColorMapStates();
 }
 
-function lpStateHover(state,e){
-  var u=lpGetUnassignedDealers();
-  var n=u.filter(function(d){return d.state===state;}).length;
-  var tls=tempLoads.filter(function(tl){return tl.pos.some(function(p){return p.state===state;});});
-  var tip=state;
-  if(n) tip+='\n'+n+' unassigned PO'+(n!==1?'s':'');
-  if(tls.length) tip+='\n'+tls.map(function(tl){return tl.tlNum+' ('+tl.pos.filter(function(p){return p.state===state;}).length+' stops)';}).join(', ');
-  lpShowTooltip(e,tip);
-}
+// ── Leaflet Map ───────────────────────────────────────────────────────────────
+function lpBuildMap(){
+  var container=document.getElementById('lp-map-container');
+  if(!container){console.error('LP: no lp-map-container');return;}
 
-function lpShowTooltip(e,txt){
-  var tt=document.getElementById('lp-map-tooltip'); if(!tt) return;
-  tt.textContent=txt; tt.style.display='block';
-  var svg=document.getElementById('lp-map-svg');
-  if(svg){
-    var r=svg.getBoundingClientRect();
-    var x=e.clientX-r.left+12, y=e.clientY-r.top-10;
-    if(x+200>r.width) x=e.clientX-r.left-170;
-    tt.style.left=x+'px'; tt.style.top=y+'px';
+  // Load Leaflet if needed
+  if(!window.L){
+    if(!document.getElementById('lf-css')){
+      var lc=document.createElement('link');lc.id='lf-css';lc.rel='stylesheet';
+      lc.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(lc);
+    }
+    if(!document.getElementById('lf-js')){
+      var ls=document.createElement('script');ls.id='lf-js';
+      ls.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      ls.onload=function(){lpInitLeaflet();};
+      document.head.appendChild(ls);
+    }
+    container.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--tx3);font-size:13px">Loading map...</div>';
+    return;
   }
+  lpInitLeaflet();
 }
-function lpHideTooltip(){ var tt=document.getElementById('lp-map-tooltip'); if(tt) tt.style.display='none'; }
 
-// ── Route drawing ─────────────────────────────────────────────────────────────
-var LNG_MIN=-125,LNG_MAX=-67,LAT_MIN=24,LAT_MAX=50,SVG_X0=55,SVG_X1=890,SVG_Y0=80,SVG_Y1=570;
-function lpToSVG(lng,lat){
-  return [SVG_X0+(lng-LNG_MIN)/(LNG_MAX-LNG_MIN)*(SVG_X1-SVG_X0),
-          SVG_Y1-(lat-LAT_MIN)/(LAT_MAX-LAT_MIN)*(SVG_Y1-SVG_Y0)];
+function lpInitLeaflet(){
+  var container=document.getElementById('lp-map-container');
+  if(!container||!window.L) return;
+
+  if(_lpMap){ try{_lpMap.remove();}catch(e){} _lpMap=null; }
+
+  _lpMap=L.map(container,{center:[39.5,-98.35],zoom:4});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap',maxZoom:18
+  }).addTo(_lpMap);
+  _lpDotLayer=L.layerGroup().addTo(_lpMap);
+  LP.mapBuilt=true;
+
+  setTimeout(function(){
+    _lpMap.invalidateSize();
+    lpColorMapStates();
+    lpRenderMapDots();
+    lpDrawCachedRoutes();
+    lpFetchAllRoutes();
+  },250);
 }
+
+function lpRenderMapDots(){
+  if(!_lpMap||!_lpDotLayer) return;
+  _lpDotLayer.clearLayers();
+  var u=lpGetUnassignedDealers();
+  u.forEach(function(d){
+    if(!d.state) return;
+    var key=(d.city||'')+'|'+(d.state||'')+'|'+(d.zip||'');
+    var cached=_lpGeoCache[key];
+    var sc=LP_STATE_CENTERS[d.state];
+    if(!cached&&!sc) return;
+    var lat=cached?cached.lat:(sc[1]+(Math.random()-.5)*1.5);
+    var lng=cached?cached.lng:(sc[0]+(Math.random()-.5)*1.5);
+    L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#64748b',fillOpacity:.8})
+      .bindTooltip('<strong>'+esc(d.po||'')+'</strong><br>'+esc(d.dealer||d.city||'')+'<br>'+esc(d.vendor||''),{sticky:true})
+      .on('click',function(){lpTogglePoolSel(d.po);})
+      .addTo(_lpDotLayer);
+  });
+}
+
+function lpColorMapStates(){ /* reserved for future choropleth layer */ }
 
 function lpDrawCachedRoutes(){
-  var g=document.getElementById('lp-routes-g'); if(!g) return;
-  var show=(document.getElementById('lp-show-routes')||{}).checked;
-  if(!show){g.innerHTML='';return;}
-  var html='';
+  if(!_lpMap) return;
+  var show=(document.getElementById('lp-show-routes')||{}).checked!==false;
+  Object.keys(_lpRouteLayers).forEach(function(id){try{_lpMap.removeLayer(_lpRouteLayers[id]);}catch(e){}});
+  _lpRouteLayers={};
+  if(!show) return;
   tempLoads.forEach(function(tl,idx){
-    var rc=LP.routeCache[tl.id];
-    if(!rc||!rc.coords||!rc.coords.length) return;
+    var rc=LP.routeCache[tl.id]; if(!rc||!rc.coords||!rc.coords.length) return;
     var color=lpTLColor(idx);
-    var pts=rc.coords.map(function(c){return lpToSVG(c[0],c[1]);});
-    var step=Math.max(1,Math.floor(pts.length/300));
-    var samp=pts.filter(function(_,i){return i%step===0;});
-    if(samp[samp.length-1]!==pts[pts.length-1]) samp.push(pts[pts.length-1]);
-    var d='M '+samp.map(function(p){return p[0].toFixed(1)+' '+p[1].toFixed(1);}).join(' L ');
-    html+='<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-opacity=".85" stroke-linejoin="round" stroke-linecap="round"/>';
-    rc.stops.forEach(function(s,si){
-      var xy=lpToSVG(s.lng,s.lat);
-      var tip=(esc(tl.tlNum)+'\n'+esc(s.label||'')).replace(/"/g,'&quot;');
-      html+='<circle cx="'+xy[0].toFixed(1)+'" cy="'+xy[1].toFixed(1)+'" r="'+(s.isPU?5:4)+'" '
-        +'fill="'+(s.isPU?'#fff':color)+'" stroke="'+color+'" stroke-width="'+(s.isPU?2:1.5)+'" '
-        +'onmouseover="lpShowTooltip(event,this.dataset.tip)" data-tip="'+tip+'" '
-        +'onmouseout="lpHideTooltip()" style="cursor:pointer"/>';
+    var grp=L.layerGroup();
+    L.polyline(rc.coords.map(function(c){return [c[1],c[0]];}),{color:color,weight:4,opacity:.85}).addTo(grp);
+    (rc.stops||[]).forEach(function(s){
+      if(!s.lat||!s.lng) return;
+      var isPU=(s.label||'').startsWith('PU:');
+      L.circleMarker([s.lat,s.lng],{radius:isPU?8:6,color:color,weight:2,fillColor:isPU?'#fff':color,fillOpacity:isPU?1:.9})
+        .bindTooltip('<strong>'+esc(tl.tlNum)+'</strong><br>'+(isPU?'Pickup':'Delivery')+': '+esc((s.label||'').replace(/^(PU|DEL): /,'')),{sticky:true})
+        .addTo(grp);
     });
+    grp.addTo(_lpMap);
+    _lpRouteLayers[tl.id]=grp;
   });
-  g.innerHTML=html;
 }
 
-function lpRefreshRoutes(){LP.routeCache={};lpFetchAllRoutes();}
+function lpRefreshRoutes(){ LP.routeCache={}; lpDrawCachedRoutes(); lpFetchAllRoutes(); }
 
-// ── TomTom geocoding + truck routing ─────────────────────────────────────────
-var _lpGeoCache={};
-
+// ── TomTom Geocoding ──────────────────────────────────────────────────────────
 async function lpGeocode(city,state,zip){
   var key=(city||'')+'|'+(state||'')+'|'+(zip||'');
   if(_lpGeoCache[key]) return _lpGeoCache[key];
@@ -10818,68 +10669,46 @@ async function lpGeocode(city,state,zip){
   try{
     var r=await fetch('https://api.tomtom.com/search/2/geocode/'+encodeURIComponent(q)+'.json?key='+LP_TOMTOM_KEY+'&countrySet=US&limit=1');
     var j=await r.json();
-    if(j.results&&j.results.length){var pos=j.results[0].position;var pt={lat:pos.lat,lng:pos.lon};_lpGeoCache[key]=pt;return pt;}
-  }catch(e){console.warn('TomTom geocode error:',e);}
+    if(j.results&&j.results.length){var pt={lat:j.results[0].position.lat,lng:j.results[0].position.lon};_lpGeoCache[key]=pt;return pt;}
+  }catch(e){console.warn('geocode err',e);}
   return null;
 }
 
+// ── TomTom Truck Routing ──────────────────────────────────────────────────────
 async function lpFetchRouteForTL(tl){
-  if(!tl||!tl.pos.length) return;
-  var loadingEl=document.getElementById('lp-route-loading');
-  if(loadingEl) loadingEl.style.display='';
-
+  if(!tl||tl.pos.length<1) return;
+  var loading=document.getElementById('lp-route-loading'); if(loading) loading.style.display='';
   var stops=[];
-  var vendorNames=[...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))];
-  for(var vi=0;vi<vendorNames.length;vi++){
-    var vn=vendorNames[vi];
+  var vendors=[...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))];
+  for(var vi=0;vi<vendors.length;vi++){
+    var vn=vendors[vi];
     var loc=locations.find(function(l){return (l.name||'').toLowerCase()===vn.toLowerCase();});
     var pt=null;
-    if(loc&&loc.city) pt=await lpGeocode(loc.city,loc.state||'',loc.zip||'');
-    if(!pt){var fb=tl.pos.find(function(p){return p.vendor===vn&&p.city;});if(fb) pt=await lpGeocode(fb.city,fb.state||'','');}
+    if(loc&&loc.city){var cp=(loc.city||'').split(',');pt=await lpGeocode(cp[0].trim(),cp[1]?cp[1].trim():'',loc.zip||'');}
     if(pt) stops.push({lat:pt.lat,lng:pt.lng,label:'PU: '+vn,isPU:true});
   }
   var seen={};
   tl.pos.forEach(function(p){
-    var k=(p.zip||p.city||'')+'|'+(p.state||'');
-    if(!seen[k]&&(p.city||p.zip)){seen[k]=true;stops.push({lat:null,lng:null,city:p.city,state:p.state,zip:p.zip||'',label:'DEL: '+(p.city||p.zip)+', '+(p.state||''),isPU:false,_geo:true});}
+    var k=(p.zip||'')+'|'+(p.city||'')+'|'+(p.state||'');
+    if(!seen[k]&&(p.city||p.zip)){seen[k]=1;stops.push({lat:null,lng:null,city:p.city,state:p.state,zip:p.zip||'',label:'DEL: '+(p.city||p.zip)+', '+(p.state||''),isPU:false,_geo:true});}
   });
-  for(var si=0;si<stops.length;si++){
-    if(stops[si]._geo){var pt2=await lpGeocode(stops[si].city,stops[si].state,stops[si].zip);if(pt2){stops[si].lat=pt2.lat;stops[si].lng=pt2.lng;}}
-  }
+  for(var si=0;si<stops.length;si++){if(stops[si]._geo){var pt2=await lpGeocode(stops[si].city,stops[si].state,stops[si].zip);if(pt2){stops[si].lat=pt2.lat;stops[si].lng=pt2.lng;}}}
   stops=stops.filter(function(s){return s.lat&&s.lng;});
-
-  if(stops.length<2){
-    LP.routeCache[tl.id]={miles:0,duration:0,coords:[],stops:stops};
-    if(loadingEl) loadingEl.style.display='none';
-    lpRenderTLLanes(); lpRenderLegend();
-    return;
-  }
-
-  var waypoints=stops.map(function(s){return s.lat+','+s.lng;}).join(':');
-  var url='https://api.tomtom.com/routing/1/calculateRoute/'+waypoints+'/json'
-    +'?key='+LP_TOMTOM_KEY
-    +'&travelMode=truck'
-    +'&vehicleWeight='+LP_TRUCK.totalWeight
-    +'&vehicleAxleWeight='+LP_TRUCK.weightPerAxle
-    +'&vehicleHeight='+LP_TRUCK.height
-    +'&vehicleWidth='+LP_TRUCK.width
-    +'&vehicleLength='+LP_TRUCK.length
-    +'&routeType=shortest'
-    +'&traffic=false';
+  if(stops.length<2){if(loading)loading.style.display='none';return;}
+  var wp=stops.map(function(s){return s.lat+','+s.lng;}).join(':');
+  var url='https://api.tomtom.com/routing/1/calculateRoute/'+wp+'/json?key='+LP_TOMTOM_KEY
+    +'&travelMode=truck&vehicleWeight='+LP_TRUCK.totalWeight+'&vehicleAxleWeight='+LP_TRUCK.weightPerAxle
+    +'&vehicleHeight='+LP_TRUCK.height+'&vehicleWidth='+LP_TRUCK.width+'&vehicleLength='+LP_TRUCK.length
+    +'&routeType=shortest&traffic=false&routeRepresentation=polyline';
   try{
-    var resp=await fetch(url);
-    var data=await resp.json();
+    var resp=await fetch(url), data=await resp.json();
     if(data.routes&&data.routes.length){
-      var route=data.routes[0];
-      var coords=(route.legs||[]).reduce(function(all,leg){return all.concat((leg.points||[]).map(function(p){return [p.longitude,p.latitude];}));  },[]);
-      LP.routeCache[tl.id]={miles:route.summary.lengthInMeters*0.000621371,duration:route.summary.travelTimeInSeconds,coords:coords,stops:stops,source:'tomtom'};
-    } else {
-      console.warn('TomTom routing:',data.detailedError&&data.detailedError.message);
-      LP.routeCache[tl.id]={miles:0,duration:0,coords:[],stops:stops,error:(data.detailedError&&data.detailedError.message)||'routing failed'};
-    }
-  }catch(e){console.warn('TomTom fetch error:',e);LP.routeCache[tl.id]={miles:0,duration:0,coords:[],stops:stops,error:e.message};}
-
-  if(loadingEl) loadingEl.style.display='none';
+      var s=data.routes[0].summary;
+      var coords=(data.routes[0].legs||[]).reduce(function(a,leg){return a.concat((leg.points||[]).map(function(p){return [p.longitude,p.latitude];}));}, []);
+      LP.routeCache[tl.id]={miles:s.lengthInMeters*0.000621371,duration:s.travelTimeInSeconds,coords:coords,stops:stops,source:'tomtom'};
+    } else if(data.detailedError){ console.warn('TomTom:',data.detailedError.message); }
+  }catch(e){console.warn('TomTom route err:',e);}
+  if(loading) loading.style.display='none';
   lpDrawCachedRoutes(); lpRenderLegend(); lpRenderTLLanes();
 }
 
@@ -10891,42 +10720,40 @@ async function lpFetchAllRoutes(){
 }
 
 // ── Route detail modal ────────────────────────────────────────────────────────
-function lpBuildRouteView(tlId){
+function lpRouteModal(tlId){
   var tl=tempLoads.find(function(t){return t.id===tlId;}); if(!tl) return;
-  var rc=LP.routeCache[tlId];
-  var color=lpTLColor(tempLoads.indexOf(tl));
-  var html='<div style="padding:16px 16px 8px">'
-    +'<div style="font-size:15px;font-weight:700;color:'+color+';margin-bottom:10px">'+esc(tl.tlNum)+' — Truck Route</div>';
-  if(!rc){
-    html+='<div style="font-size:12px;color:var(--tx2);margin-bottom:12px">Route not yet calculated.</div>'
-      +'<button class="btn p" onclick="lpFetchRouteForTL(tempLoads.find(function(t){return t.id===\''+tlId+'\';}))" style="width:100%;margin-bottom:8px">Fetch Truck Route</button>';
-  } else if(rc.error&&!rc.miles){
-    html+='<div style="font-size:12px;color:#dc2626;background:#fef2f2;border-radius:5px;padding:8px 10px;margin-bottom:10px">⚠️ '+esc(rc.error)+'</div>'
-      +'<button class="btn p" onclick="lpFetchRouteForTL(tempLoads.find(function(t){return t.id===\''+tlId+'\';}))" style="width:100%;margin-bottom:8px">Retry</button>';
+  var rc=LP.routeCache[tlId], color=lpTLColor(tempLoads.indexOf(tl));
+  var h='<div style="padding:16px;max-width:420px"><div style="font-size:15px;font-weight:700;color:'+color+';margin-bottom:10px">'+esc(tl.tlNum)+' Route</div>';
+  if(!rc||!rc.miles){
+    h+='<div style="font-size:12px;color:var(--tx2);margin-bottom:10px">Route not calculated yet.</div>'
+      +'<button class="btn p" onclick="lpFetchRouteForTL(tempLoads.find(function(t){return t.id===\''+tlId+'\';}));document.getElementById(\'lp-rm\').remove()" style="width:100%;margin-bottom:8px">Fetch Truck Route</button>';
   } else {
-    html+='<div style="display:flex;gap:10px;margin-bottom:10px">'
-      +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--navy)">'+Math.round(rc.miles||0).toLocaleString()+'</div><div style="font-size:10px;color:var(--tx3)">TRUCK MILES</div></div>'
-      +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--navy)">'+(rc.duration?Math.floor(rc.duration/3600)+'h '+Math.round((rc.duration%3600)/60)+'m':'—')+'</div><div style="font-size:10px;color:var(--tx3)">DRIVE TIME</div></div>'
+    var hh=Math.floor(rc.duration/3600), mm=Math.round((rc.duration%3600)/60);
+    h+='<div style="display:flex;gap:10px;margin-bottom:10px">'
+      +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--navy)">'+Math.round(rc.miles).toLocaleString()+'</div><div style="font-size:10px;color:var(--tx3)">TRUCK MILES</div></div>'
+      +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--navy)">'+hh+'h '+mm+'m</div><div style="font-size:10px;color:var(--tx3)">DRIVE TIME</div></div>'
     +'</div>'
-    +'<div style="margin-bottom:10px"><span style="font-size:10px;background:#1B2A4A;color:#2ECC40;padding:2px 8px;border-radius:3px;font-weight:700">🚛 TRUCK ROUTE</span> <span style="font-size:10px;color:var(--tx3)">80k lb GVW · 13\'6\" clearance · TomTom</span></div>';
-    if(rc.stops&&rc.stops.length){
-      html+='<div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Stop Sequence</div>';
-      html+=rc.stops.map(function(s,i){
-        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)">'
-          +'<div style="width:20px;height:20px;border-radius:50%;background:'+(s.isPU?'#fff':color)+';border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:'+color+';flex-shrink:0">'+(i+1)+'</div>'
-          +'<div><div style="font-size:12px;font-weight:600">'+(s.isPU?'Pickup':'Delivery')+'</div><div style="font-size:11px;color:var(--tx2)">'+esc(s.label.replace(/^(PU|DEL): /,''))+'</div></div>'
+    +'<div style="font-size:10px;background:#1B2A4A;color:#2ECC40;padding:2px 8px;border-radius:3px;font-weight:700;display:inline-block;margin-bottom:10px">🚛 TRUCK ROUTE via TomTom</div>';
+    if(rc.stops){
+      h+='<div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Stop Order</div>';
+      h+=rc.stops.map(function(s,i){
+        var isPU=s.isPU;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd)">'
+          +'<div style="width:20px;height:20px;border-radius:50%;background:'+(isPU?'#fff':color)+';border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:'+color+';flex-shrink:0">'+(i+1)+'</div>'
+          +'<div><div style="font-size:12px;font-weight:600">'+(isPU?'Pickup':'Delivery')+'</div><div style="font-size:11px;color:var(--tx2)">'+esc((s.label||'').replace(/^(PU|DEL): /,''))+'</div></div>'
         +'</div>';
       }).join('');
     }
   }
-  html+='</div>';
-  var m=document.getElementById('lp-route-modal'); if(m) m.remove();
+  h+='</div>';
+  var m=document.getElementById('lp-rm'); if(m) m.remove();
   var modal=document.createElement('div');
-  modal.id='lp-route-modal';
-  modal.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.2);z-index:200;min-width:300px;max-width:440px;max-height:80vh;overflow-y:auto';
-  modal.innerHTML=html+'<div style="padding:0 16px 14px"><button class="btn" onclick="document.getElementById(\'lp-route-modal\').remove()" style="width:100%">Close</button></div>';
+  modal.id='lp-rm';
+  modal.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.2);z-index:200;min-width:280px;max-width:440px';
+  modal.innerHTML=h+'<div style="padding:0 16px 14px"><button class="btn" onclick="document.getElementById(\'lp-rm\').remove()" style="width:100%">Close</button></div>';
   document.body.appendChild(modal);
 }
+
 </script>
 
 </body>
