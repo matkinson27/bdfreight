@@ -2114,7 +2114,21 @@ function nowStr() {
 }
 function pad(x) { return x<10?'0'+x:''+x; }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function vendorDisplay(vendorStr,asCode){if(!vendorStr)return '-';var names=vendorStr.split('/').map(function(v){return v.trim();}).filter(Boolean);if(!asCode)return esc(vendorStr);var codes=names.map(function(name){var loc=locations.find(function(l){return l.name===name;});return (loc&&loc.locCode)?loc.locCode:name;});var codeStr=codes.join('/');var fullStr=names.join(' / ');if(codeStr===fullStr)return esc(vendorStr);return '<span title="'+esc(fullStr)+'" style="cursor:default">'+esc(codeStr)+'</span>';}
+function vendorDisplay(vendorStr, asCode) {
+  if(!vendorStr) return '-';
+  var names = vendorStr.split('/').map(function(v){return v.trim();}).filter(Boolean);
+  var fullStr = names.join(' / ');
+  var codes = names.map(function(name){
+    var loc = locations.find(function(l){return l.name===name;});
+    return (loc&&loc.locCode) ? loc.locCode : name;
+  });
+  var codeStr = codes.join('/');
+  // Always show full name; if it differs from code, show code as title tooltip
+  if(!asCode) return esc(vendorStr);
+  // asCode mode (board): full name with ellipsis, code as tooltip when they differ
+  var title = (codeStr !== fullStr) ? ' title="'+esc(codeStr)+'"' : ' title="'+esc(fullStr)+'"';
+  return '<span'+title+' style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;cursor:default">'+esc(fullStr)+'</span>';
+}
 function openM(id) { document.getElementById(id).classList.add('on'); }
 function closeM(id) { document.getElementById(id).classList.remove('on'); }
 function selAll(arr,v) { window[arr].forEach(function(x){x.sel=v;}); }
@@ -2974,7 +2988,7 @@ function renderBoard() {
       +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL'+(l.stops.some(function(x){return x.liftgate;})?'<span style="font-size:9px;font-weight:700;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 4px;margin-left:4px">LG</span>':'')+(l.stops.some(function(x){return x.driverAssist;})?'<span style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;margin-left:4px">DA</span>':'')+'</td>'
       +'<td style="font-size:11px;font-weight:600;color:var(--navy)">'+(equipCode?esc(equipCode):'-')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
-      +'<td style="color:var(--tx2)">'+vendorDisplay(l.vendor,true)+'</td>'
+      +'<td style="color:var(--tx2);max-width:180px;overflow:hidden">'+vendorDisplay(l.vendor,true)+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
       +'<td>$'+getEffectiveCustR(l).toLocaleString()+'</td>'
       +'<td>'+marginCell+'</td>'
