@@ -1800,7 +1800,7 @@ var _sbLoaded = false;
 // ── Mappers: DB row (snake_case) → app object (camelCase) ────────────────────
 function sbToLoad(r) {
   return {
-    id: r.id, loadNum: r.load_num, status: r.status, vendor: r.vendor||'',
+    id: r.id, loadNum: r.load_num||'LD-?', status: r.status||'Schedule', vendor: r.vendor||'',
     carrier: r.carrier||'', dispatcher: r.dispatcher||'', cr: r.cr||0,
     custR: r.cust_r||0, miles: r.miles||0, equip: r.equip||'V',
     tracking: r.tracking||'', driverName: r.driver_name||'',
@@ -6697,28 +6697,107 @@ function renderSCDashboard() {
     +'</div>';
   }
 
-  // All carriers grade distribution
-  var tierBuckets = {};
-  scored.forEach(function(x){ var t=x.s.tier; tierBuckets[t]=(tierBuckets[t]||0)+1; });
-  var tierOrder = ['S','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-','F'];
-  var tierColors = {S:'#15803d','A+':'#16a34a',A:'#22c55e','A-':'#4ade80','B+':'#a3e635',B:'#facc15','B-':'#fb923c','C+':'#f97316',C:'#ef4444','C-':'#dc2626','D+':'#b91c1c',D:'#991b1b','D-':'#7f1d1d',F:'#450a0a'};
-  var maxBucket = Math.max.apply(null, Object.values(tierBuckets).concat([1]));
-  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px">'
-    +'<div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Grade Distribution</div>'
-    +'<div style="display:flex;align-items:flex-end;gap:6px;height:60px">'
-    +tierOrder.filter(function(t){return tierBuckets[t];}).map(function(t){
-      var n=tierBuckets[t];
-      var h=Math.round((n/maxBucket)*52)+8;
-      return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1">'
-        +'<span style="font-size:9px;font-weight:700;color:var(--tx2)">'+n+'</span>'
-        +'<div style="width:100%;height:'+h+'px;background:'+tierColors[t]+';border-radius:3px 3px 0 0;opacity:.85"></div>'
-        +'<span style="font-size:9px;font-weight:700;color:var(--tx3)">'+t+'</span>'
-      +'</div>';
-    }).join('')
+
+  // Carrier performance graph — top carriers by load volume, with on-time overlay
+  var graphCarriers = scored.filter(function(x){return x.s.loadsCount>0;})
+    .slice().sort(function(a,b){return b.s.loadsCount-a.s.loadsCount;}).slice(0,10);
+
+  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--tx)">Carrier Performance</span>'
+      +'<div style="display:flex;gap:14px;font-size:11px;color:var(--tx2)">'
+        +'<span><span style="display:inline-block;width:10px;height:10px;background:#1B2A4A;border-radius:2px;margin-right:4px"></span>Loads</span>'
+        +'<span><span style="display:inline-block;width:10px;height:3px;background:#2ECC40;margin-right:4px;vertical-align:middle"></span>On-Time %</span>'
+      +'</div>'
     +'</div>'
+    +(graphCarriers.length
+      ? '<canvas id="sc-perf-chart" style="width:100%;height:200px"></canvas>'
+      : '<div class="dempty" style="padding:30px 0;font-size:12px">Run some loads to see carrier performance</div>'
+    )
   +'</div>';
 
   el.innerHTML = html;
+
+  // Draw chart after DOM update
+  if(graphCarriers.length) {
+    setTimeout(function(){
+      var canvas = document.getElementById('sc-perf-chart');
+      if(!canvas) return;
+      var W = canvas.parentElement.offsetWidth - 32 || 600;
+      var H = 200;
+      canvas.width = W; canvas.height = H;
+      var ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,W,H);
+
+      var isDark = document.body.classList.contains('dark');
+      var txColor = isDark ? 'rgba(255,255,255,.45)' : 'rgba(0,0,0,.4)';
+      var gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)';
+
+      var n = graphCarriers.length;
+      var pad = {t:12, r:16, b:52, l:40};
+      var cW = W - pad.l - pad.r;
+      var cH = H - pad.t - pad.b;
+      var barW = Math.max(8, (cW / n) * 0.55);
+      var step = cW / n;
+
+      var maxLoads = Math.max.apply(null, graphCarriers.map(function(x){return x.s.loadsCount;})) || 1;
+
+      // Grid lines
+      ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+      for(var gi=0;gi<=4;gi++){
+        var gy = pad.t + cH - (gi/4)*cH;
+        ctx.beginPath(); ctx.moveTo(pad.l,gy); ctx.lineTo(pad.l+cW,gy); ctx.stroke();
+        ctx.fillStyle = txColor; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(Math.round(maxLoads*(gi/4)), pad.l-4, gy+3);
+      }
+
+      // Right axis label for %
+      ctx.fillStyle = txColor; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText('100%', W-2, pad.t+3);
+      ctx.fillText('0%', W-2, pad.t+cH+3);
+
+      // Bars
+      graphCarriers.forEach(function(x, i){
+        var cx = pad.l + i*step + step/2;
+        var bH = (x.s.loadsCount/maxLoads)*cH;
+        var by = pad.t + cH - bH;
+        ctx.fillStyle = '#1B2A4A';
+        ctx.fillRect(cx - barW/2, by, barW, bH);
+
+        // Carrier name label
+        ctx.save();
+        ctx.translate(cx, pad.t+cH+6);
+        ctx.rotate(-Math.PI/4);
+        ctx.fillStyle = txColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(x.c.name.length>14 ? x.c.name.slice(0,13)+'…' : x.c.name, 0, 0);
+        ctx.restore();
+
+        // Load count above bar
+        ctx.fillStyle = 'var(--tx2)'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(x.s.loadsCount, cx, by-3);
+      });
+
+      // On-time % line (avg of PU + DEL)
+      ctx.beginPath();
+      ctx.strokeStyle = '#2ECC40'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+      graphCarriers.forEach(function(x, i){
+        var cx = pad.l + i*step + step/2;
+        var onTime = (x.s.puPct + x.s.dlPct) / 2;
+        var cy = pad.t + cH - onTime*cH;
+        i===0 ? ctx.moveTo(cx,cy) : ctx.lineTo(cx,cy);
+      });
+      ctx.stroke();
+
+      // Dots on line
+      ctx.fillStyle = '#2ECC40';
+      graphCarriers.forEach(function(x, i){
+        var cx = pad.l + i*step + step/2;
+        var onTime = (x.s.puPct + x.s.dlPct) / 2;
+        var cy = pad.t + cH - onTime*cH;
+        ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2); ctx.fill();
+      });
+    }, 30);
+  }
 }
 
 function renderSC(){
@@ -9135,7 +9214,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
       SB.from('counters').select('*').eq('id', 1)
     ]);
 
-    var _queries = {loads:lRes, carriers:cRes, locations:locRes, dealers:dRes, rates:rRes, temp_loads:tRes, counters:cntRes};
+    var _queries = {loads:lRes, carriers:cRes, locations:locRes, dealers:dRes, rates:rRes, temp_loads:tRes};
     Object.keys(_queries).forEach(function(k){ if(_queries[k].error) console.error(k+' error:', JSON.stringify(_queries[k].error)); });
     if(lRes.error) throw new Error('loads: ' + JSON.stringify(lRes.error));
     if(cRes.error) throw new Error('carriers: ' + JSON.stringify(cRes.error));
@@ -9143,7 +9222,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
     if(dRes.error) throw new Error('dealers: ' + JSON.stringify(dRes.error));
     if(rRes.error) throw new Error('rates: ' + JSON.stringify(rRes.error));
     if(tRes.error) throw new Error('temp_loads: ' + JSON.stringify(tRes.error));
-    if(cntRes.error) throw new Error('counters: ' + JSON.stringify(cntRes.error));
+    if(cntRes.error) console.warn('counters query failed (non-fatal):', JSON.stringify(cntRes.error));
 
     // Map snake_case DB cols back to camelCase for app compatibility
     loads     = (lRes.data||[]).map(sbToLoad);
