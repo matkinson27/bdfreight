@@ -4661,7 +4661,7 @@ function addStop(stop) {
     // POs table
     +'<div style="margin-top:8px">'
       +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">POs at this stop</div>'
-      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Receiver</th><th>Pieces</th><th>Seats</th><th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
+      +'<table class="ptbl"><thead><tr><th>PO #</th><th>'+(isDel?'Shipper (PU)':'Receiver (DEL)')+'</th><th>Pieces</th><th>Seats</th><th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
       +'<button class="addpobtn" onclick="addPORow('+idx+')">+ Add PO</button>'
     +'</div>'
   +'</div>';
@@ -4681,65 +4681,112 @@ function addPORow(si,po){
   if(!po){if(!stopRows[si].pos)stopRows[si].pos=[];stopRows[si].pos.push(p);}
   p.ri=ri;
 
+  // Determine stop type from stopRows — NOT from outer scope isDel
+  var thisStop = stopRows[si];
+  var isDelStop = thisStop && thisStop.type==='delivery';
+  var isPUStop  = thisStop && thisStop.type==='pickup';
+
   // Auto-assign shipFrom on DEL stops (silent, no mirroring)
-  if(stopRows[si]&&stopRows[si].type==='delivery'){
+  if(isDelStop){
     var puStops=stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
-    if(!p.shipFrom&&puStops.length===1){
-      p.shipFrom=String(puStops[0].idx);
-    }
+    if(!p.shipFrom&&puStops.length===1) p.shipFrom=String(puStops[0].idx);
   }
 
-  // Receiver display: only meaningful on delivery stops
-  var receiverVal = p.dealer||'';
-  var receiverCell = isDel
-    ? '<td><input id="pr-rcv-'+si+'-'+ri+'" value="'+esc(receiverVal)+'" oninput="updPOReceiver('+si+','+ri+',this.value)" placeholder="Name or stop #" style="width:130px" title="Type a name or stop number (e.g. 2)"></td>'
-    : '<td style="color:var(--tx3);font-size:11px;padding:0 4px">—</td>';
+  // Resolve current linked stop label
+  var linkedIdx = isDelStop ? (p.shipFrom||'') : (p.shipTo||'');
+  var linkedLabel = '';
+  if(linkedIdx !== ''){
+    var ls = stopRows[parseInt(linkedIdx,10)];
+    if(ls) linkedLabel = ls.name||(ls.city?(ls.city+(ls.state?', '+ls.state:'')):'Stop '+(parseInt(linkedIdx,10)+1));
+  }
+
+  // Show stop-link field on both PU and DEL, hidden column on neither
+  var linkPlaceholder = isDelStop ? 'Shipper (PU)...' : (isPUStop ? 'Receiver (DEL)...' : '');
+  var linkCell = (isDelStop||isPUStop)
+    ? '<td style="position:relative">'
+        +'<input id="pr-lnk-'+si+'-'+ri+'" value="'+esc(linkedLabel)+'" placeholder="'+esc(linkPlaceholder)+'" '
+        +'oninput="poStopAC('+si+','+ri+',this.value,this)" onfocus="poStopAC('+si+','+ri+',this.value,this)" '
+        +'onblur="setTimeout(function(){var d=document.getElementById(\'prac-'+si+'-'+ri+'\');if(d)d.style.display=\'none\';},200)" '
+        +'autocomplete="off" style="width:130px;font-size:11px">'
+        +'<div id="prac-'+si+'-'+ri+'" class="acl" style="min-width:200px;display:none;position:absolute;z-index:50;top:100%;left:0"></div>'
+      +'</td>'
+    : '<td></td>';
 
   var tr=document.createElement('tr');tr.id='pr-'+si+'-'+ri;
   tr.innerHTML=
     '<td><input value="'+esc(p.po||'')+'" oninput="updPO('+si+','+ri+',\'po\',this.value)" placeholder="PO #" style="width:80px"></td>'
-    +receiverCell
+    +linkCell
     +'<td><input type="number" value="'+esc(p.pieces||'')+'" oninput="updPO('+si+','+ri+',\'pieces\',this.value)" style="width:55px"></td>'
     +'<td><input type="number" value="'+esc(p.seats||'')+'" oninput="updPO('+si+','+ri+',\'seats\',this.value)" style="width:55px"></td>'
     +'<td><button class="rmpobtn" onclick="rmPORow('+si+','+ri+')">x</button></td>';
   tbl.appendChild(tr);
 }
 
-// Smart receiver input — if value is a number matching a stop position, link to that stop;
-// otherwise store as plain dealer name
-function updPOReceiver(si, ri, val) {
-  var s = stopRows[si]; if(!s) return;
-  var p = s.pos && s.pos.find(function(x){return x.ri===ri;}); if(!p) return;
+// Autocomplete: search other stops by name/city to link a PO's shipper or receiver
+function poStopAC(si, ri, q, inputEl) {
+  var list = document.getElementById('prac-'+si+'-'+ri);
+  if(!list) return;
+  var thisStop = stopRows[si];
+  if(!thisStop) { list.style.display='none'; return; }
+  var isDelStop = thisStop.type==='delivery';
 
-  var trimmed = val.trim();
-  var asNum = parseInt(trimmed, 10);
+  // Show stops of the opposite type
+  var candidates = stopRows.map(function(s,i){return s?{s:s,i:i}:null;}).filter(function(x){
+    if(!x) return false;
+    if(x.i===si) return false;
+    return isDelStop ? x.s.type==='pickup' : x.s.type==='delivery';
+  });
 
-  // Check if input is a stop number (1-based position among active stops)
-  var activeStops = stopRows.map(function(st,i){return st?{st:st,i:i}:null;}).filter(Boolean);
-  var matched = !isNaN(asNum) && asNum >= 1 && asNum <= activeStops.length ? activeStops[asNum-1] : null;
+  var ql = (q||'').toLowerCase().trim();
+  var filtered = ql
+    ? candidates.filter(function(x){
+        var label=(x.s.name||'')+' '+(x.s.city||'')+' '+(x.s.state||'');
+        return label.toLowerCase().includes(ql);
+      })
+    : candidates;
 
-  if(matched) {
-    // Link to that stop — update shipTo/shipFrom and show stop name in field
-    var targetStop = matched.st;
-    var targetIdx  = matched.i;
-    var label = targetStop.name||(targetStop.city?(targetStop.city+(targetStop.state?', '+targetStop.state:'')):'Stop '+asNum);
+  if(!filtered.length){ list.style.display='none'; return; }
 
-    if(s.type==='pickup') {
-      p.shipTo = String(targetIdx);
-      p.dealer = label;
-    } else {
-      p.shipFrom = String(targetIdx);
-      p.dealer = label;
-    }
-    // Update the input to show the resolved name
-    var inputEl = document.getElementById('pr-rcv-'+si+'-'+ri);
-    if(inputEl && document.activeElement !== inputEl) inputEl.value = label;
+  list.innerHTML = filtered.map(function(x){
+    var label = x.s.name||(x.s.city?(x.s.city+(x.s.state?', '+x.s.state:'')):'Stop '+(x.i+1));
+    var sub   = x.s.city?(x.s.city+(x.s.state?', '+x.s.state:'')):'';
+    return '<div class="aci" onmousedown="poStopPick('+si+','+ri+','+x.i+')">'
+      +'<div><strong>Stop '+(x.i+1)+'</strong> — '+esc(label)+'</div>'
+      +(sub&&sub!==label?'<div class="acs">'+esc(sub)+'</div>':'')
+    +'</div>';
+  }).join('');
+  list.style.display='block';
+}
+
+// Pick a stop from the AC dropdown — links the PO to that stop
+function poStopPick(si, ri, targetIdx) {
+  var list = document.getElementById('prac-'+si+'-'+ri);
+  if(list) list.style.display='none';
+
+  var thisStop  = stopRows[si]; if(!thisStop) return;
+  var s = thisStop.pos && thisStop.pos.find(function(x){return x.ri===ri;}); if(!s) return;
+  var targetStop = stopRows[targetIdx]; if(!targetStop) return;
+
+  var label = targetStop.name||(targetStop.city?(targetStop.city+(targetStop.state?', '+targetStop.state:'')):'Stop '+(targetIdx+1));
+
+  if(thisStop.type==='delivery') {
+    s.shipFrom = String(targetIdx);
   } else {
-    // Plain name — just store it
-    p.dealer = trimmed;
-    p.shipTo = '';
-    p.shipFrom = '';
+    s.shipTo = String(targetIdx);
   }
+  s.dealer = label;
+
+  var inp = document.getElementById('pr-lnk-'+si+'-'+ri);
+  if(inp) inp.value = label;
+}
+
+// Clear the stop link on a PO row
+function poStopClear(si, ri) {
+  var thisStop = stopRows[si]; if(!thisStop) return;
+  var s = thisStop.pos && thisStop.pos.find(function(x){return x.ri===ri;}); if(!s) return;
+  s.shipFrom=''; s.shipTo=''; s.dealer='';
+  var inp = document.getElementById('pr-lnk-'+si+'-'+ri);
+  if(inp) { inp.value=''; inp.focus(); }
 }
 
 
@@ -4850,9 +4897,10 @@ function pickStopLoc(idx, locId){
   if(ni){ni.value=loc.name;ni.readOnly=true;ni.style.background='var(--sur2)';ni.style.color='var(--tx2)';ni.style.cursor='not-allowed';}
   // Show clear button
   var clr=document.getElementById('slclr-'+idx);if(clr)clr.style.display='';
-  // Fill and show address row
+  // Fill and show address row — locked
   var ar=document.getElementById('saddr-row-'+idx);if(ar)ar.style.display='';
-  var ai=document.getElementById('sa-'+idx);if(ai)ai.value=loc.addr||'';
+  var ai=document.getElementById('sa-'+idx);
+  if(ai){ai.value=loc.addr||'';ai.readOnly=true;ai.style.background='var(--sur2)';ai.style.color='var(--tx2)';ai.style.cursor='not-allowed';}
   // Fill and lock city/state/zip
   var ci=document.getElementById('sc-'+idx);
   if(ci){ci.value=city;ci.readOnly=true;ci.style.background='var(--sur2)';ci.style.color='var(--tx2)';ci.style.cursor='not-allowed';}
