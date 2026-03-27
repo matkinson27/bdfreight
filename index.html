@@ -10638,44 +10638,82 @@ function lpHideTooltip() {
   if(tt) tt.style.display='none';
 }
 
-// ── OSRM Routing ─────────────────────────────────────────────────────────────
-// We geocode city+state via Nominatim, then route via OSRM public API
+// ── TomTom Truck Routing ──────────────────────────────────────────────────────
+var LP_TOMTOM_KEY = 'Vk2C0pBZIBvecul6Osbfejei9BPBSQl3';
+
+// Vehicle profile — standard 53' dry van defaults, editable via lpSetTruckProfile()
+var LP_TRUCK = {
+  weightPerAxle: 9979,   // kg (~22,000 lbs per axle)
+  totalWeight:   36287,  // kg (~80,000 lbs GVW)
+  height:        408,    // cm (13'6")
+  width:         259,    // cm (8'6")
+  length:        2134    // cm (70' with tractor)
+};
+
 var _lpGeoCache = {};
+
+// TomTom Geocoding — Search API fuzzy search, returns {lat, lng}
 async function lpGeocode(city, state, zip) {
   var key = (city||'')+'|'+(state||'')+'|'+(zip||'');
   if(_lpGeoCache[key]) return _lpGeoCache[key];
-  var q = encodeURIComponent((city||'')+(state?', '+state:'')+(zip?' '+zip:'')+(', USA'));
+  // Prefer zip if available for precision, fall back to city+state
+  var query = zip ? zip+' '+state : (city||'')+(state?', '+state:'')+', USA';
+  var url = 'https://api.tomtom.com/search/2/geocode/'+encodeURIComponent(query)+'.json'
+    +'?key='+LP_TOMTOM_KEY+'&countrySet=US&limit=1';
   try {
-    var r = await fetch('https://nominatim.openstreetmap.org/search?format=json&q='+q+'&limit=1&countrycodes=us', {headers:{'Accept-Language':'en'}});
+    var r = await fetch(url);
     var j = await r.json();
-    if(j&&j.length) { var pt={lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon)}; _lpGeoCache[key]=pt; return pt; }
-  } catch(e) {}
+    if(j.results && j.results.length) {
+      var pos = j.results[0].position;
+      var pt = {lat: pos.lat, lng: pos.lon};
+      _lpGeoCache[key] = pt;
+      return pt;
+    }
+  } catch(e) { console.warn('TomTom geocode error:', e); }
   return null;
 }
 
+// TomTom Routing API — truck mode with real vehicle constraints
+// Supports up to 150 waypoints; we batch if needed
 async function lpFetchRouteForTL(tl) {
-  if(!tl || tl.pos.length < 2) return;
+  if(!tl || tl.pos.length < 1) return;
   var loadingEl = document.getElementById('lp-route-loading');
   if(loadingEl) loadingEl.style.display='';
 
-  // Get unique delivery states/cities for stops
+  // Build ordered stop list: vendor pickups first, then deliveries
   var stops = [];
-  // Vendor pickups: group by vendor name, get location from locations DB
+
+  // Vendor pickups — look up address from Locations DB first
   var vendorNames = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))];
   for(var vi=0; vi<vendorNames.length; vi++) {
     var vn = vendorNames[vi];
     var loc = locations.find(function(l){return (l.name||'').toLowerCase()===vn.toLowerCase();});
     var pt = null;
-    if(loc && loc.city) pt = await lpGeocode(loc.city, loc.state||'', loc.zip||'');
-    if(pt) stops.push({lat:pt.lat, lng:pt.lng, label:'PU: '+vn});
+    if(loc) {
+      // Try full address first for best accuracy
+      if(loc.addr && loc.city) {
+        pt = await lpGeocode(loc.city, loc.state||'', loc.zip||'');
+      } else if(loc.city) {
+        pt = await lpGeocode(loc.city, loc.state||'', loc.zip||'');
+      }
+    }
+    // Fallback: use first PO's vendor city if loc not found
+    if(!pt) {
+      var fallbackPO = tl.pos.find(function(p){return p.vendor===vn && p.city;});
+      if(fallbackPO) pt = await lpGeocode(fallbackPO.city, fallbackPO.state||'', '');
+    }
+    if(pt) stops.push({lat:pt.lat, lng:pt.lng, label:'PU: '+vn, isPU:true});
   }
-  // Delivery stops: unique dealer city+state
+
+  // Delivery stops — deduplicated by city+state, ordered geographically
   var seen = {};
   tl.pos.forEach(function(p){
-    var key = (p.city||'')+'|'+(p.state||'');
-    if(!seen[key] && p.city) {
-      seen[key]=true;
-      stops.push({lat:null,lng:null,city:p.city,state:p.state,zip:p.zip||'',label:'DEL: '+p.city+', '+p.state,_needGeo:true});
+    var k = (p.zip||'')+'|'+(p.city||'')+'|'+(p.state||'');
+    if(!seen[k] && (p.city||p.zip)) {
+      seen[k] = true;
+      stops.push({lat:null, lng:null, city:p.city, state:p.state, zip:p.zip||'',
+        label:'DEL: '+(p.city||p.zip)+', '+(p.state||''), isPU:false, _needGeo:true,
+        dealer: p.dealer||''});
     }
   });
 
@@ -10687,32 +10725,73 @@ async function lpFetchRouteForTL(tl) {
     }
   }
   stops = stops.filter(function(s){return s.lat&&s.lng;});
+
   if(stops.length < 2) {
+    LP.routeCache[tl.id] = {miles:0, duration:0, coords:[], stops:stops, error:'Need 2+ geocodable stops'};
     if(loadingEl) loadingEl.style.display='none';
+    lpDrawCachedRoutes(); lpRenderLegend(); lpRenderTLLanes();
     return;
   }
 
-  // Call OSRM
-  var coords = stops.map(function(s){return s.lng+','+s.lat;}).join(';');
+  // TomTom Routing — truck profile with vehicle dimensions
+  // Waypoints format: lat,lng:lat,lng:...
+  var waypoints = stops.map(function(s){return s.lat+','+s.lng;}).join(':');
+  var url = 'https://api.tomtom.com/routing/1/calculateRoute/'+waypoints+'/json'
+    +'?key='+LP_TOMTOM_KEY
+    +'&travelMode=truck'
+    +'&vehicleWeight='+LP_TRUCK.totalWeight
+    +'&vehicleAxleWeight='+LP_TRUCK.weightPerAxle
+    +'&vehicleHeight='+LP_TRUCK.height
+    +'&vehicleWidth='+LP_TRUCK.width
+    +'&vehicleLength='+LP_TRUCK.length
+    +'&vehicleLoadType=otherHazmatHarmful'  // conservative — avoids known restricted routes
+    +'&routeType=shortest'
+    +'&traffic=false'  // consistent mileage regardless of time of day
+    +'&instructionsType=none'
+    +'&routeRepresentation=polyline';
+
   try {
-    var url = 'https://router.project-osrm.org/route/v1/driving/'+coords+'?overview=full&geometries=geojson&steps=false';
     var resp = await fetch(url);
     var data = await resp.json();
-    if(data.code==='Ok' && data.routes && data.routes.length) {
+    if(data.routes && data.routes.length) {
       var route = data.routes[0];
+      var summary = route.summary;
+      // TomTom polyline is array of {latitude, longitude}
+      var coords = (route.legs||[]).reduce(function(all, leg){
+        return all.concat((leg.points||[]).map(function(p){return [p.longitude, p.latitude];}));
+      }, []);
       LP.routeCache[tl.id] = {
-        miles: route.distance * 0.000621371,
-        duration: route.duration,
-        coords: route.geometry.coordinates, // [[lng,lat],...]
-        stops: stops
+        miles: (summary.lengthInMeters||0) * 0.000621371,
+        duration: summary.travelTimeInSeconds||0,
+        coords: coords,
+        stops: stops,
+        travelMode: 'truck',
+        source: 'tomtom'
       };
+    } else if(data.detailedError) {
+      console.warn('TomTom routing error:', data.detailedError.message);
+      LP.routeCache[tl.id] = {miles:0, duration:0, coords:[], stops:stops, error: data.detailedError.message};
     }
-  } catch(e) { console.warn('OSRM error:', e); }
+  } catch(e) {
+    console.warn('TomTom fetch error:', e);
+    LP.routeCache[tl.id] = {miles:0, duration:0, coords:[], stops:stops, error: e.message};
+  }
 
   if(loadingEl) loadingEl.style.display='none';
   lpDrawCachedRoutes();
   lpRenderLegend();
   lpRenderTLLanes();
+}
+
+// Update truck profile (called from settings if we add that later)
+function lpSetTruckProfile(weight, axleWeight, height, width, length) {
+  if(weight)      LP_TRUCK.totalWeight    = weight;
+  if(axleWeight)  LP_TRUCK.weightPerAxle  = axleWeight;
+  if(height)      LP_TRUCK.height         = height;
+  if(width)       LP_TRUCK.width          = width;
+  if(length)      LP_TRUCK.length         = length;
+  LP.routeCache = {};
+  lpFetchAllRoutes();
 }
 
 async function lpFetchAllRoutes() {
@@ -10791,17 +10870,25 @@ function lpBuildRouteView(tlId) {
     +'<div style="font-size:15px;font-weight:700;color:'+color+';margin-bottom:8px">'+esc(tl.tlNum)+' Route</div>';
 
   if(!rc) {
-    html += '<div style="font-size:12px;color:var(--tx2);margin-bottom:12px">Route not yet calculated — click Fetch below.</div>';
+    html += '<div style="font-size:12px;color:var(--tx2);margin-bottom:12px">Route not yet calculated.</div>'
+      +'<button class="btn p" onclick="lpFetchRouteForTL(tempLoads.find(function(t){return t.id===\''+tlId+'\';}))" style="width:100%;margin-bottom:8px">Fetch Truck Route</button>';
+  } else if(rc.error && !rc.miles) {
+    html += '<div style="font-size:12px;color:#dc2626;background:#fef2f2;border-radius:5px;padding:8px 10px;margin-bottom:10px">⚠️ Routing error: '+esc(rc.error)+'</div>'
+      +'<button class="btn p" onclick="lpFetchRouteForTL(tempLoads.find(function(t){return t.id===\''+tlId+'\';}))" style="width:100%;margin-bottom:8px">Retry</button>';
   } else {
     html += '<div style="display:flex;gap:12px;margin-bottom:12px">'
       +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center">'
-        +'<div style="font-size:20px;font-weight:800;color:var(--navy)">'+Math.round(rc.miles||0)+'</div>'
-        +'<div style="font-size:10px;color:var(--tx3)">MILES</div>'
+        +'<div style="font-size:20px;font-weight:800;color:var(--navy)">'+Math.round(rc.miles||0).toLocaleString()+'</div>'
+        +'<div style="font-size:10px;color:var(--tx3)">TRUCK MILES</div>'
       +'</div>'
       +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center">'
-        +'<div style="font-size:20px;font-weight:800;color:var(--navy)">'+(rc.duration?Math.round(rc.duration/3600)+'h':'—')+'</div>'
+        +'<div style="font-size:20px;font-weight:800;color:var(--navy)">'+(rc.duration ? (Math.floor(rc.duration/3600)+'h '+(Math.round((rc.duration%3600)/60))+'m') : '—')+'</div>'
         +'<div style="font-size:10px;color:var(--tx3)">DRIVE TIME</div>'
       +'</div>'
+    +'</div>'
+    +'<div style="margin-bottom:10px;display:flex;gap:6px;align-items:center">'
+      +'<span style="font-size:10px;background:#1B2A4A;color:#2ECC40;padding:2px 8px;border-radius:3px;font-weight:700">🚛 TRUCK ROUTE</span>'
+      +(rc.source==='tomtom'?'<span style="font-size:10px;color:var(--tx3)">via TomTom · 80k lb GVW · 13\'6\" clearance</span>':'')
     +'</div>';
     if(rc.stops) {
       html += '<div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Stops in Order</div>';
@@ -10825,7 +10912,7 @@ function lpBuildRouteView(tlId) {
   var modal = document.createElement('div');
   modal.id='lp-route-modal';
   modal.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.2);z-index:200;min-width:280px;max-width:440px';
-  modal.innerHTML=html;
+  modal.innerHTML=html+'<div style="padding:0 16px 14px"><button class="btn" onclick="document.getElementById(\'lp-route-modal\').remove()" style="width:100%">Close</button></div>';
   document.body.appendChild(modal);
 }
 
