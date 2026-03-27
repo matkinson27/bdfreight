@@ -2952,6 +2952,7 @@ function applyLocalTime(lid, stopIdx) {
 // BOARD KPIs
 // ============================
 function updateBKPIs() {
+  var kpiBoard = document.getElementById('kpi-board'); if(!kpiBoard) return;
   var act = loads.filter(function(l){return !l.archived&&!['Delivered','Closed'].includes(l.status);}).length;
   var iss = loads.filter(function(l){return l.status==='Issue';}).length;
   var del = loads.filter(function(l){return l.status==='Delivered';}).length;
@@ -2965,16 +2966,13 @@ function updateBKPIs() {
     return (prePickup.includes(l.status)&&s.fAppt&&s.fAppt<nowStr2) ||
            (preDel.includes(l.status)&&s.lAppt&&s.lAppt<nowStr2);
   }).length;
-  document.getElementById('kpi-board').innerHTML = kpiH('Active',act)+kpiH('Overdue',ovd,ovd>0?'r':'')+kpiH('Issues',iss,iss>0?'r':'')+kpiH('Delivered',del)+kpiH('Archived',arc);
-  
+  kpiBoard.innerHTML = kpiH('Active',act)+kpiH('Overdue',ovd,ovd>0?'r':'')+kpiH('Issues',iss,iss>0?'r':'')+kpiH('Delivered',del)+kpiH('Archived',arc);
   var ti=document.getElementById('tb-issue');if(ti){ti.style.display=iss>0?'':'none';ti.textContent=iss+' Issue'+(iss!==1?'s':'');}
   var lateCount=loads.filter(function(l){return l.callins&&l.callins.some(function(c){return c.type==='late';});}).length;
   var lateCnt=document.getElementById('late-cnt');
   if(lateCnt){lateCnt.textContent=lateCount;lateCnt.style.display=lateCount>0?'':'none';}
-  var lateCount = loads.filter(function(l){return l.callins&&l.callins.some(function(c){return c.type==='late';});}).length;
-  var lateCnt = document.getElementById('late-cnt');
-  if(lateCnt){lateCnt.textContent=lateCount;lateCnt.style.display=lateCount>0?'':'none';}
-  var cf=document.getElementById('b-carrier'),cv=cf.value;
+  var cf=document.getElementById('b-carrier'); if(!cf) return;
+  var cv=cf.value;
   cf.innerHTML='<option value="">All Carriers</option>';
   [...new Set(loads.map(function(l){return l.carrier;}).filter(Boolean))].sort().forEach(function(c){
     var o=document.createElement('option');o.value=c;o.textContent=c;cf.appendChild(o);
@@ -4683,23 +4681,24 @@ function addPORow(si,po){
   if(!po){if(!stopRows[si].pos)stopRows[si].pos=[];stopRows[si].pos.push(p);}
   p.ri=ri;
 
-  // Auto-assign shipFrom on DEL stops (silent, no dropdown)
+  // Auto-assign shipFrom on DEL stops (silent, no mirroring)
   if(stopRows[si]&&stopRows[si].type==='delivery'){
     var puStops=stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
     if(!p.shipFrom&&puStops.length===1){
       p.shipFrom=String(puStops[0].idx);
-      var puAlreadyHas=puStops[0].s.pos&&puStops[0].s.pos.some(function(x){return x.po===p.po;});
-      if(!puAlreadyHas) syncPOToStop(si,p,String(puStops[0].idx),'pu');
     }
   }
 
-  // Receiver display: show stop name if linked, else dealer name
+  // Receiver display: only meaningful on delivery stops
   var receiverVal = p.dealer||'';
+  var receiverCell = isDel
+    ? '<td><input id="pr-rcv-'+si+'-'+ri+'" value="'+esc(receiverVal)+'" oninput="updPOReceiver('+si+','+ri+',this.value)" placeholder="Name or stop #" style="width:130px" title="Type a name or stop number (e.g. 2)"></td>'
+    : '<td style="color:var(--tx3);font-size:11px;padding:0 4px">—</td>';
 
   var tr=document.createElement('tr');tr.id='pr-'+si+'-'+ri;
   tr.innerHTML=
     '<td><input value="'+esc(p.po||'')+'" oninput="updPO('+si+','+ri+',\'po\',this.value)" placeholder="PO #" style="width:80px"></td>'
-    +'<td><input id="pr-rcv-'+si+'-'+ri+'" value="'+esc(receiverVal)+'" oninput="updPOReceiver('+si+','+ri+',this.value)" placeholder="Name or stop #" style="width:130px" title="Type a name or stop number (e.g. 2)"></td>'
+    +receiverCell
     +'<td><input type="number" value="'+esc(p.pieces||'')+'" oninput="updPO('+si+','+ri+',\'pieces\',this.value)" style="width:55px"></td>'
     +'<td><input type="number" value="'+esc(p.seats||'')+'" oninput="updPO('+si+','+ri+',\'seats\',this.value)" style="width:55px"></td>'
     +'<td><button class="rmpobtn" onclick="rmPORow('+si+','+ri+')">x</button></td>';
@@ -4743,102 +4742,23 @@ function updPOReceiver(si, ri, val) {
   }
 }
 
-// Called when Ship From changes on a DEL PO row
-function onShipFromChange(si, ri, puIdx) {
-  updPO(si, ri, 'shipFrom', puIdx);
-  var s = stopRows[si]; if(!s) return;
-  var p = s.pos.find(function(x){return x.ri===ri;}); if(!p) return;
-  if(puIdx) syncPOToStop(si, p, puIdx, 'pu');
-}
 
-// Called when Ship To changes on a PU PO row
-function onShipToChange(si, ri, delIdx) {
-  updPO(si, ri, 'shipTo', delIdx);
-  var s = stopRows[si]; if(!s) return;
-  var p = s.pos.find(function(x){return x.ri===ri;}); if(!p) return;
-  if(delIdx) syncPOToStop(si, p, delIdx, 'del');
-}
-
-// Sync a PO from one stop to another, creating or updating the linked counterpart
-function syncPOToStop(fromSi, fromPO, toIdx, toType) {
-  var targetStop = stopRows[toIdx];
-  if(!targetStop) return;
-  if(!targetStop.pos) targetStop.pos = [];
-  // Find existing linked PO on target
-  var existing = fromPO.linkedId ? targetStop.pos.find(function(x){return x.linkedId===fromPO.linkedId;}) : null;
-  if(existing) {
-    // Update fields
-    existing.po = fromPO.po;
-    existing.dealer = fromPO.dealer;
-    existing.pieces = fromPO.pieces;
-    existing.seats = fromPO.seats;
-    if(toType==='del') existing.shipFrom = String(fromSi);
-    else existing.shipTo = String(fromSi);
-    // Update DOM if visible
-    refreshLinkedPORow(toIdx, existing);
-  } else {
-    // Create new linked PO on target
-    var lid = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
-    fromPO.linkedId = lid;
-    var newPO = {
-      po: fromPO.po, dealer: fromPO.dealer, pieces: fromPO.pieces, seats: fromPO.seats,
-      linkedId: lid,
-      shipFrom: toType==='del' ? String(fromSi) : '',
-      shipTo:   toType==='pu'  ? String(fromSi) : '',
-      ri: targetStop.pos.length
-    };
-    targetStop.pos.push(newPO);
-    addPORow(Number(toIdx), newPO);
-  }
-}
-
-// Refresh an existing linked PO row in the DOM
-function refreshLinkedPORow(si, p) {
-  var tr = document.getElementById('pr-'+si+'-'+p.ri);
-  if(!tr) return;
-  var inputs = tr.querySelectorAll('input');
-  if(inputs[0]) inputs[0].value = p.po||'';
-  if(inputs[1]) inputs[1].value = p.dealer||'';
-  if(inputs[2]) inputs[2].value = p.pieces||'';
-  if(inputs[3]) inputs[3].value = p.seats||'';
-}
+// Stub — mirroring removed. Receiver field sets shipFrom/shipTo directly.
+function syncPOToStop() {}
+function refreshLinkedPORow() {}
+function onShipFromChange(si,ri,puIdx){ updPO(si,ri,'shipFrom',puIdx); }
+function onShipToChange(si,ri,delIdx){ updPO(si,ri,'shipTo',delIdx); }
 
 function updPO(si,ri,f,v){
   var s=stopRows[si];if(!s)return;
   var p=s.pos.find(function(x){return x.ri===ri;});if(!p)return;
   p[f]=(f==='pieces'||f==='seats')?Number(v)||0:v;
-  // Propagate field changes to linked counterpart
-  if(p.linkedId && f!=='shipFrom' && f!=='shipTo' && f!=='linkedId') {
-    stopRows.forEach(function(ts, ti) {
-      if(!ts || ti===si) return;
-      var linked = ts.pos && ts.pos.find(function(x){return x.linkedId===p.linkedId;});
-      if(linked) { linked[f]=p[f]; refreshLinkedPORow(ti, linked); }
-    });
-  }
+  // No mirroring — each stop's POs are independent
 }
 
 function rmPORow(si,ri){
   var tr=document.getElementById('pr-'+si+'-'+ri);if(tr)tr.remove();
   var s=stopRows[si];if(!s)return;
-  var p=s.pos.find(function(x){return x.ri===ri;});
-  // If linked, ask whether to remove counterpart too
-  if(p && p.linkedId) {
-    var lid = p.linkedId;
-    var hasLinked = stopRows.some(function(ts,ti){
-      return ts && ti!==si && ts.pos && ts.pos.some(function(x){return x.linkedId===lid;});
-    });
-    if(hasLinked && confirm('Remove the linked PO from the connected stop as well?')) {
-      stopRows.forEach(function(ts,ti){
-        if(!ts||ti===si||!ts.pos)return;
-        var linked=ts.pos.find(function(x){return x.linkedId===lid;});
-        if(linked){
-          var ltr=document.getElementById('pr-'+ti+'-'+linked.ri);
-          if(ltr)ltr.remove();
-          ts.pos=ts.pos.filter(function(x){return x.linkedId!==lid;});
-        }
-      });
-    }
-  }
   s.pos=s.pos.filter(function(x){return x.ri!==ri;});
 }
 function rmStop(i){var el=document.getElementById('sr-'+i);if(el)el.remove();stopRows[i]=null;updateLoadCustRTotal();}
@@ -6329,12 +6249,13 @@ function confirmAddPOs(){
 // DEALER ORDERS
 // ============================
 function updateDKPIs(){
+  var kpiDealer=document.getElementById('kpi-dealer'); if(!kpiDealer) return;
   var sel=dealers.filter(function(d){return d.sel;});
   var src=sel.length?sel:dealers;
   var lbl=sel.length?'Selected ('+sel.length+')':'All Orders';
-  document.getElementById('kpi-dealer').innerHTML=kpiH(lbl,src.length)+kpiH('Pieces',src.reduce(function(a,d){return a+(Number(d.pieces)||0);},0))+kpiH('Seats',src.reduce(function(a,d){return a+(Number(d.seats)||0);},0))+kpiH('Vendors',[...new Set(src.map(function(d){return d.vendor;}).filter(Boolean))].length);
-  var sf=document.getElementById('d-state'),sv=sf.value;sf.innerHTML='<option value="">All States</option>';[...new Set(dealers.map(function(d){return d.state;}).filter(Boolean))].sort().forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;sf.appendChild(o);});sf.value=sv;
-  var vf=document.getElementById('d-vendor'),vv=vf.value;vf.innerHTML='<option value="">All Vendors</option>';[...new Set(dealers.map(function(d){return d.vendor;}).filter(Boolean))].sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;vf.appendChild(o);});vf.value=vv;
+  kpiDealer.innerHTML=kpiH(lbl,src.length)+kpiH('Pieces',src.reduce(function(a,d){return a+(Number(d.pieces)||0);},0))+kpiH('Seats',src.reduce(function(a,d){return a+(Number(d.seats)||0);},0))+kpiH('Vendors',[...new Set(src.map(function(d){return d.vendor;}).filter(Boolean))].length);
+  var sf=document.getElementById('d-state');if(!sf)return;var sv=sf.value;sf.innerHTML='<option value="">All States</option>';[...new Set(dealers.map(function(d){return d.state;}).filter(Boolean))].sort().forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;sf.appendChild(o);});sf.value=sv;
+  var vf=document.getElementById('d-vendor');if(!vf)return;var vv=vf.value;vf.innerHTML='<option value="">All Vendors</option>';[...new Set(dealers.map(function(d){return d.vendor;}).filter(Boolean))].sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;vf.appendChild(o);});vf.value=vv;
 }
 function renderDealer(){
   var q=(document.getElementById('d-search').value||'').toLowerCase();
@@ -9026,13 +8947,14 @@ function confirmRates() {
 // ACCOUNTING TAB
 // ============================
 function updateAcctKPIs() {
+  var kpiAcct = document.getElementById('kpi-acct'); if(!kpiAcct) return;
   var eligible = loads.filter(function(l){return ['Delivered','Closed'].includes(l.status)||l.archived;});
   var confirmed = eligible.filter(function(l){return l.rateConfirmation;});
   var discrepancies = confirmed.filter(function(l){return l.rateConfirmation.crDiscrepancy||l.rateConfirmation.customerDiscrepancy;});
   var pending = eligible.filter(function(l){return !l.rateConfirmation;});
   var totalConfirmedCr = confirmed.reduce(function(a,l){return a+(l.rateConfirmation.confirmedCr||0);},0);
   var totalConfirmedCust = confirmed.reduce(function(a,l){return a+(l.rateConfirmation.confirmedCustR||0);},0);
-  document.getElementById('kpi-acct').innerHTML =
+  kpiAcct.innerHTML =
     kpiH('Eligible Loads', eligible.length) +
     kpiH('Confirmed', confirmed.length, confirmed.length===eligible.length?'g':'') +
     kpiH('Pending', pending.length, pending.length>0?'r':'g') +
@@ -10680,6 +10602,9 @@ function lpInitLeaflet(){
 
   if(_lpMap){ try{_lpMap.remove();}catch(e){} _lpMap=null; }
 
+  // Force container to fill its flex parent with a real pixel height
+  container.style.height = (container.parentElement ? container.parentElement.getBoundingClientRect().height - 80 : 400) + 'px';
+
   _lpMap=L.map(container,{center:[39.5,-98.35],zoom:4});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:18
@@ -10688,12 +10613,23 @@ function lpInitLeaflet(){
   LP.mapBuilt=true;
 
   setTimeout(function(){
+    // Re-measure after paint and resize map to fill properly
+    var panel = document.getElementById('page-planner');
+    var legend = document.getElementById('lp-legend');
+    var toolbar = container.previousElementSibling;
+    if(panel && container.parentElement) {
+      var parentH = container.parentElement.getBoundingClientRect().height;
+      var toolbarH = toolbar ? toolbar.getBoundingClientRect().height : 0;
+      var legendH = legend ? legend.getBoundingClientRect().height : 0;
+      var mapH = parentH - toolbarH - legendH;
+      if(mapH > 100) container.style.height = mapH + 'px';
+    }
     _lpMap.invalidateSize();
     lpColorMapStates();
     lpRenderMapDots();
     lpDrawCachedRoutes();
     lpFetchAllRoutes();
-  },250);
+  },300);
 }
 
 function lpRenderMapDots(){
