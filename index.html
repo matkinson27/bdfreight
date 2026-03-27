@@ -1157,7 +1157,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="lf-vendor" placeholder="Search locations..." oninput="vendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-vendor"></div></div></div>
       <div class="fi"><label>Carrier</label><div class="acw"><input id="lf-carrier" placeholder="Search scorecard..." oninput="carrierAC(this.value)" autocomplete="off"><div class="acl" id="ac-carrier"></div></div></div>
       <div class="fi"><label>Dispatcher</label><input id="lf-disp" placeholder="Dispatcher name"></div>
-      <div class="fi"><label>Equipment Type</label><div class="acw"><input id="lf-equip" placeholder="Click or type to select..." oninput="equipAC(this.value)" onfocus="equipAC(this.value)" autocomplete="off"><div class="acl" id="ac-equip"></div></div></div>
+      <div class="fi"><label>Equipment Type</label><div style="display:flex;gap:4px;align-items:center"><div class="acw" style="flex:1"><input id="lf-equip" placeholder="V, R, F, SD..." oninput="equipAC(this.value,'lf-equip')" onfocus="equipAC(this.value,'lf-equip')" autocomplete="off"><div class="acl" id="ac-equip"></div></div><button type="button" onclick="openEquipRef('lf-equip')" title="Equipment code reference" style="height:32px;width:32px;flex-shrink:0;background:var(--sur2);border:1px solid var(--bd2);border-radius:var(--r);cursor:pointer;font-size:14px">🔍</button></div></div>
       <div class="fi"><label>Carrier Rate ($)</label><input type="number" id="lf-cr" placeholder="0"></div>
       <div class="fi"><label>Customer Rate ($) <span style="font-weight:400;color:var(--tx3);font-size:10px">— or split per receiver below</span></label><input type="number" id="lf-custR"><div id="lf-custR-total" style="font-size:10px;color:var(--green);font-weight:600;margin-top:3px"></div></div>
       <div class="fi"><label>Miles (manual)</label><input type="number" id="lf-miles" placeholder="Enter miles"></div>
@@ -1333,7 +1333,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       </div>
       <div class="fi"><label>Piece Count</label><input type="number" id="df-pieces"></div>
       <div class="fi"><label>Seats</label><input type="number" id="df-seats"></div>
-      <div class="fi"><label>Ready Date</label><input type="date" id="df-ready"></div>
+      <div class="fi"><label>Ready Date</label><input type="text" id="df-ready" placeholder="MM/DD or MM/DD/YYYY" maxlength="10" style="width:100%" onblur="autoFillReadyYear(this)"></div>
       <div class="fi"><label>Dealer Name</label>
         <div class="acw"><input id="df-dealer" placeholder="Search dealers..." oninput="dealerNameAC(this.value)" autocomplete="off"><div class="acl" id="ac-df-dealer"></div></div>
       </div>
@@ -1553,6 +1553,18 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="mfooter" style="margin-top:12px">
       <button class="btn" onclick="closeM('m-myprofile')">Cancel</button>
       <button class="btn p" onclick="saveMyProfile()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment Reference Modal -->
+<div class="overlay" id="m-equip-ref">
+  <div class="mbox" style="max-width:360px">
+    <div class="mh">Equipment Codes</div>
+    <div style="font-size:11px;color:var(--tx3);margin-bottom:12px">Type the code into any equipment field</div>
+    <div id="equip-ref-list" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px"></div>
+    <div class="mfooter" style="margin-top:14px">
+      <button class="btn p" onclick="closeM('m-equip-ref')">Close</button>
     </div>
   </div>
 </div>
@@ -2150,6 +2162,14 @@ function fmtDate(s) {
   if(p.length===3) return p[1]+'/'+p[2]+'/'+p[0];
   return s;
 }
+function autoFillReadyYear(input) {
+  var v = (input.value||'').trim();
+  if(!v) return;
+  // If it's M/D or MM/DD with no year, append current year
+  if(/^\d{1,2}\/\d{1,2}$/.test(v)) {
+    input.value = v + '/' + new Date().getFullYear();
+  }
+}
 
 document.querySelectorAll('.overlay').forEach(function(m) {
   // Overlays only closeable via explicit close button — no backdrop click to dismiss
@@ -2725,28 +2745,26 @@ var EQUIP_MAP = {
   'R':'Reefer',
   'F':'Flatbed',
   'SD':'Step Deck',
-  'DD':'Dbl Drop',
-  'RGN':'RGN',
-  'SB':'Box Truck',
-  'SB26':'26ft Box',
-  'SB16':'16ft Box',
-  'SPR':'Sprinter',
-  'HS':'Hot Shot',
-  'LTL':'LTL',
+  'DD':'Double Drop',
+  'RGN':'Removable Gooseneck',
   'CON':'Conestoga',
-  'AUTO':'Auto Carrier',
+  'SB':'Box Truck',
+  'SPR':'Sprinter Van',
+  'HS':'Hot Shot',
   'TK':'Tanker',
   'BULK':'Bulk',
-  'FV':'Flatbed Van',
+  'AUTO':'Auto Carrier',
+  'LTL':'LTL',
   // Legacy aliases — resolve display only, not shown in picker
+  'FV':'Flatbed','SB26':'Box Truck','SB16':'Box Truck',
   'VAN':'Van','REEFER':'Reefer','RF':'Reefer','FLAT':'Flatbed','FB':'Flatbed',
   'STEP':'Step Deck','BT':'Box Truck','BOX':'Box Truck',
-  'HB':'Hot Shot','HOTSHOT':'Hot Shot','SPRINTER':'Sprinter',
+  'HB':'Hot Shot','HOTSHOT':'Hot Shot','SPRINTER':'Sprinter Van',
   'CONESTOGA':'Conestoga','TANK':'Tanker'
 };
-// Canonical codes shown in the equipment picker (no aliases)
+// Canonical codes shown in picker
 var EQUIP_CODES = [
-  'V','R','F','SD','DD','RGN','SB','SB26','SB16','SPR','HS','LTL','CON','AUTO','TK','BULK','FV'
+  'V','R','F','SD','DD','RGN','CON','SB','SPR','HS','TK','BULK','AUTO','LTL'
 ];
 function resolveEquipCode(raw){
   if(!raw) return '';
@@ -3533,12 +3551,24 @@ function renderDetailInto(panel,l){
 // ============================
 // EQUIPMENT UI HELPERS
 // ============================
-function equipAC(q){
+var _equipTarget = 'lf-equip'; // which field to populate
+function openEquipRef(targetId) {
+  _equipTarget = targetId || 'lf-equip';
+  var el = document.getElementById('equip-ref-list');
+  if(el) el.innerHTML = EQUIP_CODES.map(function(c){
+    return '<div onclick="pickEquip(\''+esc(c)+'\')" style="display:flex;align-items:baseline;gap:6px;padding:5px 8px;border-radius:var(--r);cursor:pointer;background:var(--sur);border:1px solid var(--bd)" onmouseenter="this.style.background=\'var(--sur2)\'" onmouseleave="this.style.background=\'var(--sur)\'">'
+      +'<span style="font-weight:800;color:var(--navy);min-width:44px;font-size:12px">'+esc(c)+'</span>'
+      +'<span style="color:var(--tx2);font-size:11px">'+esc(EQUIP_MAP[c])+'</span>'
+    +'</div>';
+  }).join('');
+  openM('m-equip-ref');
+}
+function equipAC(q, targetId){
+  _equipTarget = targetId || _equipTarget || 'lf-equip';
   var list=document.getElementById('ac-equip');
   var up=(q||'').toUpperCase().trim();
   var matches;
   if(!up) {
-    // Show all canonical codes when field is focused/empty
     matches = EQUIP_CODES.map(function(c){return [c, EQUIP_MAP[c]];});
   } else {
     matches = EQUIP_CODES.filter(function(c){
@@ -3554,8 +3584,11 @@ function equipAC(q){
   list.style.display='block';
 }
 function pickEquip(code){
-  document.getElementById('lf-equip').value=code;
-  document.getElementById('ac-equip').style.display='none';
+  var el = document.getElementById(_equipTarget);
+  if(el) el.value = code;
+  var ac = document.getElementById('ac-equip');
+  if(ac) ac.style.display='none';
+  closeM('m-equip-ref');
 }
 function toggleDealerCSVInfo(){
   var el=document.getElementById('dealer-csv-info'); if(!el) return;
@@ -4486,6 +4519,8 @@ function addStop(stop) {
   var puHasDelStops = !isDel && stopRows.some(function(x){return x&&x.type==='delivery';});
   d.innerHTML=reorderCtrl
     +'<div id="srb-'+idx+'" style="display:'+(isStopCollapsed?'none':'')+'">'
+
+    // Row 1: Type | Location | Earliest | Latest — same as before
     +'<div class="sr1" style="grid-template-columns:88px 1fr 160px 160px">'
       +'<div class="sl">Type<select onchange="stopRows['+idx+'].type=this.value;var el=document.getElementById(\'sr-'+idx+'\');el.className=\'srow \'+(this.value===\'pickup\'?\'pi\':\'di\');var cr=document.getElementById(\'scr-'+idx+'\');if(cr)cr.style.display=this.value===\'delivery\'?\'flex\':\'none\'"><option value="pickup"'+(s.type==='pickup'?' selected':'')+'>Pickup</option><option value="delivery"'+(s.type==='delivery'?' selected':'')+'>Delivery</option></select></div>'
       +'<div class="sl">Location'
@@ -4498,20 +4533,28 @@ function addStop(stop) {
       +'<div class="sl">'+(isDel?'Earliest DEL':'Earliest PU')+makeApptInput('sappt-'+idx, s.appt, 'dtCbAppt'+idx, isDel?'Earliest DEL':'Earliest PU')+'</div>'
       +'<div class="sl">'+(isDel?'Latest DEL':'Latest PU')+makeApptInput('slappt-'+idx, s.latestAppt, 'dtCbLAppt'+idx, isDel?'Latest DEL':'Latest PU')+'</div>'
     +'</div>'
-    +'<div class="sr2" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr">'
-      +'<div class="sl" id="saddr-row-'+idx+'" style="display:'+(s.addr?'':'none')+'">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>'
-      +'<div class="sl">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
-      +'<div class="sl" style="display:flex;align-items:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap;width:auto"><input type="checkbox"'+(s.liftgate?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy);flex-shrink:0" onchange="stopRows['+idx+'].liftgate=this.checked"> Liftgate</label></div>'
-      +'<div class="sl" style="display:flex;align-items:center"><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap;width:auto"><input type="checkbox"'+(s.driverAssist?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy);flex-shrink:0" onchange="stopRows['+idx+'].driverAssist=this.checked"> Driver Assist</label></div>'
-      +'<div class="sl">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" '+locked+' oninput="if(!this.readOnly)stopRows['+idx+'].city=this.value"></div>'
-      +'<div class="sl">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" '+locked+' maxlength="2" oninput="if(!this.readOnly)stopRows['+idx+'].state=this.value"></div>'
-      +'<div class="sl">ZIP<input id="sz-'+idx+'" value="'+esc(s.zip)+'" '+locked+' maxlength="5" oninput="if(!this.readOnly)stopRows['+idx+'].zip=this.value"></div>'
+
+    // Row 2: Address (if set) | City | State | ZIP | Notes | ☐ Liftgate ☐ Driver Assist — all on one tight row
+    +'<div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-top:6px">'
+      +(s.addr ? '<div class="sl" id="saddr-row-'+idx+'" style="min-width:140px;flex:2">Address<input id="sa-'+idx+'" value="'+esc(s.addr)+'" readonly style="background:var(--sur2);color:var(--tx2);cursor:not-allowed"></div>' : '<div id="saddr-row-'+idx+'" style="display:none"><input id="sa-'+idx+'" value="'+esc(s.addr)+'"></div>')
+      +'<div class="sl" style="width:110px">City<input id="sc-'+idx+'" value="'+esc(s.city)+'" '+locked+' oninput="if(!this.readOnly)stopRows['+idx+'].city=this.value"></div>'
+      +'<div class="sl" style="width:50px">State<input id="ss-'+idx+'" value="'+esc(s.state)+'" '+locked+' maxlength="2" oninput="if(!this.readOnly)stopRows['+idx+'].state=this.value"></div>'
+      +'<div class="sl" style="width:70px">ZIP<input id="sz-'+idx+'" value="'+esc(s.zip)+'" '+locked+' maxlength="5" oninput="if(!this.readOnly)stopRows['+idx+'].zip=this.value"></div>'
+      +'<div class="sl" style="flex:1;min-width:100px">Notes<input value="'+esc(s.notes)+'" oninput="stopRows['+idx+'].notes=this.value"></div>'
+      +'<div style="display:flex;align-items:center;gap:12px;padding-bottom:2px;flex-shrink:0">'
+        +'<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap"><input type="checkbox"'+(s.liftgate?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy)" onchange="stopRows['+idx+'].liftgate=this.checked"> Liftgate</label>'
+        +'<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);white-space:nowrap"><input type="checkbox"'+(s.driverAssist?' checked':'')+' style="width:14px;height:14px;accent-color:var(--navy)" onchange="stopRows['+idx+'].driverAssist=this.checked"> Driver Assist</label>'
+      +'</div>'
     +'</div>'
-    +'<div id="scr-'+idx+'" style="display:'+(isDel?'flex':'none')+';align-items:center;gap:8px;margin-top:7px;padding-top:7px;border-top:1px solid var(--bd)">'
+
+    // Customer Rate (delivery only)
+    +'<div id="scr-'+idx+'" style="display:'+(isDel?'flex':'none')+';align-items:center;gap:8px;margin-top:6px;padding-top:6px;border-top:1px solid var(--bd)">'
       +'<span style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">Customer Rate ($)</span>'
       +'<input type="number" id="scust-'+idx+'" value="'+(s.custR||'')+'" placeholder="0.00" oninput="stopRows['+idx+'].custR=parseFloat(this.value)||0;updateLoadCustRTotal()" style="height:28px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--sur);font-family:var(--F);outline:none;width:130px">'
       +'<span style="font-size:11px;color:var(--tx2)">for <strong id="scr-name-'+idx+'">'+(s.name||'this receiver')+'</strong></span>'
     +'</div>'
+
+    // POs table
     +'<div style="margin-top:8px">'
       +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">POs at this stop</div>'
       +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th>'+(isDel?'<th>Ship From (PU)</th>':puHasDelStops?'<th>Ship To (DEL)</th>':'')+'<th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
@@ -5715,6 +5758,7 @@ function nsUpdateLegend(colorMap) {
 function nsAddPORow() {
   // Copy vendor/dealer from last row as default
   var prev = nsPORows.length ? nsPORows[nsPORows.length-1] : {};
+  var defaultReady = prev.ready || new Date().getFullYear()+'-01-01'; // date input needs YYYY-MM-DD, start blank but year-primed
   nsPORows.push({po:'', pcs:'', seats:'', vendor:prev.vendor||'', ready:'', dealer:prev.dealer||'', phone:prev.phone||'', city:prev.city||'', state:prev.state||'', zip:prev.zip||'', addinfo:''});
   nsRenderRows();
   // Focus the new PO input
@@ -5812,7 +5856,17 @@ function nsPickDealer2(idx, name, phone, city, state, zip) {
 function saveNewStaging() {
   var valid = nsPORows.filter(function(r){return r.po && r.po.trim();});
   if(!valid.length){alert('At least one PO # is required.');return;}
-  // Duplicate check
+
+  // Deduplicate within this form — keep first occurrence of each PO#
+  var seenPOs = {};
+  valid = valid.filter(function(r){
+    var k = (r.po||'').toLowerCase().trim();
+    if(seenPOs[k]) return false;
+    seenPOs[k] = true;
+    return true;
+  });
+
+  // Check against existing temp loads
   var dupes = valid.filter(function(r){
     return tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').toLowerCase()===(r.po||'').toLowerCase();});});
   });
@@ -6173,7 +6227,7 @@ function openDealerModal(id) {
     if(firstInput) firstInput.value = d.po||'';
     fv('df-vendor').value=d.vendor||'';
     fv('df-pieces').value=d.pieces||'';fv('df-seats').value=d.seats||'';
-    fv('df-ready').value=d.ready?toInputDate(d.ready):'';
+    fv('df-ready').value=d.ready||'';  // show as stored M/D or M/D/YYYY
     fv('df-dealer').value=d.dealer||'';fv('df-phone').value=d.phone||'';
     fv('df-addr').value=d.addr||'';fv('df-city').value=d.city||'';
     fv('df-state').value=d.state||'';fv('df-zip').value=d.zip||'';fv('df-addinfo').value=d.addinfo||'';
@@ -6192,15 +6246,34 @@ function toInputDate(s) {
 }
 
 function saveDealer(){
-  var f=function(id){return document.getElementById(id).value;};
+  var f=function(id){return document.getElementById(id).value.trim();};
   var pos = getDealerPOs();
   if(!pos.length) { alert('At least one PO # is required.'); return; }
+  // Duplicate check — case-insensitive, also check temp loads
   var dupes = pos.filter(function(po){
-    return dealers.find(function(x){return x.po.trim().toLowerCase()===po.toLowerCase()&&x.id!==editingDealerId;});
+    var poL = po.trim().toLowerCase();
+    var inDealers = dealers.find(function(x){return (x.po||'').trim().toLowerCase()===poL && x.id!==editingDealerId;});
+    var inTL = tempLoads.some(function(tl){return tl.pos.some(function(p){return (p.po||'').trim().toLowerCase()===poL;});});
+    return inDealers || inTL;
   });
-  if(dupes.length) { alert('PO # "'+dupes[0]+'" already exists. PO numbers must be unique.'); return; }
-  var ready = f('df-ready');
-  var readyDisp = ready ? (function(){var p=ready.split('-');return parseInt(p[1])+'/'+parseInt(p[2])+'/'+p[0];})() : '';
+  if(dupes.length) { alert('PO # "'+dupes[0]+'" already exists in Orders or Temp Loads. PO numbers must be unique.'); return; }
+  // Ready date: auto-add current year if only M/D given
+  var rawReady = f('df-ready');
+  var readyDisp = '';
+  if(rawReady) {
+    var parts = rawReady.split('/');
+    if(parts.length === 2) {
+      // M/D — append current year
+      readyDisp = parts[0]+'/'+parts[1]+'/'+new Date().getFullYear();
+    } else if(parts.length === 3) {
+      // M/D/YY or M/D/YYYY — normalise 2-digit year
+      var yr = parseInt(parts[2]);
+      if(yr < 100) yr += 2000;
+      readyDisp = parts[0]+'/'+parts[1]+'/'+yr;
+    } else {
+      readyDisp = rawReady;
+    }
+  }
   var base={vendor:f('df-vendor'),pieces:f('df-pieces'),seats:f('df-seats'),
     ready:readyDisp,dealer:f('df-dealer'),phone:f('df-phone'),addr:f('df-addr'),
     city:f('df-city'),state:f('df-state'),zip:f('df-zip'),addinfo:f('df-addinfo'),sel:false};
