@@ -1655,7 +1655,7 @@ function logout() { sessionStorage.removeItem('bdf_u'); location.reload(); }
     currentUserRole = users[s].role || 'standard';
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
-    document.getElementById('cur-user').textContent = cap(s);
+    var _cu = document.getElementById('cur-user'); if(_cu) _cu.textContent = cap(s);
     var _dn = users[s] && users[s].displayName ? users[s].displayName : cap(s);
     var _el = document.getElementById('cur-user-display'); if(_el) _el.textContent = _dn;
     document.getElementById('admin-btn').style.display = (currentUserRole === 'admin') ? '' : 'none';
@@ -9257,15 +9257,24 @@ if(document.getElementById('app').style.display==='flex') initApp();
   if(overlay) overlay.style.display = 'none';
 
   if(document.getElementById('app').style.display === 'flex') {
+    // Render dashboard immediately so user sees content right away
     try { renderDashboard(); } catch(e) { console.error('renderDashboard',e); }
-    try { renderDealer(); updateDKPIs(); } catch(e) { console.error('renderDealer',e); }
-    try { renderBoard(); updateBKPIs(); } catch(e) { console.error('renderBoard',e); }
-    try { renderSC(); updateSCKPIs(); renderSCDashboard(); } catch(e) { console.error('renderSC',e); }
-    try { renderLocDB(); } catch(e) { console.error('renderLocDB',e); }
-    try { renderRates(); updateRatesKPIs(); } catch(e) { console.error('renderRates',e); }
-    try { renderStaging(); } catch(e) { console.error('renderStaging',e); }
-    try { renderAccounting(); updateAcctKPIs(); } catch(e) { console.error('renderAccounting',e); }
-    setTimeout(function(){initAllResizableCols();},150);
+
+    // Defer all other tab renders — browser paints dashboard first
+    setTimeout(function(){
+      try { renderDealer(); updateDKPIs(); } catch(e) { console.error('renderDealer',e); }
+      try { renderBoard(); updateBKPIs(); } catch(e) { console.error('renderBoard',e); }
+    }, 0);
+    setTimeout(function(){
+      try { renderSC(); updateSCKPIs(); renderSCDashboard(); } catch(e) { console.error('renderSC',e); }
+      try { renderLocDB(); } catch(e) { console.error('renderLocDB',e); }
+    }, 0);
+    setTimeout(function(){
+      try { renderRates(); updateRatesKPIs(); } catch(e) { console.error('renderRates',e); }
+      try { renderStaging(); } catch(e) { console.error('renderStaging',e); }
+      try { renderAccounting(); updateAcctKPIs(); } catch(e) { console.error('renderAccounting',e); }
+      initAllResizableCols();
+    }, 0);
   }
 
   // ── Realtime subscriptions ──────────────────────────────────────────────
