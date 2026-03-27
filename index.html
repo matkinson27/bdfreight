@@ -869,36 +869,48 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 
   <!-- CARRIER SCORECARD (formerly Carrier DB) -->
   <div class="page" id="page-scorecard">
-    <div class="kpis c4" id="kpi-sc"></div>
-    <div class="tbar">
-      <input type="text" id="sc-search" placeholder="Search carrier..." oninput="renderSC()">
-      <select id="sc-tier" onchange="renderSC()"><option value="">All Grades</option><option value="S">S</option><option value="A+">A+</option><option value="A">A</option><option value="A-">A-</option><option value="B+">B+</option><option value="B">B</option><option value="B-">B-</option><option value="C+">C+</option><option value="C">C</option><option value="C-">C-</option><option value="D+">D+</option><option value="D">D</option><option value="D-">D-</option><option value="F">F</option><option value="P">⚑ On Probation (D+ and below)</option></select>
-      <button class="btn p" onclick="openCarrierModal(null)">+ Add Carrier</button>
-      <button class="btn" onclick="exportCarriers()">Export CSV</button>
-      <button class="btn" onclick="generateGradingPDF()">Grading Guide PDF</button>
-      <button class="btn d" onclick="delSelCarriers()">Delete</button>
+    <div class="stabs" style="padding:0 16px">
+      <div class="stab on" id="sctab-dash" onclick="setSCTab('dash',this)">Dashboard</div>
+      <div class="stab" id="sctab-db" onclick="setSCTab('db',this)">Carrier Database</div>
     </div>
-    <div class="split">
-      <div class="split-top" id="sc-split-top" style="height:260px;min-height:80px">
-        <div class="tw"><table id="sc-table">
-          <thead><tr>
-            <th class="nc" style="width:28px"></th>
-            <th onclick="sortSC('name')" id="scth-name" style="cursor:pointer">Carrier</th>
-            <th onclick="sortSC('mc')" id="scth-mc" style="cursor:pointer">MC #</th>
-            <th onclick="sortSC('ontime')" id="scth-ontime" style="cursor:pointer">PU On-Time</th>
-            <th onclick="sortSC('delontime')" id="scth-delontime" style="cursor:pointer">DEL On-Time</th>
-            <th onclick="sortSC('incidents')" id="scth-incidents" style="cursor:pointer">Incidents</th>
-            <th onclick="sortSC('claims')" id="scth-claims" style="cursor:pointer">Claims</th>
-            <th onclick="sortSC('loads')" id="scth-loads" style="cursor:pointer">Loads</th>
-            <th onclick="sortSC('lanes')" id="scth-lanes" style="cursor:pointer">Lanes</th>
-            <th onclick="sortSC('tier')" id="scth-tier" style="cursor:pointer">Tier</th>
-            <th class="nc">Actions</th>
-          </tr></thead>
-          <tbody id="sc-body"></tbody>
-        </table></div>
+
+    <!-- Carrier Dashboard -->
+    <div id="sc-view-dash" style="flex:1;overflow-y:auto;padding:16px">
+      <div id="sc-dashboard-content"><div class="dempty">Loading...</div></div>
+    </div>
+
+    <!-- Carrier Database -->
+    <div id="sc-view-db" style="flex:1;display:none;flex-direction:column;overflow:hidden">
+      <div class="tbar">
+        <input type="text" id="sc-search" placeholder="Search carrier..." oninput="renderSC()">
+        <select id="sc-tier" onchange="renderSC()"><option value="">All Grades</option><option value="S">S</option><option value="A+">A+</option><option value="A">A</option><option value="A-">A-</option><option value="B+">B+</option><option value="B">B</option><option value="B-">B-</option><option value="C+">C+</option><option value="C">C</option><option value="C-">C-</option><option value="D+">D+</option><option value="D">D</option><option value="D-">D-</option><option value="F">F</option><option value="P">⚑ On Probation (D+ and below)</option></select>
+        <button class="btn p" onclick="openCarrierModal(null)">+ Add Carrier</button>
+        <button class="btn" onclick="exportCarriers()">Export CSV</button>
+        <button class="btn" onclick="generateGradingPDF()">Grading Guide PDF</button>
+        <button class="btn d" onclick="delSelCarriers()">Delete</button>
       </div>
-      <div class="split-handle" id="sc-handle"></div>
-      <div class="split-bot"><div id="sc-panel"><div class="dempty">Click a carrier to view profile</div></div></div>
+      <div class="split" style="flex:1;overflow:hidden">
+        <div class="split-top" id="sc-split-top" style="height:260px;min-height:80px">
+          <div class="tw"><table id="sc-table">
+            <thead><tr>
+              <th class="nc" style="width:28px"></th>
+              <th onclick="sortSC('name')" id="scth-name" style="cursor:pointer">Carrier</th>
+              <th onclick="sortSC('mc')" id="scth-mc" style="cursor:pointer">MC #</th>
+              <th onclick="sortSC('ontime')" id="scth-ontime" style="cursor:pointer">PU On-Time</th>
+              <th onclick="sortSC('delontime')" id="scth-delontime" style="cursor:pointer">DEL On-Time</th>
+              <th onclick="sortSC('incidents')" id="scth-incidents" style="cursor:pointer">Incidents</th>
+              <th onclick="sortSC('claims')" id="scth-claims" style="cursor:pointer">Claims</th>
+              <th onclick="sortSC('loads')" id="scth-loads" style="cursor:pointer">Loads</th>
+              <th onclick="sortSC('lanes')" id="scth-lanes" style="cursor:pointer">Lanes</th>
+              <th onclick="sortSC('tier')" id="scth-tier" style="cursor:pointer">Tier</th>
+              <th class="nc">Actions</th>
+            </tr></thead>
+            <tbody id="sc-body"></tbody>
+          </table></div>
+        </div>
+        <div class="split-handle" id="sc-handle"></div>
+        <div class="split-bot"><div id="sc-panel"><div class="dempty">Click a carrier to view profile</div></div></div>
+      </div>
     </div>
   </div>
 
@@ -937,24 +949,18 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     </div>
   </div>
 
-  <!-- RATE TRACKER -->
+  <!-- REPORTS -->
   <div class="page" id="page-rates">
-    <div class="stabs" id="rate-tabs" style="padding:0 16px">
-      <div class="stab on" id="rtab-rdash" onclick="setRateTab('rdash',this)">Reports Dashboard</div>
-      <div class="stab" id="rtab-lanes" onclick="setRateTab('lanes',this)">Rate Tracker</div>
-      <div class="stab" id="rtab-team" onclick="setRateTab('team',this)">Team Report</div>
-      <div class="stab" id="rtab-my" onclick="setRateTab('my',this)">My Report</div>
-      <div class="stab" id="rtab-manual" onclick="setRateTab('manual',this)" style="color:var(--tx3);font-size:11px">Manual Log</div>
-    </div>
 
-    <!-- Reports Dashboard -->
+    <!-- Dashboard (default) -->
     <div id="rate-view-rdash" style="flex:1;overflow-y:auto;padding:16px">
       <div id="rate-dashboard-content"><div class="dempty">Loading...</div></div>
     </div>
 
-    <!-- Rate Tracker (Lane detail) -->
+    <!-- Rate Tracker -->
     <div id="rate-view-lanes" style="flex:1;overflow-y:auto;display:none;padding:16px">
       <div class="tbar" style="margin-bottom:10px;padding:0">
+        <button class="btn xs" onclick="setRateTab('rdash',null)">&#8592; Dashboard</button>
         <input type="text" id="lane-search" placeholder="Search lane, carrier..." oninput="renderLaneDetail()" style="width:240px">
         <select id="lane-carrier" onchange="renderLaneDetail()"><option value="">All Carriers</option></select>
         <select id="lane-origin" onchange="renderLaneDetail()"><option value="">All Origins</option></select>
@@ -965,13 +971,19 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 
     <!-- Team Report -->
     <div id="rate-view-team" style="flex:1;overflow-y:auto;display:none;padding:16px">
+      <div class="tbar" style="padding:0;margin-bottom:14px">
+        <button class="btn xs" onclick="setRateTab('rdash',null)">&#8592; Dashboard</button>
+        <span style="font-size:14px;font-weight:700;color:var(--navy);margin-left:8px">Team Report</span>
+      </div>
       <div id="team-report-content"><div class="dempty">Loading...</div></div>
     </div>
 
     <!-- My Report -->
     <div id="rate-view-my" style="flex:1;overflow-y:auto;display:none;padding:16px">
-      <div class="tbar" style="padding:0;margin-bottom:14px">
-        <label style="font-size:12px;font-weight:600;color:var(--tx2)">From</label>
+      <div class="tbar" style="padding:0;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+        <button class="btn xs" onclick="setRateTab('rdash',null)">&#8592; Dashboard</button>
+        <span style="font-size:14px;font-weight:700;color:var(--navy);margin-left:4px">My Report</span>
+        <label style="font-size:12px;font-weight:600;color:var(--tx2);margin-left:8px">From</label>
         <input type="date" id="my-report-from" onchange="renderMyReport()">
         <label style="font-size:12px;font-weight:600;color:var(--tx2)">To</label>
         <input type="date" id="my-report-to" onchange="renderMyReport()">
@@ -983,16 +995,17 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div id="my-report-content"><div class="dempty">Loading...</div></div>
     </div>
 
-    <!-- Manual log view -->
-    <div id="rate-view-manual" style="flex:1;overflow-y:auto;display:none">
-      <div class="kpis c5" id="kpi-rates"></div>
+    <!-- Manual Log -->
+    <div id="rate-view-manual" style="flex:1;overflow-y:auto;display:none;padding:0">
       <div class="tbar">
+        <button class="btn xs" onclick="setRateTab('rdash',null)">&#8592; Dashboard</button>
         <input type="text" id="rate-search" placeholder="Search lane, carrier..." oninput="renderRates()">
         <select id="rate-carrier" onchange="renderRates()"><option value="">All Carriers</option></select>
         <button class="btn p" onclick="openM('m-rate')">+ Add Rate</button>
         <button class="btn" onclick="exportRates()">Export CSV</button>
         <button class="btn d" onclick="delSelRates()">Delete</button>
       </div>
+      <div class="kpis c5" id="kpi-rates"></div>
       <div class="tw"><table id="rate-table">
         <thead><tr>
           <th class="nc" style="width:28px"></th>
@@ -1957,9 +1970,9 @@ function reRenderCurrent() {
     if(pid==='page-dashboard'){renderDashboard();}
     else if(pid==='page-dealer'){renderDealer();updateDKPIs();}
     else if(pid==='page-board'){renderBoard();updateBKPIs();}
-    else if(pid==='page-scorecard'){renderSC();updateSCKPIs();}
+    else if(pid==='page-scorecard'){setSCTab(scTab,document.getElementById('sctab-'+scTab));}
     else if(pid==='page-locdb'){renderLocDB();}
-    else if(pid==='page-rates'){setRateTab(rateTab,document.getElementById('rtab-'+rateTab));}
+    else if(pid==='page-rates'){setRateTab(rateTab,null);}
     else if(pid==='page-accounting'){renderAccounting();updateAcctKPIs();}
     else if(pid==='page-staging'){renderStaging();}
     updateBKPIs();
@@ -2154,10 +2167,10 @@ function goPage(p, el) {
       var bc=document.getElementById('board-cards'); if(bc) bc.style.display='none';
     }
   }
-  if(p==='scorecard'){renderSC();updateSCKPIs();}
+  if(p==='scorecard'){setSCTab(scTab,document.getElementById('sctab-'+scTab));}
   if(p==='locdb'){selLoc=null;renderLocDB();}
   if(p==='rates'){
-    setRateTab(rateTab, document.getElementById('rtab-'+rateTab));
+    setRateTab(rateTab, null);
   }
   if(p==='accounting'){renderAccounting();updateAcctKPIs();}
   if(p==='staging'){renderStaging();}
@@ -6569,6 +6582,143 @@ function updateSCKPIs(){
     (top3m.length ? podiumKPI('Top 3 by Margin', top3m) : kpiH('Top 3 by Margin', '-')) +
     (top3g.length ? podiumKPI('Top 3 by Grade',  top3g) : kpiH('Top 3 by Grade',  '-')) +
     (top3v.length ? podiumKPI('Top 3 by Volume', top3v) : kpiH('Top 3 by Volume', '-'));
+
+  // Also refresh the carrier dashboard if it's visible
+  if(document.getElementById('sc-view-dash') && document.getElementById('sc-view-dash').style.display !== 'none') {
+    renderSCDashboard();
+  }
+}
+
+var scTab = 'dash';
+function setSCTab(tab, el) {
+  scTab = tab;
+  document.querySelectorAll('#page-scorecard .stab').forEach(function(x){x.classList.remove('on');});
+  if(el) el.classList.add('on');
+  var dash = document.getElementById('sc-view-dash');
+  var db   = document.getElementById('sc-view-db');
+  if(dash) dash.style.display = tab==='dash' ? '' : 'none';
+  if(db)   { db.style.display = tab==='db' ? 'flex' : 'none'; db.style.flexDirection = 'column'; }
+  if(tab==='dash') renderSCDashboard();
+  if(tab==='db') { renderSC(); updateSCKPIs(); }
+}
+
+function renderSCDashboard() {
+  var el = document.getElementById('sc-dashboard-content'); if(!el) return;
+  if(!carriers.length) {
+    el.innerHTML = '<div class="dempty" style="padding:60px">No carriers yet — add carriers to see the dashboard.</div>';
+    return;
+  }
+
+  // Build scored data (same as updateSCKPIs)
+  var now = Date.now();
+  var thirtyDaysAgo = now - 30*24*3600*1000;
+  var scored = carriers.map(function(c){
+    var s = calcScore(c);
+    var cLoads = loads.filter(function(l){return l.carrier&&l.carrier.toLowerCase()===c.name.toLowerCase();});
+    var lastLoad = cLoads.reduce(function(latest,l){var t=l.deliveredAt||0;return t>latest?t:latest;},0);
+    var hasRun = cLoads.length>0;
+    var recentlyActive = lastLoad>thirtyDaysAgo;
+    var hasMC = !!(c.mc&&c.mc.trim());
+    var isActive = hasMC&&(recentlyActive||!hasRun);
+    var isInactive = !hasMC||(hasRun&&!recentlyActive);
+    var totalMargin = cLoads.reduce(function(a,l){return a+getEffectiveCustR(l)-(l.cr||0);},0);
+    var avgMargin = cLoads.length?totalMargin/cLoads.length:0;
+    return {c:c, s:s, isActive:isActive, isInactive:isInactive,
+            totalMargin:totalMargin, avgMargin:avgMargin, cLoads:cLoads};
+  });
+
+  var activeCount   = scored.filter(function(x){return x.isActive;}).length;
+  var inactiveCount = scored.filter(function(x){return x.isInactive;}).length;
+  var probCount     = scored.filter(function(x){return x.c.probation;}).length;
+  var avgOnTime     = carriers.length ? scored.reduce(function(a,x){return a+(x.s.puPct+x.s.dlPct)/2;},0)/carriers.length*100 : 0;
+  var avgPU         = carriers.length ? scored.reduce(function(a,x){return a+x.s.puPct;},0)/carriers.length*100 : 0;
+  var avgDEL        = carriers.length ? scored.reduce(function(a,x){return a+x.s.dlPct;},0)/carriers.length*100 : 0;
+
+  // Top 3 by service (score)
+  var byService = scored.slice().sort(function(a,b){return b.s.score-a.s.score;}).slice(0,3);
+  // Top 3 by volume
+  var byVolume  = scored.slice().sort(function(a,b){return b.s.loadsCount-a.s.loadsCount;}).filter(function(x){return x.s.loadsCount>0;}).slice(0,3);
+  // Top 3 by margin (avg per load, must have run loads)
+  var byMargin  = scored.slice().sort(function(a,b){return b.avgMargin-a.avgMargin;}).filter(function(x){return x.cLoads.length>0;}).slice(0,3);
+
+  function podiumCard(title, icon, items, valueKey, subFn) {
+    if(!items.length) return '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:16px"><div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">'+icon+' '+title+'</div><div class="dempty" style="padding:20px 0;font-size:12px">No data yet</div></div>';
+    var medals = [
+      {bg:'#1B2A4A',color:'#FFD700',rank:'1st'},
+      {bg:'#1e3a5f',color:'#C0C0C0',rank:'2nd'},
+      {bg:'#243b55',color:'#CD7F32',rank:'3rd'}
+    ];
+    var rows = items.map(function(x,i){
+      var m = medals[i];
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:'+(i<items.length-1?'1px solid rgba(255,255,255,.08)':'none')+'">'
+        +'<span style="font-size:13px;font-weight:800;color:'+m.color+';width:28px;flex-shrink:0">'+m.rank+'</span>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(x.c.name)+'</div>'
+          +'<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:1px">'+subFn(x)+'</div>'
+        +'</div>'
+        +'<button onclick="setSCTab(\'db\',document.getElementById(\'sctab-db\'));setTimeout(function(){clickCarrier('+x.c.id+');},80)" style="background:rgba(46,204,64,.15);border:1px solid rgba(46,204,64,.3);color:#2ECC40;font-size:10px;font-weight:700;padding:3px 9px;border-radius:var(--r);cursor:pointer;font-family:var(--F);white-space:nowrap">View →</button>'
+      +'</div>';
+    }).join('');
+    return '<div style="background:#1B2A4A;border-radius:var(--r);overflow:hidden">'
+      +'<div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);font-size:11px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.08em">'+icon+' '+title+'</div>'
+      +rows
+    +'</div>';
+  }
+
+  var html = '';
+
+  // KPI row
+  html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">'
+    +kpiCard('Total Carriers',''+carriers.length,'')
+    +kpiCard('Active',''+activeCount,'g')
+    +kpiCard('Inactive',''+inactiveCount,inactiveCount>0?'':'')
+    +kpiCard('On Probation',''+probCount,probCount>0?'r':'')
+    +kpiCard('Avg PU On-Time',avgPU.toFixed(1)+'%',avgPU>=90?'g':avgPU>=75?'':'r')
+    +kpiCard('Avg DEL On-Time',avgDEL.toFixed(1)+'%',avgDEL>=90?'g':avgDEL>=75?'':'r')
+  +'</div>';
+
+  // Three podium cards
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">'
+    + podiumCard('Top by Service', '⭐', byService, 'score', function(x){ return x.s.tier+' · '+x.s.score+'%'; })
+    + podiumCard('Top by Volume',  '📦', byVolume,  'loads', function(x){ return x.s.loadsCount+' load'+(x.s.loadsCount!==1?'s':''); })
+    + podiumCard('Top by Margin',  '💰', byMargin,  'margin', function(x){ return '$'+Math.round(x.avgMargin).toLocaleString()+' avg/load'; })
+  +'</div>';
+
+  // Probation list if any
+  var onProb = scored.filter(function(x){return x.c.probation;});
+  if(onProb.length) {
+    html += '<div style="background:var(--sur);border:1.5px solid var(--red);border-radius:var(--r);padding:14px 16px;margin-bottom:16px">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⚑ On Probation ('+onProb.length+')</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+      +onProb.map(function(x){
+        return '<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:#991b1b;cursor:pointer" onclick="setSCTab(\'db\',document.getElementById(\'sctab-db\'));setTimeout(function(){clickCarrier('+x.c.id+');},80)">'+esc(x.c.name)+'</div>';
+      }).join('')
+      +'</div>'
+    +'</div>';
+  }
+
+  // All carriers grade distribution
+  var tierBuckets = {};
+  scored.forEach(function(x){ var t=x.s.tier; tierBuckets[t]=(tierBuckets[t]||0)+1; });
+  var tierOrder = ['S','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-','F'];
+  var tierColors = {S:'#15803d','A+':'#16a34a',A:'#22c55e','A-':'#4ade80','B+':'#a3e635',B:'#facc15','B-':'#fb923c','C+':'#f97316',C:'#ef4444','C-':'#dc2626','D+':'#b91c1c',D:'#991b1b','D-':'#7f1d1d',F:'#450a0a'};
+  var maxBucket = Math.max.apply(null, Object.values(tierBuckets).concat([1]));
+  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Grade Distribution</div>'
+    +'<div style="display:flex;align-items:flex-end;gap:6px;height:60px">'
+    +tierOrder.filter(function(t){return tierBuckets[t];}).map(function(t){
+      var n=tierBuckets[t];
+      var h=Math.round((n/maxBucket)*52)+8;
+      return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1">'
+        +'<span style="font-size:9px;font-weight:700;color:var(--tx2)">'+n+'</span>'
+        +'<div style="width:100%;height:'+h+'px;background:'+tierColors[t]+';border-radius:3px 3px 0 0;opacity:.85"></div>'
+        +'<span style="font-size:9px;font-weight:700;color:var(--tx3)">'+t+'</span>'
+      +'</div>';
+    }).join('')
+    +'</div>'
+  +'</div>';
+
+  el.innerHTML = html;
 }
 
 function renderSC(){
@@ -7021,7 +7171,7 @@ function saveCarrier(){
   }
   var carrierToSave = editingCarrierId ? carriers.find(function(x){return x.id===editingCarrierId;}) : carriers[carriers.length-1];
   if(carrierToSave) saveRecord('carriers', carrierToSave);
-  closeM('m-carrier');renderSC();updateSCKPIs();
+  closeM('m-carrier');renderSC();updateSCKPIs();renderSCDashboard();
 }
 </script>
 
@@ -7421,12 +7571,10 @@ function importLocTSV(input) {
 // RATE TRACKER
 // ============================
 // ── Rate Tab state ────────────────────────────────────────────────────────────
-var rateTab = 'dashboard';
+var rateTab = 'rdash';
 
 function setRateTab(tab, el) {
   rateTab = tab;
-  document.querySelectorAll('#rate-tabs .stab').forEach(function(x){x.classList.remove('on');});
-  if(el) el.classList.add('on');
   ['rdash','lanes','team','my','manual'].forEach(function(t){
     var v = document.getElementById('rate-view-'+t);
     if(v) v.style.display = t===tab ? '' : 'none';
@@ -7498,9 +7646,21 @@ function getConfirmedLoadData() {
 
 function renderRateDashboard() {
   var el = document.getElementById('rate-dashboard-content'); if(!el) return;
+
+  // ── Nav buttons row (always shown) ──
+  var navRow = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<span style="font-size:16px;font-weight:800;color:var(--navy)">Dashboard</span>'
+    +'<div style="display:flex;gap:6px">'
+      +'<button class="btn xs" onclick="setRateTab(\'lanes\',null)" style="font-size:11px;font-weight:600">&#128202; Rate Tracker</button>'
+      +'<button class="btn xs" onclick="setRateTab(\'team\',null)" style="font-size:11px;font-weight:600">&#128101; Team Report</button>'
+      +'<button class="btn xs" onclick="setRateTab(\'my\',null)" style="font-size:11px;font-weight:600">&#128100; My Report</button>'
+      +'<button class="btn xs" onclick="setRateTab(\'manual\',null)" style="font-size:11px;font-weight:600;color:var(--tx3)">&#9998; Manual Log</button>'
+    +'</div>'
+  +'</div>';
+
   var data = getConfirmedLoadData();
   if(!data.length) {
-    el.innerHTML = '<div class="dempty" style="padding:60px">No confirmed loads yet — rates will appear here once loads are confirmed green in Accounting.</div>';
+    el.innerHTML = navRow + '<div class="dempty" style="padding:60px">No confirmed loads yet — rates will appear here once loads are confirmed green in Accounting.</div>';
     return;
   }
 
@@ -7529,7 +7689,7 @@ function renderRateDashboard() {
     +'</div>';
   }
 
-  var html = '';
+  var html = navRow + '';
 
   // ── Top row: KPIs ──
   html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px">'
@@ -7580,7 +7740,7 @@ function renderRateDashboard() {
   +'<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r)">'
     +'<div style="padding:12px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between">'
       +'<span style="font-size:13px;font-weight:700;color:var(--tx)">Top Lanes</span>'
-      +'<button onclick="setRateTab(\'lanes\',document.getElementById(\'rtab-lanes\'))" class="btn xs">View All →</button>'
+      +'<button onclick="setRateTab(\'lanes\',null)" class="btn xs">View All →</button>'
     +'</div>'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
     +'<thead><tr style="border-bottom:1px solid var(--bd)">'
@@ -7606,7 +7766,7 @@ function renderRateDashboard() {
   +'<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r)">'
     +'<div style="padding:12px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between">'
       +'<span style="font-size:13px;font-weight:700;color:var(--tx)">All-Time by Dispatcher</span>'
-      +'<button onclick="setRateTab(\'team\',document.getElementById(\'rtab-team\'))" class="btn xs">Team Report →</button>'
+      +'<button onclick="setRateTab(\'team\',null)" class="btn xs">Team Report →</button>'
     +'</div>'
     +'<div id="rdash-dispatcher-list" style="padding:8px 0"></div>'
   +'</div>'
@@ -7774,7 +7934,7 @@ function kpiCard(label, value, cls) {
 }
 
 function laneClickFilter(laneKey) {
-  setRateTab('lanes', document.getElementById('rtab-lanes'));
+  setRateTab('lanes', null);
   setTimeout(function(){
     var el = document.getElementById('lane-search');
     if(el) { el.value = laneKey; renderLaneDetail(); }
@@ -9021,7 +9181,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
     try { renderDashboard(); } catch(e) { console.error('renderDashboard',e); }
     try { renderDealer(); updateDKPIs(); } catch(e) { console.error('renderDealer',e); }
     try { renderBoard(); updateBKPIs(); } catch(e) { console.error('renderBoard',e); }
-    try { renderSC(); updateSCKPIs(); } catch(e) { console.error('renderSC',e); }
+    try { renderSC(); updateSCKPIs(); renderSCDashboard(); } catch(e) { console.error('renderSC',e); }
     try { renderLocDB(); } catch(e) { console.error('renderLocDB',e); }
     try { renderRates(); updateRatesKPIs(); } catch(e) { console.error('renderRates',e); }
     try { renderStaging(); } catch(e) { console.error('renderStaging',e); }
