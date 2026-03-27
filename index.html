@@ -724,7 +724,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <button onclick="toggleDealerCSVInfo()" title="CSV column format" style="height:24px;width:24px;border-radius:50%;border:1px solid var(--bd2);background:var(--sur2);color:var(--tx2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--F);margin-left:2px">ⓘ</button>
         <div id="dealer-csv-info" style="display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:200;background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:11px;color:var(--tx2);white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.12);line-height:1.7">
           <div style="font-weight:700;color:var(--tx);margin-bottom:4px">CSV Column Order</div>
-          <code style="font-family:var(--M);font-size:11px">PO# · Vendor · Pieces · Seats · Ready Date · Dealer Name · Phone # · Address · City · State</code>
+          <code style="font-family:var(--M);font-size:11px">PO# · Vendor · Pieces · Seats · Ready Date · Receiver · Phone # · Address · City · State</code>
           <div style="margin-top:6px;color:var(--tx3)">Duplicate PO# updates in place. Header row optional.</div>
         </div>
         <input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this);document.getElementById('dealer-csv-info').style.display='none'" style="display:none">
@@ -760,7 +760,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
           <th onclick="sortDealer('pieces')" id="dth-pieces" style="cursor:pointer">Pieces</th>
           <th onclick="sortDealer('seats')" id="dth-seats" style="cursor:pointer">Seats</th>
           <th onclick="sortDealer('ready')" id="dth-ready" style="cursor:pointer">Ready Date</th>
-          <th onclick="sortDealer('dealer')" id="dth-dealer" style="cursor:pointer">Dealer Name</th>
+          <th onclick="sortDealer('dealer')" id="dth-dealer" style="cursor:pointer">Receiver</th>
           <th>Phone</th><th>Address</th>
           <th onclick="sortDealer('city')" id="dth-city" style="cursor:pointer">City</th>
           <th onclick="sortDealer('state')" id="dth-state" style="cursor:pointer">State</th>
@@ -1401,8 +1401,8 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi"><label>Piece Count</label><input type="number" id="df-pieces"></div>
       <div class="fi"><label>Seats</label><input type="number" id="df-seats"></div>
       <div class="fi"><label>Ready Date</label><input type="text" id="df-ready" placeholder="MM/DD or MM/DD/YYYY" maxlength="10" style="width:100%" onblur="autoFillReadyYear(this)"></div>
-      <div class="fi"><label>Dealer Name</label>
-        <div class="acw"><input id="df-dealer" placeholder="Search dealers..." oninput="dealerNameAC(this.value)" autocomplete="off"><div class="acl" id="ac-df-dealer"></div></div>
+      <div class="fi"><label>Receiver</label>
+        <div class="acw"><input id="df-dealer" placeholder="Search receivers or type new..." oninput="dealerNameAC(this.value)" autocomplete="off"><div class="acl" id="ac-df-dealer"></div></div>
       </div>
       <div class="fi"><label>Phone</label><input id="df-phone" placeholder="614-555-0000" oninput="fmtPhone(this)"></div>
       <div class="fi s2"><label>Street Address</label><input id="df-addr"></div>
@@ -4663,7 +4663,7 @@ function addStop(stop) {
     // POs table
     +'<div style="margin-top:8px">'
       +'<div style="font-size:10px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">POs at this stop</div>'
-      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Dealer</th><th>Pieces</th><th>Seats</th>'+(isDel?'<th>Ship From (PU)</th>':puHasDelStops?'<th>Ship To (DEL)</th>':'')+'<th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
+      +'<table class="ptbl"><thead><tr><th>PO #</th><th>Receiver</th><th>Pieces</th><th>Seats</th><th></th></tr></thead><tbody id="ptbl-'+idx+'"></tbody></table>'
       +'<button class="addpobtn" onclick="addPORow('+idx+')">+ Add PO</button>'
     +'</div>'
   +'</div>';
@@ -4682,47 +4682,65 @@ function addPORow(si,po){
   var p=po||{po:'',dealer:'',pieces:'',seats:'',shipFrom:'',shipTo:'',linkedId:'',ri:ri};
   if(!po){if(!stopRows[si].pos)stopRows[si].pos=[];stopRows[si].pos.push(p);}
   p.ri=ri;
-  var isDel = stopRows[si] && stopRows[si].type==='delivery';
-  var isPU  = stopRows[si] && stopRows[si].type==='pickup';
 
-  // Ship From cell (on DEL) — which PU does this PO originate from
-  var shipFromCell = '';
-  if(isDel) {
-    var puStops = stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
-    if(!p.shipFrom && puStops.length===1) {
-      p.shipFrom = String(puStops[0].idx);
-      // Only mirror to PU if the PU stop doesn't already have this PO (pre-populated from TL/dealer selection)
-      var puAlreadyHas = puStops[0].s.pos && puStops[0].s.pos.some(function(x){return x.po===p.po;});
+  // Auto-assign shipFrom on DEL stops (silent, no dropdown)
+  if(stopRows[si]&&stopRows[si].type==='delivery'){
+    var puStops=stopRows.map(function(s,i){return s&&s.type==='pickup'?{idx:i,s:s}:null;}).filter(Boolean);
+    if(!p.shipFrom&&puStops.length===1){
+      p.shipFrom=String(puStops[0].idx);
+      var puAlreadyHas=puStops[0].s.pos&&puStops[0].s.pos.some(function(x){return x.po===p.po;});
       if(!puAlreadyHas) syncPOToStop(si,p,String(puStops[0].idx),'pu');
     }
-    var opts = puStops.map(function(ps){
-      var label = ps.s.name||(ps.s.city?(ps.s.city+(ps.s.state?', '+ps.s.state:'')):'PU '+(ps.idx+1));
-      return '<option value="'+ps.idx+'"'+(p.shipFrom===String(ps.idx)?' selected':'')+'>'+esc(label)+'</option>';
-    }).join('');
-    shipFromCell = '<td><select style="height:24px;font-size:11px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--F);outline:none;width:100%;min-width:90px" onchange="onShipFromChange('+si+','+ri+',this.value)"><option value="">— PU —</option>'+opts+'</select></td>';
   }
 
-  // Ship To cell (on PU) — which DEL does this PO go to
-  var shipToCell = '';
-  if(isPU) {
-    var delStops = stopRows.map(function(s,i){return s&&s.type==='delivery'?{idx:i,s:s}:null;}).filter(Boolean);
-    if(delStops.length) {
-      var opts2 = delStops.map(function(ds){
-        var label = ds.s.name||(ds.s.city?(ds.s.city+(ds.s.state?', '+ds.s.state:'')):'DEL '+(ds.idx+1));
-        return '<option value="'+ds.idx+'"'+(p.shipTo===String(ds.idx)?' selected':'')+'>'+esc(label)+'</option>';
-      }).join('');
-      shipToCell = '<td><select style="height:24px;font-size:11px;padding:0 4px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--F);outline:none;width:100%;min-width:90px" onchange="onShipToChange('+si+','+ri+',this.value)"><option value="">— DEL —</option>'+opts2+'</select></td>';
-    }
-  }
+  // Receiver display: show stop name if linked, else dealer name
+  var receiverVal = p.dealer||'';
 
   var tr=document.createElement('tr');tr.id='pr-'+si+'-'+ri;
-  tr.innerHTML='<td><input value="'+esc(p.po||'')+'" oninput="updPO('+si+','+ri+',\'po\',this.value)" placeholder="PO #"></td>'
-    +'<td><input value="'+esc(p.dealer||'')+'" oninput="updPO('+si+','+ri+',\'dealer\',this.value)" placeholder="Dealer"></td>'
-    +'<td><input type="number" value="'+esc(p.pieces||'')+'" oninput="updPO('+si+','+ri+',\'pieces\',this.value)" style="width:60px"></td>'
-    +'<td><input type="number" value="'+esc(p.seats||'')+'" oninput="updPO('+si+','+ri+',\'seats\',this.value)" style="width:60px"></td>'
-    +(shipFromCell||shipToCell||'')
+  tr.innerHTML=
+    '<td><input value="'+esc(p.po||'')+'" oninput="updPO('+si+','+ri+',\'po\',this.value)" placeholder="PO #" style="width:80px"></td>'
+    +'<td><input id="pr-rcv-'+si+'-'+ri+'" value="'+esc(receiverVal)+'" oninput="updPOReceiver('+si+','+ri+',this.value)" placeholder="Name or stop #" style="width:130px" title="Type a name or stop number (e.g. 2)"></td>'
+    +'<td><input type="number" value="'+esc(p.pieces||'')+'" oninput="updPO('+si+','+ri+',\'pieces\',this.value)" style="width:55px"></td>'
+    +'<td><input type="number" value="'+esc(p.seats||'')+'" oninput="updPO('+si+','+ri+',\'seats\',this.value)" style="width:55px"></td>'
     +'<td><button class="rmpobtn" onclick="rmPORow('+si+','+ri+')">x</button></td>';
   tbl.appendChild(tr);
+}
+
+// Smart receiver input — if value is a number matching a stop position, link to that stop;
+// otherwise store as plain dealer name
+function updPOReceiver(si, ri, val) {
+  var s = stopRows[si]; if(!s) return;
+  var p = s.pos && s.pos.find(function(x){return x.ri===ri;}); if(!p) return;
+
+  var trimmed = val.trim();
+  var asNum = parseInt(trimmed, 10);
+
+  // Check if input is a stop number (1-based position among active stops)
+  var activeStops = stopRows.map(function(st,i){return st?{st:st,i:i}:null;}).filter(Boolean);
+  var matched = !isNaN(asNum) && asNum >= 1 && asNum <= activeStops.length ? activeStops[asNum-1] : null;
+
+  if(matched) {
+    // Link to that stop — update shipTo/shipFrom and show stop name in field
+    var targetStop = matched.st;
+    var targetIdx  = matched.i;
+    var label = targetStop.name||(targetStop.city?(targetStop.city+(targetStop.state?', '+targetStop.state:'')):'Stop '+asNum);
+
+    if(s.type==='pickup') {
+      p.shipTo = String(targetIdx);
+      p.dealer = label;
+    } else {
+      p.shipFrom = String(targetIdx);
+      p.dealer = label;
+    }
+    // Update the input to show the resolved name
+    var inputEl = document.getElementById('pr-rcv-'+si+'-'+ri);
+    if(inputEl && document.activeElement !== inputEl) inputEl.value = label;
+  } else {
+    // Plain name — just store it
+    p.dealer = trimmed;
+    p.shipTo = '';
+    p.shipFrom = '';
+  }
 }
 
 // Called when Ship From changes on a DEL PO row
@@ -6340,7 +6358,7 @@ function renderDealer(){
   ['po','addinfo','vendor','pieces','seats','ready','dealer','city','state'].forEach(function(c){
     var el=document.getElementById('dth-'+c);
     if(!el)return;
-    var base={'po':'PO #','addinfo':'Notes','vendor':'Vendor','pieces':'Pieces','seats':'Seats','ready':'Ready Date','dealer':'Dealer Name','city':'City','state':'State'}[c];
+    var base={'po':'PO #','addinfo':'Notes','vendor':'Vendor','pieces':'Pieces','seats':'Seats','ready':'Ready Date','dealer':'Receiver','city':'City','state':'State'}[c];
     el.innerHTML=base+(dealerSort.col===c?' <span style="color:var(--green);font-size:10px">'+(dealerSort.asc?'▲':'▼')+'</span>':'');
   });
   document.getElementById('dealer-body').innerHTML=rows.length?rows.map(function(d){
@@ -6408,6 +6426,10 @@ function openDealerModal(id) {
   } else {
     ['df-vendor','df-pieces','df-seats','df-ready','df-dealer','df-phone','df-addr','df-city','df-state','df-zip','df-addinfo'].forEach(function(i){fv(i).value='';});
   }
+  // Always reset receiver field lock state
+  var dealerInp=document.getElementById('df-dealer');
+  if(dealerInp){dealerInp.readOnly=false;dealerInp.style.background='';dealerInp.style.color='';dealerInp.style.cursor='';}
+  var clrBtn=document.getElementById('df-dealer-clr'); if(clrBtn) clrBtn.style.display='none';
   openM('m-dealer');
 }
 
@@ -6506,19 +6528,78 @@ function pickDealerVendor(n){document.getElementById('df-vendor').value=n;docume
 function dealerNameAC(q){
   var list=document.getElementById('ac-df-dealer');
   if(!q||q.length<1){list.style.display='none';return;}
-  var m=locations.filter(function(l){return (l.type==='Receiver'||l.type==='Both')&&l.name.toLowerCase().includes(q.toLowerCase());});
-  if(!m.length){list.style.display='none';return;}
-  list.innerHTML=m.map(function(l){return '<div class="aci" onclick="pickDealerName(\''+esc(l.name)+'\',\''+esc(l.addr)+'\',\''+esc(l.city)+'\',\''+esc(l.phone||'')+'\')"><div>'+esc(l.name)+'</div><div class="acs">'+esc(l.addr)+', '+esc(l.city)+'</div></div>';}).join('');
+  var ql=q.toLowerCase();
+  var m=locations.filter(function(l){
+    return (l.type==='Receiver'||l.type==='Both')&&(
+      (l.name||'').toLowerCase().includes(ql)||
+      (l.city||'').toLowerCase().includes(ql)||
+      (l.zip||'').toLowerCase().includes(ql)||
+      (l.addr||'').toLowerCase().includes(ql)
+    );
+  }).slice(0,10);
+  var exactMatch=locations.some(function(l){return l.name.toLowerCase()===ql;});
+  var rows=m.map(function(l){
+    var cityParts=(l.city||'').split(',');
+    var city=(cityParts[0]||'').trim(), state=(cityParts[1]||'').trim();
+    var detail=[city,state,l.zip].filter(Boolean).join(', ');
+    return '<div class="aci" onclick="pickDealerName(\''+esc(l.name)+'\',\''+esc(l.addr)+'\',\''+esc(l.city)+'\',\''+esc(l.phone||'')+'\',\''+esc(l.zip||'')+'\')">'
+      +'<div>'+esc(l.name)+'</div>'
+      +(detail?'<div class="acs">'+esc(detail)+'</div>':'')
+    +'</div>';
+  });
+  // "Create new" option if no exact match
+  if(!exactMatch&&q.length>=2){
+    rows.push('<div class="aci" onclick="createNewReceiver(\''+esc(q)+'\')" style="border-top:1px solid var(--bd);color:var(--green);font-weight:600">+ Create "'+esc(q)+'" as new receiver</div>');
+  }
+  if(!rows.length){list.style.display='none';return;}
+  list.innerHTML=rows.join('');
   list.style.display='block';
 }
-function pickDealerName(name,addr,cityState,phone){
+
+function createNewReceiver(name){
+  // Pre-fill dealer name and close AC — user fills address fields manually
   document.getElementById('df-dealer').value=name;
+  document.getElementById('ac-df-dealer').style.display='none';
+  document.getElementById('df-dealer').style.background='#f0fdf4';
+  document.getElementById('df-dealer').style.borderColor='var(--green)';
+  setTimeout(function(){
+    var a=document.getElementById('df-addr');if(a)a.focus();
+  },50);
+}
+
+function pickDealerName(name,addr,cityState,phone,zip){
+  var inp=document.getElementById('df-dealer');
+  inp.value=name;
+  inp.style.background='var(--sur2)';
+  inp.style.color='var(--tx2)';
+  inp.style.cursor='not-allowed';
+  inp.readOnly=true;
   document.getElementById('ac-df-dealer').style.display='none';
   document.getElementById('df-addr').value=addr;
   var p=cityState.split(',');
   document.getElementById('df-city').value=(p[0]||'').trim();
   document.getElementById('df-state').value=(p[1]||'').trim();
+  if(zip) document.getElementById('df-zip').value=zip;
   if(phone) document.getElementById('df-phone').value=phone;
+  // Show a clear button
+  var clrEl=document.getElementById('df-dealer-clr');
+  if(!clrEl){
+    clrEl=document.createElement('button');
+    clrEl.id='df-dealer-clr';
+    clrEl.type='button';
+    clrEl.className='btn xs';
+    clrEl.style.cssText='margin-top:3px';
+    clrEl.textContent='Clear';
+    clrEl.onclick=clearDealerPick;
+    inp.parentNode.parentNode.appendChild(clrEl);
+  }
+  clrEl.style.display='';
+}
+
+function clearDealerPick(){
+  var inp=document.getElementById('df-dealer');
+  if(inp){inp.value='';inp.readOnly=false;inp.style.background='';inp.style.color='';inp.style.cursor='';}
+  var clr=document.getElementById('df-dealer-clr'); if(clr) clr.style.display='none';
 }
 
 function importDealerCSV(input){
