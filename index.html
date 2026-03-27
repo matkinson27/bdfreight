@@ -603,6 +603,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="ntab on" id="ntab-dashboard" onclick="goPage('dashboard',this)">Dashboard</div>
     <div class="ntab" id="ntab-dealer" onclick="goPage('dealer',this)">Orders</div>
     <div class="ntab" id="ntab-staging" onclick="goPage('staging',this)">Temporary Loads</div>
+    <div class="ntab" id="ntab-planner" onclick="goPage('planner',this)">Load Planner</div>
     <div class="ntab" id="ntab-board" onclick="goPage('board',this)">Load Tracking</div>
     <div class="ntab" id="ntab-scorecard" onclick="goPage('scorecard',this)">Carriers</div>
     <div class="ntab" id="ntab-locdb" onclick="goPage('locdb',this)">Locations</div>
@@ -1118,6 +1119,76 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   </div>
 
   </div><!-- /page-accounting -->
+
+  <!-- LOAD PLANNER -->
+  <div class="page" id="page-planner" style="display:none;flex-direction:row;overflow:hidden;height:100%">
+
+    <!-- LEFT PANEL: PO Pool -->
+    <div id="lp-pool-panel" style="width:280px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--bd);background:var(--sur2);overflow:hidden">
+      <div style="padding:10px 12px 8px;border-bottom:1px solid var(--bd);flex-shrink:0">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:7px">PO Pool</div>
+        <input type="text" id="lp-pool-search" placeholder="Search PO, dealer, state..." oninput="lpRenderPool()" style="width:100%;height:30px;font-size:12px;padding:0 8px;border:1px solid var(--bd2);border-radius:var(--r);background:#fff;font-family:var(--F)">
+        <div style="display:flex;gap:5px;margin-top:6px">
+          <select id="lp-state-filter" onchange="lpRenderPool()" style="flex:1;height:28px;font-size:11px;border:1px solid var(--bd2);border-radius:var(--r);background:#fff;font-family:var(--F);padding:0 5px">
+            <option value="">All States</option>
+          </select>
+          <select id="lp-vendor-filter" onchange="lpRenderPool()" style="flex:1;height:28px;font-size:11px;border:1px solid var(--bd2);border-radius:var(--r);background:#fff;font-family:var(--F);padding:0 5px">
+            <option value="">All Vendors</option>
+          </select>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:5px">
+          <button class="btn xs p" onclick="lpAddSelectedToTL()" id="lp-add-btn" style="display:none">+ Add to TL</button>
+          <button class="btn xs" onclick="lpCreateTLFromSelected()" id="lp-new-btn" style="display:none">New TL from Sel.</button>
+          <button class="btn xs" onclick="lpClearPoolSel()" id="lp-clr-btn" style="display:none">Clear</button>
+        </div>
+        <div id="lp-sel-count" style="font-size:10px;color:var(--tx3);margin-top:4px;min-height:14px"></div>
+      </div>
+      <div id="lp-pool-list" style="flex:1;overflow-y:auto;padding:6px 8px"></div>
+      <div id="lp-pool-footer" style="padding:6px 10px;font-size:10px;color:var(--tx3);border-top:1px solid var(--bd);flex-shrink:0"></div>
+    </div>
+
+    <!-- CENTER: Map -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;position:relative">
+      <div style="padding:8px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--sur)">
+        <span style="font-size:13px;font-weight:700;color:var(--navy)">USA Map</span>
+        <span style="font-size:11px;color:var(--tx3)">Click a state to filter pool · TL routes shown as driving paths</span>
+        <button class="btn xs" onclick="lpClearStateFilter()" id="lp-clear-state-btn" style="display:none;margin-left:4px">✕ Clear Filter</button>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <label style="font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="lp-show-routes" onchange="lpToggleRoutes()" checked> Routes
+          </label>
+          <label style="font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:4px;cursor:pointer">
+            <input type="checkbox" id="lp-show-dots" onchange="lpRenderMap()" checked> Stop dots
+          </label>
+          <button class="btn xs" onclick="lpRefreshRoutes()">↻ Refresh Routes</button>
+        </div>
+      </div>
+      <div style="flex:1;position:relative;overflow:hidden">
+        <svg id="lp-map-svg" viewBox="0 0 960 620" style="width:100%;height:100%;cursor:pointer" preserveAspectRatio="xMidYMid meet">
+          <g id="lp-states-g"></g>
+          <g id="lp-routes-g"></g>
+          <g id="lp-dots-g"></g>
+          <g id="lp-tooltips-g"></g>
+        </svg>
+        <div id="lp-map-tooltip" style="display:none;position:absolute;background:#1B2A4A;color:#fff;font-size:11px;padding:5px 9px;border-radius:5px;pointer-events:none;z-index:20;max-width:200px;line-height:1.5"></div>
+        <div id="lp-route-loading" style="display:none;position:absolute;top:8px;right:8px;background:var(--navy);color:#fff;font-size:11px;padding:4px 10px;border-radius:5px;z-index:30">⏳ Loading routes...</div>
+      </div>
+      <!-- Map legend -->
+      <div id="lp-legend" style="padding:5px 12px;border-top:1px solid var(--bd);display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--sur);flex-shrink:0"></div>
+    </div>
+
+    <!-- RIGHT PANEL: TL Lanes -->
+    <div id="lp-tl-panel" style="width:300px;flex-shrink:0;display:flex;flex-direction:column;border-left:1px solid var(--bd);background:var(--sur2);overflow:hidden">
+      <div style="padding:10px 12px 8px;border-bottom:1px solid var(--bd);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;font-weight:700;color:var(--navy)">Truck Loads</span>
+        <button class="btn xs p" onclick="lpNewBlankTL()">+ New TL</button>
+      </div>
+      <div id="lp-tl-lanes" style="flex:1;overflow-y:auto;padding:8px 8px"></div>
+      <div id="lp-tl-footer" style="padding:6px 10px;font-size:10px;color:var(--tx3);border-top:1px solid var(--bd);flex-shrink:0"></div>
+    </div>
+
+  </div><!-- /page-planner -->
+
 </div><!-- /app -->
 
 <!-- ========== MODALS ========== -->
@@ -2244,6 +2315,7 @@ function goPage(p, el) {
   }
   if(p==='accounting'){renderAccounting();updateAcctKPIs();}
   if(p==='staging'){renderStaging();}
+  if(p==='planner'){lpInit();}
   // Re-init resizable cols for the newly visible table
   setTimeout(function(){initAllResizableCols();},50);
 }
@@ -9976,6 +10048,785 @@ function commitPasteOrders() {
   document.getElementById('paste-orders-txt').value = '';
   showMsg('dealer-msg', 'Imported: '+added+' new, '+updated+' updated.', 'ok');
   } catch(e) { console.error('commitPasteOrders error:', e); alert('Import error: ' + e.message); }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LOAD PLANNER
+// ══════════════════════════════════════════════════════════════════════════════
+
+var LP = {
+  poolSel: {},          // po -> true: selected POs in pool
+  stateFilter: null,    // 2-letter state code or null
+  tlColors: ['#2563eb','#dc2626','#16a34a','#9333ea','#ea580c','#0891b2','#be185d','#ca8a04','#0f766e','#7c3aed','#b45309','#15803d'],
+  routeCache: {},       // tlId -> {polyline, miles, duration}
+  routesPending: false,
+  _inited: false
+};
+
+var LP_USA_PATHS = {
+  "AL":"M 550 390 L 570 390 L 573 440 L 545 440 L 547 415 Z",
+  "AK":"M 120 480 L 170 480 L 200 520 L 160 540 L 120 530 Z",
+  "AZ":"M 150 320 L 225 320 L 228 395 L 160 395 L 148 360 Z",
+  "AR":"M 490 340 L 545 338 L 547 380 L 492 380 Z",
+  "CA":"M 85 220 L 152 240 L 145 330 L 95 380 L 70 340 L 68 260 Z",
+  "CO":"M 225 270 L 340 268 L 340 330 L 225 330 Z",
+  "CT":"M 685 205 L 710 205 L 710 220 L 685 222 Z",
+  "DE":"M 666 248 L 680 248 L 680 270 L 663 268 Z",
+  "FL":"M 548 440 L 610 440 L 635 475 L 610 510 L 580 500 L 552 470 Z",
+  "GA":"M 570 390 L 618 388 L 615 445 L 573 440 Z",
+  "HI":"M 230 550 L 310 550 L 310 570 L 230 570 Z",
+  "ID":"M 155 145 L 220 143 L 225 235 L 185 250 L 158 215 Z",
+  "IL":"M 510 240 L 548 238 L 550 315 L 512 318 Z",
+  "IN":"M 548 240 L 580 238 L 582 305 L 549 308 Z",
+  "IA":"M 440 215 L 510 213 L 512 260 L 442 262 Z",
+  "KS":"M 340 295 L 458 293 L 458 340 L 340 340 Z",
+  "KY":"M 548 305 L 620 300 L 623 335 L 550 340 Z",
+  "LA":"M 468 400 L 545 398 L 546 436 L 500 445 L 468 435 Z",
+  "ME":"M 720 135 L 760 130 L 762 185 L 720 188 Z",
+  "MD":"M 630 258 L 672 255 L 674 280 L 630 282 Z",
+  "MA":"M 695 190 L 748 188 L 750 210 L 695 212 Z",
+  "MI":"M 548 175 L 610 170 L 615 215 L 549 218 Z",
+  "MN":"M 418 140 L 508 135 L 510 215 L 440 215 Z",
+  "MS":"M 500 375 L 548 373 L 549 440 L 503 442 Z",
+  "MO":"M 458 290 L 552 285 L 553 345 L 460 348 Z",
+  "MT":"M 160 115 L 370 110 L 370 178 L 162 183 Z",
+  "NE":"M 338 245 L 455 242 L 457 295 L 340 295 Z",
+  "NV":"M 95 215 L 163 210 L 162 320 L 95 345 Z",
+  "NH":"M 700 163 L 720 160 L 722 205 L 700 207 Z",
+  "NJ":"M 660 228 L 685 225 L 686 260 L 660 262 Z",
+  "NM":"M 220 328 L 320 325 L 320 400 L 220 402 Z",
+  "NY":"M 620 170 L 700 165 L 703 235 L 621 238 Z",
+  "NC":"M 600 308 L 688 302 L 690 342 L 600 346 Z",
+  "ND":"M 338 130 L 418 125 L 420 178 L 340 180 Z",
+  "OH":"M 578 238 L 625 235 L 628 300 L 579 303 Z",
+  "OK":"M 320 340 L 460 335 L 462 390 L 322 392 Z",
+  "OR":"M 85 145 L 190 140 L 188 210 L 87 215 Z",
+  "PA":"M 618 210 L 672 207 L 674 255 L 619 258 Z",
+  "RI":"M 712 205 L 728 205 L 728 220 L 712 222 Z",
+  "SC":"M 600 340 L 647 336 L 650 380 L 600 383 Z",
+  "SD":"M 338 180 L 420 176 L 422 245 L 340 245 Z",
+  "TN":"M 520 335 L 618 330 L 620 368 L 522 370 Z",
+  "TX":"M 275 345 L 462 340 L 465 460 L 380 500 L 275 495 Z",
+  "UT":"M 163 245 L 230 242 L 232 325 L 165 328 Z",
+  "VT":"M 688 160 L 703 158 L 705 205 L 688 207 Z",
+  "VA":"M 600 270 L 680 263 L 682 308 L 601 313 Z",
+  "WA":"M 85 100 L 198 96 L 200 148 L 87 153 Z",
+  "WV":"M 598 265 L 640 260 L 642 300 L 600 303 Z",
+  "WI":"M 468 158 L 528 153 L 530 228 L 470 230 Z",
+  "WY":"M 220 180 L 338 176 L 340 245 L 222 247 Z",
+  "DC":"M 652 268 L 660 268 L 660 276 L 652 276 Z"
+};
+
+var LP_STATE_CENTERS = {
+  "AL":[556,415],"AK":[155,510],"AZ":[185,357],"AR":[518,359],"CA":[112,295],
+  "CO":[282,299],"CT":[697,213],"DE":[671,259],"FL":[585,475],"GA":[592,416],
+  "HI":[270,560],"ID":[190,193],"IL":[529,278],"IN":[563,272],"IA":[476,237],
+  "KS":[399,316],"KY":[585,317],"LA":[507,417],"ME":[740,158],"MD":[651,269],
+  "MA":[721,200],"MI":[580,192],"MN":[463,175],"MS":[524,407],"MO":[505,316],
+  "MT":[265,146],"NE":[396,268],"NV":[128,277],"NH":[710,183],"NJ":[672,243],
+  "NM":[270,362],"NY":[661,200],"NC":[644,324],"ND":[378,152],"OH":[601,268],
+  "OK":[390,362],"OR":[137,177],"PA":[645,232],"RI":[720,213],"SC":[623,359],
+  "SD":[379,210],"TN":[569,352],"TX":[368,420],"UT":[196,283],"VT":[696,183],
+  "VA":[640,287],"WA":[142,124],"WV":[619,281],"WI":[499,190],"WY":[280,212],
+  "DC":[656,272]
+};
+
+function lpInit() {
+  if(!LP._inited) {
+    LP._inited = true;
+    lpBuildMap();
+  }
+  lpPopulateFilters();
+  lpRenderPool();
+  lpRenderTLLanes();
+  lpRenderMap();
+  setTimeout(lpFetchAllRoutes, 300);
+}
+
+function lpGetUnassignedDealers() {
+  var assignedPOs = {};
+  tempLoads.forEach(function(tl){ tl.pos.forEach(function(p){ assignedPOs[p.po] = tl.id; }); });
+  loads.forEach(function(l){
+    if(l.deleted) return;
+    (l.stops||[]).forEach(function(s){ (s.pos||[]).forEach(function(p){ assignedPOs[p.po] = l.id; }); });
+  });
+  return dealers.filter(function(d){ return d.po && !assignedPOs[d.po]; });
+}
+
+function lpPopulateFilters() {
+  var unassigned = lpGetUnassignedDealers();
+  var states = [...new Set(unassigned.map(function(d){return d.state||'';}).filter(Boolean))].sort();
+  var vendors = [...new Set(unassigned.map(function(d){return d.vendor||'';}).filter(Boolean))].sort();
+  var sSel = document.getElementById('lp-state-filter');
+  var vSel = document.getElementById('lp-vendor-filter');
+  if(!sSel||!vSel) return;
+  var curS = sSel.value, curV = vSel.value;
+  sSel.innerHTML = '<option value="">All States</option>' + states.map(function(s){return '<option value="'+s+'"'+(s===curS?' selected':'')+'>'+s+'</option>';}).join('');
+  vSel.innerHTML = '<option value="">All Vendors</option>' + vendors.map(function(v){return '<option value="'+esc(v)+'"'+(v===curV?' selected':'')+'>'+esc(v)+'</option>';}).join('');
+}
+
+function lpRenderPool() {
+  var container = document.getElementById('lp-pool-list');
+  var footer = document.getElementById('lp-pool-footer');
+  if(!container) return;
+  var q = (document.getElementById('lp-pool-search')||{}).value||'';
+  var sf = (document.getElementById('lp-state-filter')||{}).value||'';
+  var vf = (document.getElementById('lp-vendor-filter')||{}).value||'';
+  var active = LP.stateFilter || sf;
+
+  var unassigned = lpGetUnassignedDealers();
+  var filtered = unassigned.filter(function(d){
+    if(active && (d.state||'') !== active) return false;
+    if(vf && (d.vendor||'') !== vf) return false;
+    if(q) {
+      var hay = ((d.po||'')+' '+(d.dealer||'')+' '+(d.state||'')+' '+(d.vendor||'')+' '+(d.city||'')).toLowerCase();
+      if(!hay.includes(q.toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  // Group by state
+  var byState = {};
+  filtered.forEach(function(d){
+    var s = d.state||'?';
+    if(!byState[s]) byState[s] = [];
+    byState[s].push(d);
+  });
+  var stateKeys = Object.keys(byState).sort();
+
+  var selCount = Object.keys(LP.poolSel).length;
+  var addBtn = document.getElementById('lp-add-btn');
+  var newBtn = document.getElementById('lp-new-btn');
+  var clrBtn = document.getElementById('lp-clr-btn');
+  var cntEl = document.getElementById('lp-sel-count');
+  if(addBtn) addBtn.style.display = selCount > 0 ? '' : 'none';
+  if(newBtn) newBtn.style.display = selCount > 0 ? '' : 'none';
+  if(clrBtn) clrBtn.style.display = selCount > 0 ? '' : 'none';
+  if(cntEl) cntEl.textContent = selCount > 0 ? selCount + ' PO' + (selCount!==1?'s':'') + ' selected' : '';
+
+  if(!filtered.length) {
+    container.innerHTML = '<div style="padding:18px 8px;text-align:center;font-size:12px;color:var(--tx3)">No unassigned orders'+(active?' in '+active:'')+'</div>';
+  } else {
+    var html = '';
+    stateKeys.forEach(function(state){
+      var ds = byState[state];
+      html += '<div style="margin-bottom:4px">'
+        +'<div style="font-size:10px;font-weight:700;color:var(--tx3);padding:4px 4px 2px;text-transform:uppercase;letter-spacing:.06em;cursor:pointer" onclick="lpToggleStateInFilter(\''+state+'\')">'
+        +'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+lpStateColor(state)+';margin-right:4px"></span>'+state+' ('+ds.length+')</div>';
+      ds.forEach(function(d){
+        var sel = !!LP.poolSel[d.po];
+        html += '<div class="lp-po-card" data-po="'+esc(d.po)+'" draggable="true" '
+          +'ondragstart="lpDragStart(event,\''+esc(d.po)+'\')" '
+          +'onclick="lpTogglePoolSel(\''+esc(d.po)+'\')" '
+          +'style="background:'+(sel?'#dbeafe':'#fff')+';border:1px solid '+(sel?'#93c5fd':'var(--bd)')+';border-radius:5px;padding:6px 8px;margin-bottom:3px;cursor:pointer;font-size:11px;user-select:none;transition:background .1s">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center">'
+            +'<span style="font-weight:700;color:var(--navy)">'+esc(d.po||'—')+'</span>'
+            +'<span style="font-size:10px;background:'+lpStateColor(state)+';color:#fff;border-radius:3px;padding:1px 5px">'+state+'</span>'
+          +'</div>'
+          +'<div style="color:var(--tx2);margin-top:2px">'+esc(d.dealer||d.city||'')+'</div>'
+          +'<div style="color:var(--tx3);font-size:10px">'+esc(d.vendor||'')+(d.pieces?' · '+d.pieces+' pc':'')+(d.ready?' · Rdy '+d.ready:'')+'</div>'
+        +'</div>';
+      });
+      html += '</div>';
+    });
+    container.innerHTML = html;
+  }
+  if(footer) footer.textContent = filtered.length + ' unassigned order' + (filtered.length!==1?'s':'') + ' of ' + unassigned.length + ' total';
+}
+
+function lpTogglePoolSel(po) {
+  if(LP.poolSel[po]) delete LP.poolSel[po];
+  else LP.poolSel[po] = true;
+  lpRenderPool();
+}
+
+function lpClearPoolSel() {
+  LP.poolSel = {};
+  lpRenderPool();
+}
+
+function lpToggleStateInFilter(state) {
+  var sel = document.getElementById('lp-state-filter');
+  if(sel) { sel.value = (sel.value === state) ? '' : state; lpRenderPool(); lpHighlightState(state); }
+}
+
+function lpStateColor(state) {
+  var states = Object.keys(LP_STATE_CENTERS).sort();
+  var idx = states.indexOf(state);
+  var palette = ['#3b82f6','#ef4444','#22c55e','#a855f7','#f97316','#06b6d4','#ec4899','#eab308','#14b8a6','#8b5cf6','#f59e0b','#10b981'];
+  return palette[idx % palette.length];
+}
+
+function lpTLColor(idx) {
+  return LP.tlColors[idx % LP.tlColors.length];
+}
+
+function lpAddSelectedToTL() {
+  var tls = tempLoads.filter(function(t){return !t._converting;});
+  if(!tls.length) { lpCreateTLFromSelected(); return; }
+  // Show picker
+  var html = '<div style="padding:14px 16px"><div style="font-weight:700;font-size:13px;color:var(--navy);margin-bottom:10px">Add '+Object.keys(LP.poolSel).length+' PO(s) to which TL?</div>';
+  tls.forEach(function(tl){
+    html += '<div onclick="lpDoAddToTL(\''+tl.id+'\')" style="padding:7px 10px;border:1px solid var(--bd);border-radius:5px;margin-bottom:6px;cursor:pointer;font-size:12px;background:#fff" onmouseover="this.style.background=\'#f0f9ff\'" onmouseout="this.style.background=\'#fff\'">'
+      +'<strong>'+esc(tl.tlNum)+'</strong> — '+tl.pos.length+' POs'
+    +'</div>';
+  });
+  html += '<button class="btn g" style="width:100%;margin-top:6px" onclick="lpCreateTLFromSelected()">+ Create New TL</button>';
+  html += '</div>';
+  // use a tiny floating div
+  var panel = document.getElementById('lp-tl-picker');
+  if(!panel) { panel = document.createElement('div'); panel.id='lp-tl-picker'; panel.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:200;min-width:240px;max-width:320px'; document.body.appendChild(panel); }
+  panel.innerHTML = html + '<div style="padding:0 16px 12px"><button class="btn" style="width:100%" onclick="document.getElementById(\'lp-tl-picker\').remove()">Cancel</button></div>';
+  panel.style.display='block';
+}
+
+function lpDoAddToTL(tlId) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;});
+  if(!tl) return;
+  var unassigned = lpGetUnassignedDealers();
+  var sel = Object.keys(LP.poolSel);
+  sel.forEach(function(po){
+    if(tl.pos.some(function(p){return p.po===po;})) return;
+    var d = unassigned.find(function(x){return x.po===po;});
+    if(d) tl.pos.push({po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''});
+  });
+  saveRecord('temp_loads', tl);
+  LP.poolSel = {};
+  LP.routeCache[tlId] = null;
+  lpRenderPool();
+  lpRenderTLLanes();
+  lpRenderMap();
+  setTimeout(function(){lpFetchRouteForTL(tl);},100);
+  var p = document.getElementById('lp-tl-picker'); if(p) p.remove();
+}
+
+function lpCreateTLFromSelected() {
+  var sel = Object.keys(LP.poolSel);
+  if(!sel.length) { alert('Select at least one PO first.'); return; }
+  var unassigned = lpGetUnassignedDealers();
+  var pos = sel.map(function(po){ return unassigned.find(function(d){return d.po===po;}); }).filter(Boolean);
+  if(!pos.length) return;
+  var tlNum = 'TL-' + String(tempLoads.length + 1 + Date.now() % 1000).padStart(5,'0');
+  var tlId = 'lp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  var tl = {id:tlId, tlNum:tlNum, notes:'', createdAt:nowStr(), createdBy:currentUser||'', pos:pos.map(function(d){return {po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''};}), quotes:[]};
+  tempLoads.push(tl);
+  saveRecord('temp_loads', tl);
+  LP.poolSel = {};
+  LP.routeCache[tlId] = null;
+  var p = document.getElementById('lp-tl-picker'); if(p) p.remove();
+  lpRenderPool();
+  lpRenderTLLanes();
+  lpRenderMap();
+  setTimeout(function(){lpFetchRouteForTL(tl);},100);
+}
+
+function lpNewBlankTL() {
+  var tlNum = 'TL-' + String(tempLoads.length + 1 + Date.now() % 1000).padStart(5,'0');
+  var tlId = 'lp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  var tl = {id:tlId, tlNum:tlNum, notes:'', createdAt:nowStr(), createdBy:currentUser||'', pos:[], quotes:[]};
+  tempLoads.push(tl);
+  saveRecord('temp_loads', tl);
+  lpRenderTLLanes();
+  lpRenderMap();
+}
+
+function lpRenderTLLanes() {
+  var container = document.getElementById('lp-tl-lanes');
+  var footer = document.getElementById('lp-tl-footer');
+  if(!container) return;
+  if(!tempLoads.length) {
+    container.innerHTML = '<div style="padding:20px 8px;text-align:center;font-size:12px;color:var(--tx3)">No truck loads yet.<br>Select POs from the pool or click + New TL.</div>';
+    if(footer) footer.textContent='';
+    return;
+  }
+  var totalPOs = 0, totalPcs = 0;
+  var html = '';
+  tempLoads.forEach(function(tl, idx){
+    var color = lpTLColor(idx);
+    var pcs = tl.pos.reduce(function(a,p){return a+(Number(p.pieces)||0);},0);
+    var vendors = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))];
+    var states = [...new Set(tl.pos.map(function(p){return p.state;}).filter(Boolean))];
+    var rc = LP.routeCache[tl.id];
+    var milesTxt = rc ? (rc.miles ? Math.round(rc.miles)+' mi' : '') : (tl.pos.length>1?'…':'');
+    totalPOs += tl.pos.length; totalPcs += pcs;
+    html += '<div class="lp-tl-lane" id="lp-lane-'+tl.id+'" '
+      +'ondragover="event.preventDefault()" ondrop="lpDropOnTL(event,\''+tl.id+'\')" '
+      +'style="background:#fff;border:2px solid '+color+';border-radius:7px;margin-bottom:8px;overflow:hidden">'
+      // Header
+      +'<div style="background:'+color+';color:#fff;padding:6px 10px;display:flex;align-items:center;justify-content:space-between">'
+        +'<span style="font-weight:700;font-size:12px">'+esc(tl.tlNum)+'</span>'
+        +'<div style="display:flex;gap:5px;align-items:center">'
+          +(milesTxt?'<span style="font-size:10px;background:rgba(255,255,255,.25);padding:1px 6px;border-radius:3px">'+milesTxt+'</span>':'')
+          +'<span style="font-size:10px;background:rgba(255,255,255,.2);padding:1px 6px;border-radius:3px">'+tl.pos.length+' PO'+(tl.pos.length!==1?'s':'')+' · '+pcs+' pc</span>'
+          +'<button onclick="lpDeleteTL(\''+tl.id+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:18px;height:18px;border-radius:3px;cursor:pointer;font-size:11px;line-height:1;padding:0">✕</button>'
+        +'</div>'
+      +'</div>'
+      // Vendor / state badges
+      +(vendors.length?'<div style="padding:3px 8px 0;display:flex;gap:3px;flex-wrap:wrap">'
+        +states.map(function(s){return '<span style="font-size:9px;background:#f1f5f9;color:#475569;border-radius:3px;padding:1px 5px">'+s+'</span>';}).join('')
+        +'</div>':'')
+      // PO list (droppable)
+      +'<div style="padding:5px 8px;min-height:28px">';
+
+    tl.pos.forEach(function(p){
+      html += '<div draggable="true" ondragstart="lpDragStartFromTL(event,\''+tl.id+'\',\''+esc(p.po)+'\')" '
+        +'style="display:flex;align-items:center;justify-content:space-between;padding:3px 5px;border-radius:3px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:2px;font-size:11px;cursor:grab">'
+        +'<span><strong style="color:var(--navy)">'+esc(p.po||'—')+'</strong> <span style="color:var(--tx3)">'+esc(p.state||'')+'</span> <span style="color:var(--tx2)">'+esc(p.dealer||p.city||'')+'</span></span>'
+        +'<button onclick="lpRemovePOFromTL(\''+tl.id+'\',\''+esc(p.po)+'\')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:12px;padding:0 2px;line-height:1">✕</button>'
+      +'</div>';
+    });
+    if(!tl.pos.length) {
+      html += '<div style="text-align:center;font-size:11px;color:#94a3b8;padding:6px 0">Drop POs here</div>';
+    }
+    html += '</div>'
+    // Footer actions
+    +'<div style="padding:4px 8px 6px;display:flex;gap:4px;border-top:1px solid #e2e8f0">'
+      +'<button class="btn xs" onclick="lpBuildRouteView(\''+tl.id+'\')" style="font-size:10px;flex:1">🗺 Route</button>'
+      +'<button class="btn xs p" onclick="lpConvertTL(\''+tl.id+'\')" style="font-size:10px;flex:1">→ Load</button>'
+    +'</div>'
+    +'</div>';
+  });
+  container.innerHTML = html;
+  if(footer) footer.textContent = tempLoads.length+' TL'+(tempLoads.length!==1?'s':'')+' · '+totalPOs+' POs · '+totalPcs+' pcs total';
+}
+
+function lpRemovePOFromTL(tlId, po) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;});
+  if(!tl) return;
+  tl.pos = tl.pos.filter(function(p){return p.po!==po;});
+  if(!tl.pos.length) { tempLoads = tempLoads.filter(function(t){return t.id!==tlId;}); saveState(); }
+  else { saveRecord('temp_loads',tl); }
+  LP.routeCache[tlId] = null;
+  lpRenderPool(); lpRenderTLLanes(); lpRenderMap();
+  setTimeout(function(){var t2=tempLoads.find(function(t){return t.id===tlId;});if(t2)lpFetchRouteForTL(t2);},100);
+}
+
+function lpDeleteTL(tlId) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;});
+  if(!tl) return;
+  if(!confirm('Delete '+tl.tlNum+'? All POs return to pool.')) return;
+  tl.pos.forEach(function(p){
+    var d = dealers.find(function(x){return x.po===p.po;});
+    if(d) d.sel=false;
+  });
+  tempLoads = tempLoads.filter(function(t){return t.id!==tlId;});
+  saveState();
+  LP.routeCache[tlId] = null;
+  lpRenderPool(); lpRenderTLLanes(); lpRenderMap();
+}
+
+function lpConvertTL(tlId) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;});
+  if(!tl) { alert('TL not found.'); return; }
+  if(!tl.pos.length) { alert('Add POs to this TL before converting.'); return; }
+  // Reuse existing convertTL logic
+  if(typeof convertTL === 'function') { convertTL(tlId); }
+  else { goPage('staging', document.getElementById('ntab-staging')); }
+}
+
+// ── Drag & Drop ──────────────────────────────────────────────────────────────
+var _lpDragPO = null, _lpDragFromTL = null;
+function lpDragStart(e, po) { _lpDragPO=po; _lpDragFromTL=null; e.dataTransfer.setData('text/plain',po); }
+function lpDragStartFromTL(e, tlId, po) { _lpDragPO=po; _lpDragFromTL=tlId; e.dataTransfer.setData('text/plain',po); }
+function lpDropOnTL(e, tlId) {
+  e.preventDefault();
+  var po = _lpDragPO || e.dataTransfer.getData('text/plain');
+  if(!po) return;
+  if(_lpDragFromTL && _lpDragFromTL !== tlId) {
+    // Move between TLs
+    var fromTL = tempLoads.find(function(t){return t.id===_lpDragFromTL;});
+    var toTL   = tempLoads.find(function(t){return t.id===tlId;});
+    if(fromTL && toTL) {
+      var pObj = fromTL.pos.find(function(p){return p.po===po;});
+      if(pObj && !toTL.pos.some(function(p){return p.po===po;})) {
+        toTL.pos.push(pObj);
+        fromTL.pos = fromTL.pos.filter(function(p){return p.po!==po;});
+        if(!fromTL.pos.length) { tempLoads=tempLoads.filter(function(t){return t.id!==_lpDragFromTL;}); saveState(); }
+        else { saveRecord('temp_loads',fromTL); }
+        saveRecord('temp_loads',toTL);
+        LP.routeCache[_lpDragFromTL]=null; LP.routeCache[tlId]=null;
+      }
+    }
+  } else if(!_lpDragFromTL) {
+    // From pool
+    var toTL2 = tempLoads.find(function(t){return t.id===tlId;});
+    if(toTL2 && !toTL2.pos.some(function(p){return p.po===po;})) {
+      var unassigned = lpGetUnassignedDealers();
+      var d = unassigned.find(function(x){return x.po===po;});
+      if(d) { toTL2.pos.push({po:d.po,vendor:d.vendor,pieces:d.pieces,seats:d.seats,ready:d.ready,dealer:d.dealer,phone:d.phone||'',addr:d.addr||'',city:d.city,state:d.state,zip:d.zip||''}); saveRecord('temp_loads',toTL2); LP.routeCache[tlId]=null; }
+    }
+  }
+  _lpDragPO=null; _lpDragFromTL=null;
+  lpRenderPool(); lpRenderTLLanes(); lpRenderMap();
+  setTimeout(function(){var t2=tempLoads.find(function(t){return t.id===tlId;});if(t2)lpFetchRouteForTL(t2);},100);
+}
+
+// ── MAP ──────────────────────────────────────────────────────────────────────
+function lpBuildMap() {
+  var g = document.getElementById('lp-states-g');
+  if(!g) return;
+  var html = '';
+  Object.keys(LP_USA_PATHS).forEach(function(state){
+    html += '<path id="lp-st-'+state+'" d="'+LP_USA_PATHS[state]+'" '
+      +'fill="#e2e8f0" stroke="#fff" stroke-width="1.5" '
+      +'onclick="lpClickState(\''+state+'\')" '
+      +'onmouseover="lpStateHover(\''+state+'\',true,event)" '
+      +'onmouseout="lpStateHover(\''+state+'\',false,event)" '
+      +'style="cursor:pointer;transition:fill .15s" />';
+    var c = LP_STATE_CENTERS[state];
+    if(c) html += '<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="7" fill="#64748b" pointer-events="none" style="user-select:none">'+state+'</text>';
+  });
+  g.innerHTML = html;
+}
+
+function lpRenderMap() {
+  lpColorStates();
+  lpRenderDots();
+  lpRenderLegend();
+  if(document.getElementById('lp-show-routes').checked) lpDrawCachedRoutes();
+}
+
+function lpColorStates() {
+  var unassigned = lpGetUnassignedDealers();
+  var countByState = {};
+  unassigned.forEach(function(d){ var s=d.state||''; if(s) countByState[s]=(countByState[s]||0)+1; });
+
+  Object.keys(LP_USA_PATHS).forEach(function(state){
+    var el = document.getElementById('lp-st-'+state);
+    if(!el) return;
+    var n = countByState[state]||0;
+    var isActive = LP.stateFilter === state;
+    if(isActive) { el.setAttribute('fill','#1d4ed8'); el.setAttribute('stroke','#93c5fd'); el.setAttribute('stroke-width','2.5'); return; }
+    if(n === 0) { el.setAttribute('fill','#e2e8f0'); el.setAttribute('stroke','#fff'); el.setAttribute('stroke-width','1.5'); return; }
+    var intensity = Math.min(n/8, 1);
+    var r = Math.round(59 + (29-59)*intensity);
+    var g2 = Math.round(130 + (78-130)*intensity);
+    var b2 = Math.round(246 + (216-246)*intensity);
+    el.setAttribute('fill','rgb('+r+','+g2+','+b2+')');
+    el.setAttribute('stroke','#fff');
+    el.setAttribute('stroke-width','1.5');
+  });
+}
+
+function lpRenderDots() {
+  var g = document.getElementById('lp-dots-g');
+  if(!g) return;
+  var showDots = document.getElementById('lp-show-dots').checked;
+  if(!showDots) { g.innerHTML=''; return; }
+
+  var html = '';
+  // Unassigned dealer dots (gray/state colored)
+  var unassigned = lpGetUnassignedDealers();
+  var byState = {};
+  unassigned.forEach(function(d){ var s=d.state||'?'; if(!byState[s])byState[s]=[]; byState[s].push(d); });
+
+  Object.keys(byState).forEach(function(state){
+    var c = LP_STATE_CENTERS[state];
+    if(!c) return;
+    var ds = byState[state];
+    var cx = c[0], cy = c[1];
+    // Scatter dots slightly
+    ds.forEach(function(d, i){
+      var ox = (i % 5 - 2) * 4, oy = (Math.floor(i/5) - 1) * 4;
+      html += '<circle cx="'+(cx+ox)+'" cy="'+(cy+oy)+'" r="3.5" fill="#64748b" fill-opacity=".7" stroke="#fff" stroke-width=".8" '
+        +'onmouseover="lpShowTooltip(event,\''+esc(d.po)+'<br>'+esc(d.dealer||d.city||'')+'<br>'+esc(d.vendor||'')+'\') " '
+        +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
+    });
+  });
+
+  // TL stop dots (colored per TL)
+  tempLoads.forEach(function(tl, idx){
+    var color = lpTLColor(idx);
+    // Get pickup region (vendor states) and delivery states
+    var delivStates = {};
+    tl.pos.forEach(function(p){ if(p.state) delivStates[p.state]=(delivStates[p.state]||[]).concat(p); });
+
+    Object.keys(delivStates).forEach(function(state){
+      var c = LP_STATE_CENTERS[state];
+      if(!c) return;
+      var ps = delivStates[state];
+      ps.forEach(function(p,i){
+        var ox = (i % 4 -1.5)*5, oy = (Math.floor(i/4))*5 - 5;
+        html += '<circle cx="'+(c[0]+ox)+'" cy="'+(c[1]+oy)+'" r="4" fill="'+color+'" stroke="#fff" stroke-width="1" '
+          +'onmouseover="lpShowTooltip(event,\'<strong>'+esc(tl.tlNum)+'</strong><br>'+esc(p.po)+'<br>'+esc(p.dealer||p.city||'')+'\') " '
+          +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
+      });
+    });
+  });
+
+  g.innerHTML = html;
+}
+
+function lpRenderLegend() {
+  var el = document.getElementById('lp-legend');
+  if(!el) return;
+  if(!tempLoads.length) { el.innerHTML='<span style="font-size:11px;color:var(--tx3)">Create TLs to see route colors in legend</span>'; return; }
+  var html = '<span style="font-size:10px;color:var(--tx3);margin-right:4px">TLs:</span>';
+  tempLoads.forEach(function(tl,idx){
+    var color = lpTLColor(idx);
+    var rc = LP.routeCache[tl.id];
+    html += '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:8px">'
+      +'<span style="display:inline-block;width:20px;height:4px;background:'+color+';border-radius:2px"></span>'
+      +esc(tl.tlNum)
+      +(rc&&rc.miles?' <span style="color:var(--tx3)">'+Math.round(rc.miles)+' mi'+(rc.duration?' / '+Math.round(rc.duration/3600)+'h':'')+'</span>':'')
+    +'</span>';
+  });
+  el.innerHTML = html;
+}
+
+function lpClickState(state) {
+  LP.stateFilter = (LP.stateFilter === state) ? null : state;
+  var clearBtn = document.getElementById('lp-clear-state-btn');
+  if(clearBtn) clearBtn.style.display = LP.stateFilter ? '' : 'none';
+  var ssel = document.getElementById('lp-state-filter');
+  if(ssel) ssel.value = LP.stateFilter || '';
+  lpColorStates();
+  lpRenderPool();
+}
+
+function lpClearStateFilter() {
+  LP.stateFilter = null;
+  var clearBtn = document.getElementById('lp-clear-state-btn');
+  if(clearBtn) clearBtn.style.display='none';
+  var ssel = document.getElementById('lp-state-filter');
+  if(ssel) ssel.value='';
+  lpColorStates();
+  lpRenderPool();
+}
+
+function lpHighlightState(state) {
+  LP.stateFilter = state;
+  var clearBtn = document.getElementById('lp-clear-state-btn');
+  if(clearBtn) clearBtn.style.display='';
+  lpColorStates();
+}
+
+function lpStateHover(state, on, e) {
+  var el = document.getElementById('lp-st-'+state);
+  if(!el) return;
+  if(on) {
+    var unassigned = lpGetUnassignedDealers();
+    var n = unassigned.filter(function(d){return d.state===state;}).length;
+    var tls = tempLoads.filter(function(tl){return tl.pos.some(function(p){return p.state===state;});});
+    var tip = '<strong>'+state+'</strong>';
+    if(n) tip += '<br>'+n+' unassigned PO'+(n!==1?'s':'');
+    if(tls.length) tip += '<br>'+tls.map(function(tl){return esc(tl.tlNum)+' ('+tl.pos.filter(function(p){return p.state===state;}).length+' stops)';}).join(', ');
+    lpShowTooltip(e, tip);
+    if(LP.stateFilter !== state) el.setAttribute('fill-opacity','0.8');
+  } else {
+    lpHideTooltip();
+    el.setAttribute('fill-opacity','1');
+  }
+}
+
+function lpShowTooltip(e, html) {
+  var tt = document.getElementById('lp-map-tooltip');
+  if(!tt) return;
+  tt.innerHTML = html;
+  tt.style.display='block';
+  var svg = document.getElementById('lp-map-svg');
+  if(svg) {
+    var rect = svg.getBoundingClientRect();
+    var x = e.clientX - rect.left + 10, y = e.clientY - rect.top - 10;
+    if(x + 180 > rect.width) x = e.clientX - rect.left - 150;
+    tt.style.left = x+'px'; tt.style.top = y+'px';
+  }
+}
+function lpHideTooltip() {
+  var tt = document.getElementById('lp-map-tooltip');
+  if(tt) tt.style.display='none';
+}
+
+// ── OSRM Routing ─────────────────────────────────────────────────────────────
+// We geocode city+state via Nominatim, then route via OSRM public API
+var _lpGeoCache = {};
+async function lpGeocode(city, state, zip) {
+  var key = (city||'')+'|'+(state||'')+'|'+(zip||'');
+  if(_lpGeoCache[key]) return _lpGeoCache[key];
+  var q = encodeURIComponent((city||'')+(state?', '+state:'')+(zip?' '+zip:'')+(', USA'));
+  try {
+    var r = await fetch('https://nominatim.openstreetmap.org/search?format=json&q='+q+'&limit=1&countrycodes=us', {headers:{'Accept-Language':'en'}});
+    var j = await r.json();
+    if(j&&j.length) { var pt={lat:parseFloat(j[0].lat),lng:parseFloat(j[0].lon)}; _lpGeoCache[key]=pt; return pt; }
+  } catch(e) {}
+  return null;
+}
+
+async function lpFetchRouteForTL(tl) {
+  if(!tl || tl.pos.length < 2) return;
+  var loadingEl = document.getElementById('lp-route-loading');
+  if(loadingEl) loadingEl.style.display='';
+
+  // Get unique delivery states/cities for stops
+  var stops = [];
+  // Vendor pickups: group by vendor name, get location from locations DB
+  var vendorNames = [...new Set(tl.pos.map(function(p){return p.vendor;}).filter(Boolean))];
+  for(var vi=0; vi<vendorNames.length; vi++) {
+    var vn = vendorNames[vi];
+    var loc = locations.find(function(l){return (l.name||'').toLowerCase()===vn.toLowerCase();});
+    var pt = null;
+    if(loc && loc.city) pt = await lpGeocode(loc.city, loc.state||'', loc.zip||'');
+    if(pt) stops.push({lat:pt.lat, lng:pt.lng, label:'PU: '+vn});
+  }
+  // Delivery stops: unique dealer city+state
+  var seen = {};
+  tl.pos.forEach(function(p){
+    var key = (p.city||'')+'|'+(p.state||'');
+    if(!seen[key] && p.city) {
+      seen[key]=true;
+      stops.push({lat:null,lng:null,city:p.city,state:p.state,zip:p.zip||'',label:'DEL: '+p.city+', '+p.state,_needGeo:true});
+    }
+  });
+
+  // Geocode delivery stops
+  for(var si=0; si<stops.length; si++) {
+    if(stops[si]._needGeo) {
+      var pt2 = await lpGeocode(stops[si].city, stops[si].state, stops[si].zip);
+      if(pt2) { stops[si].lat=pt2.lat; stops[si].lng=pt2.lng; }
+    }
+  }
+  stops = stops.filter(function(s){return s.lat&&s.lng;});
+  if(stops.length < 2) {
+    if(loadingEl) loadingEl.style.display='none';
+    return;
+  }
+
+  // Call OSRM
+  var coords = stops.map(function(s){return s.lng+','+s.lat;}).join(';');
+  try {
+    var url = 'https://router.project-osrm.org/route/v1/driving/'+coords+'?overview=full&geometries=geojson&steps=false';
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if(data.code==='Ok' && data.routes && data.routes.length) {
+      var route = data.routes[0];
+      LP.routeCache[tl.id] = {
+        miles: route.distance * 0.000621371,
+        duration: route.duration,
+        coords: route.geometry.coordinates, // [[lng,lat],...]
+        stops: stops
+      };
+    }
+  } catch(e) { console.warn('OSRM error:', e); }
+
+  if(loadingEl) loadingEl.style.display='none';
+  lpDrawCachedRoutes();
+  lpRenderLegend();
+  lpRenderTLLanes();
+}
+
+async function lpFetchAllRoutes() {
+  for(var i=0; i<tempLoads.length; i++) {
+    var tl = tempLoads[i];
+    if(!LP.routeCache[tl.id] && tl.pos.length>=2) await lpFetchRouteForTL(tl);
+  }
+}
+
+function lpRefreshRoutes() {
+  LP.routeCache = {};
+  lpFetchAllRoutes();
+}
+
+function lpToggleRoutes() {
+  lpDrawCachedRoutes();
+}
+
+function lpDrawCachedRoutes() {
+  var g = document.getElementById('lp-routes-g');
+  if(!g) return;
+  var showRoutes = document.getElementById('lp-show-routes') && document.getElementById('lp-show-routes').checked;
+  if(!showRoutes) { g.innerHTML=''; return; }
+
+  // Get SVG viewBox dimensions (960x620) and map bbox
+  // We need to convert lng/lat to SVG x/y
+  // USA approx bounds: lng -125 to -67, lat 25 to 50
+  var LNG_MIN=-125, LNG_MAX=-67, LAT_MIN=24, LAT_MAX=50;
+  var SVG_X0=55, SVG_X1=890, SVG_Y0=80, SVG_Y1=570;
+
+  function toSVG(lng, lat) {
+    var x = SVG_X0 + (lng - LNG_MIN)/(LNG_MAX-LNG_MIN) * (SVG_X1-SVG_X0);
+    var y = SVG_Y1 - (lat - LAT_MIN)/(LAT_MAX-LAT_MIN) * (SVG_Y1-SVG_Y0);
+    return [x, y];
+  }
+
+  var html = '';
+  tempLoads.forEach(function(tl, idx){
+    var rc = LP.routeCache[tl.id];
+    if(!rc || !rc.coords || !rc.coords.length) return;
+    var color = lpTLColor(idx);
+
+    // Build polyline points from OSRM geometry
+    var pts = rc.coords.map(function(c){ return toSVG(c[0],c[1]); });
+    // Downsample if too many points for performance
+    var step = Math.max(1, Math.floor(pts.length/200));
+    var sampled = pts.filter(function(_,i){return i%step===0;});
+    if(sampled[sampled.length-1]!==pts[pts.length-1]) sampled.push(pts[pts.length-1]);
+
+    var d = 'M '+sampled.map(function(p){return p[0].toFixed(1)+' '+p[1].toFixed(1);}).join(' L ');
+    html += '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5" stroke-opacity=".85" stroke-linejoin="round" stroke-linecap="round" />';
+
+    // Draw stop markers on the route
+    rc.stops.forEach(function(s,si){
+      var xy = toSVG(s.lng,s.lat);
+      var isPU = (s.label||'').startsWith('PU:');
+      html += '<circle cx="'+xy[0].toFixed(1)+'" cy="'+xy[1].toFixed(1)+'" r="'+(isPU?5:4)+'" fill="'+(isPU?'#fff':color)+'" stroke="'+color+'" stroke-width="'+(isPU?2:1.5)+'" '
+        +'onmouseover="lpShowTooltip(event,\'<strong>'+esc(tl.tlNum)+'</strong><br>'+esc(s.label||'')+'\') " '
+        +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
+      if(si===0 || si===rc.stops.length-1) {
+        html += '<text x="'+(xy[0]+6).toFixed(1)+'" y="'+(xy[1]+4).toFixed(1)+'" font-size="8" fill="'+color+'" font-weight="700" pointer-events="none">'+esc(s.label||'')+'</text>';
+      }
+    });
+  });
+  g.innerHTML = html;
+}
+
+// Route detail modal
+function lpBuildRouteView(tlId) {
+  var tl = tempLoads.find(function(t){return t.id===tlId;});
+  if(!tl) return;
+  var rc = LP.routeCache[tlId];
+  var color = lpTLColor(tempLoads.indexOf(tl));
+
+  var html = '<div style="padding:16px;max-width:420px">'
+    +'<div style="font-size:15px;font-weight:700;color:'+color+';margin-bottom:8px">'+esc(tl.tlNum)+' Route</div>';
+
+  if(!rc) {
+    html += '<div style="font-size:12px;color:var(--tx2);margin-bottom:12px">Route not yet calculated — click Fetch below.</div>';
+  } else {
+    html += '<div style="display:flex;gap:12px;margin-bottom:12px">'
+      +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center">'
+        +'<div style="font-size:20px;font-weight:800;color:var(--navy)">'+Math.round(rc.miles||0)+'</div>'
+        +'<div style="font-size:10px;color:var(--tx3)">MILES</div>'
+      +'</div>'
+      +'<div style="flex:1;background:#f8fafc;border-radius:6px;padding:10px;text-align:center">'
+        +'<div style="font-size:20px;font-weight:800;color:var(--navy)">'+(rc.duration?Math.round(rc.duration/3600)+'h':'—')+'</div>'
+        +'<div style="font-size:10px;color:var(--tx3)">DRIVE TIME</div>'
+      +'</div>'
+    +'</div>';
+    if(rc.stops) {
+      html += '<div style="font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em">Stops in Order</div>';
+      html += rc.stops.map(function(s,i){
+        var isPU = (s.label||'').startsWith('PU:');
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd)">'
+          +'<div style="width:20px;height:20px;border-radius:50%;background:'+(isPU?'#fff':color)+';border:2px solid '+color+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:'+color+';flex-shrink:0">'+(i+1)+'</div>'
+          +'<div><div style="font-size:12px;font-weight:600">'+(isPU?'Pickup':'Delivery')+'</div><div style="font-size:11px;color:var(--tx2)">'+esc(s.label.replace(/^(PU|DEL): /,''))+'</div></div>'
+        +'</div>';
+      }).join('');
+    }
+  }
+  html += '</div>'
+    +'<div style="padding:0 16px 14px;display:flex;gap:8px">'
+    +(rc?''  :'<button class="btn p" onclick="lpFetchRouteForTL(tempLoads.find(function(t){return t.id===\''+tlId+'\';}))" style="flex:1">Fetch Route</button>')
+    +'<button class="btn" onclick="document.getElementById(\'lp-route-modal\').remove()" style="flex:1">Close</button>'
+    +'</div>';
+
+  var m = document.getElementById('lp-route-modal');
+  if(m) m.remove();
+  var modal = document.createElement('div');
+  modal.id='lp-route-modal';
+  modal.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border:1px solid var(--bd);border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.2);z-index:200;min-width:280px;max-width:440px';
+  modal.innerHTML=html;
+  document.body.appendChild(modal);
 }
 
 </script>
