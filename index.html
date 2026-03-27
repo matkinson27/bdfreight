@@ -1123,6 +1123,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 
   <!-- LOAD PLANNER -->
   <div class="page" id="page-planner">
+    <div style="display:flex;width:100%;height:100%;overflow:hidden">
 
     <!-- LEFT PANEL: PO Pool -->
     <div id="lp-pool-panel" style="width:280px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--bd);background:var(--sur2);overflow:hidden">
@@ -1149,33 +1150,20 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     </div>
 
     <!-- CENTER: Map -->
-    <div style="flex:1;display:flex;flex-direction:column;min-width:0;position:relative">
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden">
       <div style="padding:8px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--sur)">
         <span style="font-size:13px;font-weight:700;color:var(--navy)">USA Map</span>
-        <span style="font-size:11px;color:var(--tx3)">Click a state to filter pool · TL routes shown as driving paths</span>
-        <button class="btn xs" onclick="lpClearStateFilter()" id="lp-clear-state-btn" style="display:none;margin-left:4px">✕ Clear Filter</button>
-        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <label style="font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="checkbox" id="lp-show-routes" onchange="lpToggleRoutes()" checked> Routes
-          </label>
-          <label style="font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:4px;cursor:pointer">
-            <input type="checkbox" id="lp-show-dots" onchange="lpRenderMap()" checked> Stop dots
-          </label>
-          <button class="btn xs" onclick="lpRefreshRoutes()">↻ Refresh Routes</button>
+        <span id="lp-state-label" style="font-size:11px;color:var(--tx3)">Click a state to filter pool</span>
+        <button class="btn xs" onclick="lpClearStateFilter()" id="lp-clear-state-btn" style="display:none">✕ Clear</button>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <label style="font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lp-show-routes" onchange="lpDrawCachedRoutes()" checked> Routes</label>
+          <label style="font-size:11px;color:var(--tx2);display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="lp-show-dots" onchange="lpRenderDots()" checked> Stops</label>
+          <button class="btn xs" onclick="lpRefreshRoutes()">↻ Refresh</button>
         </div>
       </div>
-      <div style="flex:1;position:relative;overflow:hidden">
-        <svg id="lp-map-svg" viewBox="0 0 960 620" style="width:100%;height:100%;cursor:pointer" preserveAspectRatio="xMidYMid meet">
-          <g id="lp-states-g"></g>
-          <g id="lp-routes-g"></g>
-          <g id="lp-dots-g"></g>
-          <g id="lp-tooltips-g"></g>
-        </svg>
-        <div id="lp-map-tooltip" style="display:none;position:absolute;background:#1B2A4A;color:#fff;font-size:11px;padding:5px 9px;border-radius:5px;pointer-events:none;z-index:20;max-width:200px;line-height:1.5"></div>
-        <div id="lp-route-loading" style="display:none;position:absolute;top:8px;right:8px;background:var(--navy);color:#fff;font-size:11px;padding:4px 10px;border-radius:5px;z-index:30">⏳ Loading routes...</div>
-      </div>
-      <!-- Map legend -->
-      <div id="lp-legend" style="padding:5px 12px;border-top:1px solid var(--bd);display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--sur);flex-shrink:0"></div>
+      <!-- Map SVG injected here by lpBuildMap() -->
+      <div id="lp-map-container" style="flex:1;min-height:0;position:relative;overflow:hidden"></div>
+      <div id="lp-legend" style="padding:5px 12px;border-top:1px solid var(--bd);display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--sur);flex-shrink:0;min-height:28px"></div>
     </div>
 
     <!-- RIGHT PANEL: TL Lanes -->
@@ -1184,10 +1172,11 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <span style="font-size:13px;font-weight:700;color:var(--navy)">Truck Loads</span>
         <button class="btn xs p" onclick="lpNewBlankTL()">+ New TL</button>
       </div>
-      <div id="lp-tl-lanes" style="flex:1;overflow-y:auto;padding:8px 8px"></div>
+      <div id="lp-tl-lanes" style="flex:1;overflow-y:auto;padding:8px"></div>
       <div id="lp-tl-footer" style="padding:6px 10px;font-size:10px;color:var(--tx3);border-top:1px solid var(--bd);flex-shrink:0"></div>
     </div>
 
+    </div>
   </div><!-- /page-planner -->
 
 </div><!-- /app -->
@@ -10065,81 +10054,42 @@ var LP = {
   _inited: false
 };
 
-var LP_USA_PATHS = {
-  "AL":"M 550 390 L 570 390 L 573 440 L 545 440 L 547 415 Z",
-  "AK":"M 120 480 L 170 480 L 200 520 L 160 540 L 120 530 Z",
-  "AZ":"M 150 320 L 225 320 L 228 395 L 160 395 L 148 360 Z",
-  "AR":"M 490 340 L 545 338 L 547 380 L 492 380 Z",
-  "CA":"M 85 220 L 152 240 L 145 330 L 95 380 L 70 340 L 68 260 Z",
-  "CO":"M 225 270 L 340 268 L 340 330 L 225 330 Z",
-  "CT":"M 685 205 L 710 205 L 710 220 L 685 222 Z",
-  "DE":"M 666 248 L 680 248 L 680 270 L 663 268 Z",
-  "FL":"M 548 440 L 610 440 L 635 475 L 610 510 L 580 500 L 552 470 Z",
-  "GA":"M 570 390 L 618 388 L 615 445 L 573 440 Z",
-  "HI":"M 230 550 L 310 550 L 310 570 L 230 570 Z",
-  "ID":"M 155 145 L 220 143 L 225 235 L 185 250 L 158 215 Z",
-  "IL":"M 510 240 L 548 238 L 550 315 L 512 318 Z",
-  "IN":"M 548 240 L 580 238 L 582 305 L 549 308 Z",
-  "IA":"M 440 215 L 510 213 L 512 260 L 442 262 Z",
-  "KS":"M 340 295 L 458 293 L 458 340 L 340 340 Z",
-  "KY":"M 548 305 L 620 300 L 623 335 L 550 340 Z",
-  "LA":"M 468 400 L 545 398 L 546 436 L 500 445 L 468 435 Z",
-  "ME":"M 720 135 L 760 130 L 762 185 L 720 188 Z",
-  "MD":"M 630 258 L 672 255 L 674 280 L 630 282 Z",
-  "MA":"M 695 190 L 748 188 L 750 210 L 695 212 Z",
-  "MI":"M 548 175 L 610 170 L 615 215 L 549 218 Z",
-  "MN":"M 418 140 L 508 135 L 510 215 L 440 215 Z",
-  "MS":"M 500 375 L 548 373 L 549 440 L 503 442 Z",
-  "MO":"M 458 290 L 552 285 L 553 345 L 460 348 Z",
-  "MT":"M 160 115 L 370 110 L 370 178 L 162 183 Z",
-  "NE":"M 338 245 L 455 242 L 457 295 L 340 295 Z",
-  "NV":"M 95 215 L 163 210 L 162 320 L 95 345 Z",
-  "NH":"M 700 163 L 720 160 L 722 205 L 700 207 Z",
-  "NJ":"M 660 228 L 685 225 L 686 260 L 660 262 Z",
-  "NM":"M 220 328 L 320 325 L 320 400 L 220 402 Z",
-  "NY":"M 620 170 L 700 165 L 703 235 L 621 238 Z",
-  "NC":"M 600 308 L 688 302 L 690 342 L 600 346 Z",
-  "ND":"M 338 130 L 418 125 L 420 178 L 340 180 Z",
-  "OH":"M 578 238 L 625 235 L 628 300 L 579 303 Z",
-  "OK":"M 320 340 L 460 335 L 462 390 L 322 392 Z",
-  "OR":"M 85 145 L 190 140 L 188 210 L 87 215 Z",
-  "PA":"M 618 210 L 672 207 L 674 255 L 619 258 Z",
-  "RI":"M 712 205 L 728 205 L 728 220 L 712 222 Z",
-  "SC":"M 600 340 L 647 336 L 650 380 L 600 383 Z",
-  "SD":"M 338 180 L 420 176 L 422 245 L 340 245 Z",
-  "TN":"M 520 335 L 618 330 L 620 368 L 522 370 Z",
-  "TX":"M 275 345 L 462 340 L 465 460 L 380 500 L 275 495 Z",
-  "UT":"M 163 245 L 230 242 L 232 325 L 165 328 Z",
-  "VT":"M 688 160 L 703 158 L 705 205 L 688 207 Z",
-  "VA":"M 600 270 L 680 263 L 682 308 L 601 313 Z",
-  "WA":"M 85 100 L 198 96 L 200 148 L 87 153 Z",
-  "WV":"M 598 265 L 640 260 L 642 300 L 600 303 Z",
-  "WI":"M 468 158 L 528 153 L 530 228 L 470 230 Z",
-  "WY":"M 220 180 L 338 176 L 340 245 L 222 247 Z",
-  "DC":"M 652 268 L 660 268 L 660 276 L 652 276 Z"
-};
-
+// State centers as real [lng, lat] for geocode fallback
 var LP_STATE_CENTERS = {
-  "AL":[556,415],"AK":[155,510],"AZ":[185,357],"AR":[518,359],"CA":[112,295],
-  "CO":[282,299],"CT":[697,213],"DE":[671,259],"FL":[585,475],"GA":[592,416],
-  "HI":[270,560],"ID":[190,193],"IL":[529,278],"IN":[563,272],"IA":[476,237],
-  "KS":[399,316],"KY":[585,317],"LA":[507,417],"ME":[740,158],"MD":[651,269],
-  "MA":[721,200],"MI":[580,192],"MN":[463,175],"MS":[524,407],"MO":[505,316],
-  "MT":[265,146],"NE":[396,268],"NV":[128,277],"NH":[710,183],"NJ":[672,243],
-  "NM":[270,362],"NY":[661,200],"NC":[644,324],"ND":[378,152],"OH":[601,268],
-  "OK":[390,362],"OR":[137,177],"PA":[645,232],"RI":[720,213],"SC":[623,359],
-  "SD":[379,210],"TN":[569,352],"TX":[368,420],"UT":[196,283],"VT":[696,183],
-  "VA":[640,287],"WA":[142,124],"WV":[619,281],"WI":[499,190],"WY":[280,212],
-  "DC":[656,272]
+  "AL":[-86.79,32.79],"AK":[-152.40,61.37],"AZ":[-111.09,34.05],"AR":[-92.44,34.90],
+  "CA":[-119.68,36.78],"CO":[-105.55,39.06],"CT":[-72.73,41.60],"DE":[-75.50,38.99],
+  "FL":[-81.52,27.77],"GA":[-83.44,32.17],"HI":[-157.50,20.27],"ID":[-114.74,44.24],
+  "IL":[-89.20,40.35],"IN":[-86.13,40.27],"IA":[-93.21,42.01],"KS":[-98.48,38.53],
+  "KY":[-84.67,37.67],"LA":[-91.87,31.17],"ME":[-69.38,44.69],"MD":[-76.80,39.06],
+  "MA":[-71.53,42.23],"MI":[-85.44,44.31],"MN":[-93.90,46.39],"MS":[-89.68,32.74],
+  "MO":[-92.29,38.46],"MT":[-110.45,47.05],"NE":[-99.90,41.49],"NV":[-116.42,38.31],
+  "NH":[-71.57,43.19],"NJ":[-74.52,40.06],"NM":[-106.11,34.31],"NY":[-74.95,42.17],
+  "NC":[-79.81,35.63],"ND":[-100.47,47.53],"OH":[-82.91,40.42],"OK":[-97.09,35.56],
+  "OR":[-120.55,44.57],"PA":[-77.21,40.59],"RI":[-71.47,41.68],"SC":[-80.95,33.90],
+  "SD":[-100.23,44.44],"TN":[-86.69,35.86],"TX":[-99.33,31.47],"UT":[-111.09,39.32],
+  "VT":[-72.71,44.05],"VA":[-78.66,37.43],"WA":[-120.74,47.75],"WV":[-80.95,38.49],
+  "WI":[-89.62,44.27],"WY":[-107.55,43.08],"DC":[-77.04,38.91]
 };
 
 function lpInit() {
-  lpBuildMap();
-  lpPopulateFilters();
-  lpRenderPool();
-  lpRenderTLLanes();
-  lpRenderMap();
-  setTimeout(lpFetchAllRoutes, 300);
+  try {
+    lpPopulateFilters();
+    lpRenderPool();
+    lpRenderTLLanes();
+    lpRenderLegend();
+    // Build map — if Leaflet not loaded yet, lpBuildMap handles async load
+    if(window.L && LP_MAP) {
+      // Map exists — just invalidate size (panel may have been hidden)
+      setTimeout(function(){ LP_MAP.invalidateSize(); lpRenderDots(); lpDrawCachedRoutes(); }, 100);
+    } else {
+      lpBuildMap();
+    }
+    setTimeout(lpFetchAllRoutes, 500);
+  } catch(e) {
+    console.error('lpInit error:', e);
+    var pool = document.getElementById('lp-pool-list');
+    if(pool) pool.innerHTML = '<div style="padding:12px;color:red;font-size:11px">Init error: '+e.message+'</div>';
+  }
 }
 
 function lpGetUnassignedDealers() {
@@ -10460,127 +10410,155 @@ function lpDropOnTL(e, tlId) {
   setTimeout(function(){var t2=tempLoads.find(function(t){return t.id===tlId;});if(t2)lpFetchRouteForTL(t2);},100);
 }
 
-// ── MAP ──────────────────────────────────────────────────────────────────────
+// ── LOAD PLANNER MAP (Leaflet) ────────────────────────────────────────────────
+var LP_MAP = null;       // Leaflet map instance
+var LP_LAYERS = {};      // tlId -> L.layerGroup
+var LP_DOT_LAYER = null; // unassigned dots layer
+
 function lpBuildMap() {
-  var g = document.getElementById('lp-states-g');
-  if(!g) return;
-  var html = '';
-  Object.keys(LP_USA_PATHS).forEach(function(state){
-    html += '<path id="lp-st-'+state+'" d="'+LP_USA_PATHS[state]+'" '
-      +'fill="#e2e8f0" stroke="#fff" stroke-width="1.5" '
-      +'onclick="lpClickState(\''+state+'\')" '
-      +'onmouseover="lpStateHover(\''+state+'\',true,event)" '
-      +'onmouseout="lpStateHover(\''+state+'\',false,event)" '
-      +'style="cursor:pointer;transition:fill .15s" />';
-    var c = LP_STATE_CENTERS[state];
-    if(c) html += '<text x="'+c[0]+'" y="'+(c[1]+4)+'" text-anchor="middle" font-size="7" fill="#64748b" pointer-events="none" style="user-select:none">'+state+'</text>';
+  var container = document.getElementById('lp-map-container');
+  if(!container) return;
+
+  // Load Leaflet CSS + JS if not already present
+  if(!window.L) {
+    if(!document.getElementById('leaflet-css')) {
+      var css = document.createElement('link');
+      css.id = 'leaflet-css';
+      css.rel = 'stylesheet';
+      css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+      document.head.appendChild(css);
+    }
+    if(!document.getElementById('leaflet-js')) {
+      var script = document.createElement('script');
+      script.id = 'leaflet-js';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      script.onload = function() { lpInitMap(); };
+      document.head.appendChild(script);
+    }
+    return; // lpInitMap called in onload
+  }
+  lpInitMap();
+}
+
+function lpInitMap() {
+  var container = document.getElementById('lp-map-container');
+  if(!container || !window.L) return;
+
+  // Destroy existing map if re-initializing
+  if(LP_MAP) { try { LP_MAP.remove(); } catch(e){} LP_MAP = null; }
+
+  LP_MAP = L.map('lp-map-container', {
+    center: [39.5, -98.35],
+    zoom: 4,
+    zoomControl: true
   });
-  g.innerHTML = html;
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(LP_MAP);
+
+  LP_DOT_LAYER = L.layerGroup().addTo(LP_MAP);
+
+  // Render after map is ready
+  setTimeout(function() {
+    lpRenderDots();
+    lpRenderLegend();
+    lpDrawCachedRoutes();
+  }, 200);
 }
 
 function lpRenderMap() {
-  lpColorStates();
+  if(!LP_MAP) { lpBuildMap(); return; }
   lpRenderDots();
   lpRenderLegend();
-  if(document.getElementById('lp-show-routes').checked) lpDrawCachedRoutes();
-}
-
-function lpColorStates() {
-  var unassigned = lpGetUnassignedDealers();
-  var countByState = {};
-  unassigned.forEach(function(d){ var s=d.state||''; if(s) countByState[s]=(countByState[s]||0)+1; });
-
-  Object.keys(LP_USA_PATHS).forEach(function(state){
-    var el = document.getElementById('lp-st-'+state);
-    if(!el) return;
-    var n = countByState[state]||0;
-    var isActive = LP.stateFilter === state;
-    if(isActive) { el.setAttribute('fill','#1d4ed8'); el.setAttribute('stroke','#93c5fd'); el.setAttribute('stroke-width','2.5'); return; }
-    if(n === 0) { el.setAttribute('fill','#e2e8f0'); el.setAttribute('stroke','#fff'); el.setAttribute('stroke-width','1.5'); return; }
-    var intensity = Math.min(n/8, 1);
-    var r = Math.round(59 + (29-59)*intensity);
-    var g2 = Math.round(130 + (78-130)*intensity);
-    var b2 = Math.round(246 + (216-246)*intensity);
-    el.setAttribute('fill','rgb('+r+','+g2+','+b2+')');
-    el.setAttribute('stroke','#fff');
-    el.setAttribute('stroke-width','1.5');
-  });
+  lpDrawCachedRoutes();
 }
 
 function lpRenderDots() {
-  var g = document.getElementById('lp-dots-g');
-  if(!g) return;
-  var showDots = document.getElementById('lp-show-dots').checked;
-  if(!showDots) { g.innerHTML=''; return; }
+  if(!LP_MAP || !LP_DOT_LAYER) return;
+  LP_DOT_LAYER.clearLayers();
 
-  var html = '';
-  // Unassigned dealer dots (gray/state colored)
+  // Unassigned dealer markers — gray cluster by state
   var unassigned = lpGetUnassignedDealers();
-  var byState = {};
-  unassigned.forEach(function(d){ var s=d.state||'?'; if(!byState[s])byState[s]=[]; byState[s].push(d); });
-
-  Object.keys(byState).forEach(function(state){
-    var c = LP_STATE_CENTERS[state];
-    if(!c) return;
-    var ds = byState[state];
-    var cx = c[0], cy = c[1];
-    // Scatter dots slightly
-    ds.forEach(function(d, i){
-      var ox = (i % 5 - 2) * 4, oy = (Math.floor(i/5) - 1) * 4;
-      html += '<circle cx="'+(cx+ox)+'" cy="'+(cy+oy)+'" r="3.5" fill="#64748b" fill-opacity=".7" stroke="#fff" stroke-width=".8" '
-        +'onmouseover="lpShowTooltip(event,\''+esc(d.po)+'<br>'+esc(d.dealer||d.city||'')+'<br>'+esc(d.vendor||'')+'\') " '
-        +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
+  unassigned.forEach(function(d) {
+    if(!d.city || !d.state) return;
+    var center = LP_STATE_CENTERS[d.state];
+    if(!center) return;
+    // Use cached geocoords if available, else jitter around state center
+    var key = (d.city||'')+'|'+(d.state||'')+'|'+(d.zip||'');
+    var cached = _lpGeoCache[key];
+    var lat = cached ? cached.lat : (center[1] + (Math.random()-0.5)*2);
+    var lng = cached ? cached.lng : (center[0] + (Math.random()-0.5)*2);
+    var marker = L.circleMarker([lat, lng], {
+      radius: 5, color: '#fff', weight: 1,
+      fillColor: '#64748b', fillOpacity: 0.8
     });
+    marker.bindTooltip('<strong>'+esc(d.po||'')+'</strong><br>'+esc(d.dealer||d.city||'')+'<br>'+esc(d.vendor||''), {sticky:true});
+    marker.on('click', function() { lpTogglePoolSel(d.po); });
+    LP_DOT_LAYER.addLayer(marker);
   });
-
-  // TL stop dots (colored per TL)
-  tempLoads.forEach(function(tl, idx){
-    var color = lpTLColor(idx);
-    // Get pickup region (vendor states) and delivery states
-    var delivStates = {};
-    tl.pos.forEach(function(p){ if(p.state) delivStates[p.state]=(delivStates[p.state]||[]).concat(p); });
-
-    Object.keys(delivStates).forEach(function(state){
-      var c = LP_STATE_CENTERS[state];
-      if(!c) return;
-      var ps = delivStates[state];
-      ps.forEach(function(p,i){
-        var ox = (i % 4 -1.5)*5, oy = (Math.floor(i/4))*5 - 5;
-        html += '<circle cx="'+(c[0]+ox)+'" cy="'+(c[1]+oy)+'" r="4" fill="'+color+'" stroke="#fff" stroke-width="1" '
-          +'onmouseover="lpShowTooltip(event,\'<strong>'+esc(tl.tlNum)+'</strong><br>'+esc(p.po)+'<br>'+esc(p.dealer||p.city||'')+'\') " '
-          +'onmouseout="lpHideTooltip()" style="cursor:pointer" />';
-      });
-    });
-  });
-
-  g.innerHTML = html;
 }
+
+function lpDrawCachedRoutes() {
+  if(!LP_MAP) return;
+
+  // Remove old route layers
+  Object.keys(LP_LAYERS).forEach(function(tlId) {
+    try { LP_MAP.removeLayer(LP_LAYERS[tlId]); } catch(e){}
+  });
+  LP_LAYERS = {};
+
+  tempLoads.forEach(function(tl, idx) {
+    var rc = LP.routeCache[tl.id];
+    if(!rc || !rc.coords || !rc.coords.length) return;
+    var color = lpTLColor(idx);
+    var group = L.layerGroup();
+
+    // Draw route polyline — TomTom returns [[lng,lat],...] so flip to [lat,lng]
+    var latlngs = rc.coords.map(function(c) { return [c[1], c[0]]; });
+    L.polyline(latlngs, {color: color, weight: 4, opacity: 0.85}).addTo(group);
+
+    // Draw stop markers
+    (rc.stops||[]).forEach(function(s, si) {
+      if(!s.lat || !s.lng) return;
+      var isPU = (s.label||'').startsWith('PU:');
+      L.circleMarker([s.lat, s.lng], {
+        radius: isPU ? 8 : 6,
+        color: color, weight: 2,
+        fillColor: isPU ? '#fff' : color,
+        fillOpacity: isPU ? 1 : 0.9
+      }).bindTooltip('<strong>'+esc(tl.tlNum)+'</strong><br>'+(isPU?'🔵 Pickup':'📍 Delivery')+'<br>'+esc(s.label.replace(/^(PU|DEL): /,''))).addTo(group);
+    });
+
+    group.addTo(LP_MAP);
+    LP_LAYERS[tl.id] = group;
+  });
+}
+
+function lpColorStates() { /* no-op with Leaflet — state coloring not needed */ }
+function lpStateHover() {}
+function lpShowTooltip() {}
+function lpHideTooltip() {}
+function lpClickState() {}
+function lpHighlightState() {}
+function lpToggleRoutes() { lpDrawCachedRoutes(); }
 
 function lpRenderLegend() {
   var el = document.getElementById('lp-legend');
   if(!el) return;
-  if(!tempLoads.length) { el.innerHTML='<span style="font-size:11px;color:var(--tx3)">Create TLs to see route colors in legend</span>'; return; }
+  if(!tempLoads.length) { el.innerHTML='<span style="font-size:11px;color:var(--tx3)">Create TLs to see route colors</span>'; return; }
   var html = '<span style="font-size:10px;color:var(--tx3);margin-right:4px">TLs:</span>';
   tempLoads.forEach(function(tl,idx){
     var color = lpTLColor(idx);
     var rc = LP.routeCache[tl.id];
-    html += '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:8px">'
+    html += '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;margin-right:10px;cursor:pointer" onclick="lpBuildRouteView(\''+tl.id+'\')">'
       +'<span style="display:inline-block;width:20px;height:4px;background:'+color+';border-radius:2px"></span>'
       +esc(tl.tlNum)
-      +(rc&&rc.miles?' <span style="color:var(--tx3)">'+Math.round(rc.miles)+' mi'+(rc.duration?' / '+Math.round(rc.duration/3600)+'h':'')+'</span>':'')
+      +(rc&&rc.miles?' <span style="color:var(--tx3)">'+Math.round(rc.miles).toLocaleString()+' mi'+(rc.duration?' · '+Math.floor(rc.duration/3600)+'h'+Math.round((rc.duration%3600)/60)+'m':'')+'</span>':'<span style="color:var(--tx3)">'+(tl.pos.length>=2?'routing…':'')+'</span>')
     +'</span>';
   });
   el.innerHTML = html;
-}
-
-function lpClickState(state) {
-  LP.stateFilter = (LP.stateFilter === state) ? null : state;
-  var clearBtn = document.getElementById('lp-clear-state-btn');
-  if(clearBtn) clearBtn.style.display = LP.stateFilter ? '' : 'none';
-  var ssel = document.getElementById('lp-state-filter');
-  if(ssel) ssel.value = LP.stateFilter || '';
-  lpColorStates();
-  lpRenderPool();
 }
 
 function lpClearStateFilter() {
@@ -10589,51 +10567,7 @@ function lpClearStateFilter() {
   if(clearBtn) clearBtn.style.display='none';
   var ssel = document.getElementById('lp-state-filter');
   if(ssel) ssel.value='';
-  lpColorStates();
   lpRenderPool();
-}
-
-function lpHighlightState(state) {
-  LP.stateFilter = state;
-  var clearBtn = document.getElementById('lp-clear-state-btn');
-  if(clearBtn) clearBtn.style.display='';
-  lpColorStates();
-}
-
-function lpStateHover(state, on, e) {
-  var el = document.getElementById('lp-st-'+state);
-  if(!el) return;
-  if(on) {
-    var unassigned = lpGetUnassignedDealers();
-    var n = unassigned.filter(function(d){return d.state===state;}).length;
-    var tls = tempLoads.filter(function(tl){return tl.pos.some(function(p){return p.state===state;});});
-    var tip = '<strong>'+state+'</strong>';
-    if(n) tip += '<br>'+n+' unassigned PO'+(n!==1?'s':'');
-    if(tls.length) tip += '<br>'+tls.map(function(tl){return esc(tl.tlNum)+' ('+tl.pos.filter(function(p){return p.state===state;}).length+' stops)';}).join(', ');
-    lpShowTooltip(e, tip);
-    if(LP.stateFilter !== state) el.setAttribute('fill-opacity','0.8');
-  } else {
-    lpHideTooltip();
-    el.setAttribute('fill-opacity','1');
-  }
-}
-
-function lpShowTooltip(e, html) {
-  var tt = document.getElementById('lp-map-tooltip');
-  if(!tt) return;
-  tt.innerHTML = html;
-  tt.style.display='block';
-  var svg = document.getElementById('lp-map-svg');
-  if(svg) {
-    var rect = svg.getBoundingClientRect();
-    var x = e.clientX - rect.left + 10, y = e.clientY - rect.top - 10;
-    if(x + 180 > rect.width) x = e.clientX - rect.left - 150;
-    tt.style.left = x+'px'; tt.style.top = y+'px';
-  }
-}
-function lpHideTooltip() {
-  var tt = document.getElementById('lp-map-tooltip');
-  if(tt) tt.style.display='none';
 }
 
 // ── TomTom Truck Routing ──────────────────────────────────────────────────────
