@@ -707,9 +707,26 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
   <!-- DEALER ORDERS -->
   <div class="page" id="page-dealer">
     <div class="kpis c4" id="kpi-dealer"></div>
-    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-    <div onclick="document.getElementById('dealer-csv').click()" style="flex:1;display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--sur);border:1.5px dashed var(--green);border-radius:var(--r);cursor:pointer"><svg width="13" height="13" viewBox="0 0 20 20" fill="var(--green)"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg><div><strong style="font-size:12px;color:var(--navy)">Import Dealer Orders CSV</strong><span style="font-size:11px;color:var(--tx2);margin-left:8px">Columns: PO# | Vendor | Pieces | Seats | Ready Date | Dealer Name | Phone # | Address | City | State — duplicate PO# updates in place</span></div><input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this)" style="display:none"></div>
-    <div onclick="openM('m-paste-orders')" style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--sur);border:1.5px dashed var(--navy);border-radius:var(--r);cursor:pointer;white-space:nowrap"><svg width="13" height="13" viewBox="0 0 20 20" fill="var(--navy)"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg><div><strong style="font-size:12px;color:var(--navy)">Paste Free-Text Orders</strong><span style="font-size:11px;color:var(--tx2);margin-left:8px">e.g. SO 194158 PO 55273 12 pcs 31 seats Lindon UT ready 3/11 (801-405-9766)</span></div></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+      <div style="position:relative;display:inline-block">
+        <button class="btn" onclick="document.getElementById('dealer-csv').click()" style="display:flex;align-items:center;gap:6px;font-size:12px"><svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg> Import CSV</button>
+        <button onclick="toggleDealerCSVInfo()" title="CSV column format" style="height:24px;width:24px;border-radius:50%;border:1px solid var(--bd2);background:var(--sur2);color:var(--tx2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--F);margin-left:2px">ⓘ</button>
+        <div id="dealer-csv-info" style="display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:200;background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:11px;color:var(--tx2);white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.12);line-height:1.7">
+          <div style="font-weight:700;color:var(--tx);margin-bottom:4px">CSV Column Order</div>
+          <code style="font-family:var(--M);font-size:11px">PO# · Vendor · Pieces · Seats · Ready Date · Dealer Name · Phone # · Address · City · State</code>
+          <div style="margin-top:6px;color:var(--tx3)">Duplicate PO# updates in place. Header row optional.</div>
+        </div>
+        <input type="file" id="dealer-csv" accept=".csv" onchange="importDealerCSV(this);document.getElementById('dealer-csv-info').style.display='none'" style="display:none">
+      </div>
+      <div style="position:relative;display:inline-block">
+        <button class="btn" onclick="openM('m-paste-orders')" style="display:flex;align-items:center;gap:6px;font-size:12px"><svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/></svg> Paste Orders</button>
+        <button onclick="togglePasteInfo()" title="Paste format" style="height:24px;width:24px;border-radius:50%;border:1px solid var(--bd2);background:var(--sur2);color:var(--tx2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--F);margin-left:2px">ⓘ</button>
+        <div id="paste-orders-info" style="display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:200;background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:11px;color:var(--tx2);white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.12);line-height:1.7">
+          <div style="font-weight:700;color:var(--tx);margin-bottom:4px">Free-Text Format (one order per line)</div>
+          <code style="font-family:var(--M);font-size:11px">SO 194158 PO 55273 12 pcs 31 seats Lindon UT ready 3/11 (801-405-9766)</code>
+          <div style="margin-top:6px;color:var(--tx3)">SO#, pcs, seats, phone, ready date are all optional. PO# required.</div>
+        </div>
+      </div>
     </div>
     <div class="csvmsg" id="dealer-msg"></div>
     <div id="dv-active">
@@ -752,17 +769,17 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <span id="stg-count" style="font-size:12px;color:var(--tx2);margin-left:4px"></span>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-      <div style="height:260px;overflow-y:auto;flex-shrink:0" id="stg-split-top">
+      <div style="height:260px;overflow-y:auto;flex-shrink:0;position:relative" id="stg-split-top">
         <table id="stg-table" style="width:100%;border-collapse:collapse">
-          <thead>
+          <thead style="position:sticky;top:0;z-index:3;background:var(--sur)">
             <tr>
-              <th class="nc" style="width:24px"></th>
-              <th onclick="sortStaging('tlNum')" id="sth-tlNum">Order #</th>
-              <th onclick="sortStaging('vendors')" id="sth-vendors">Vendor(s)</th>
-              <th onclick="sortStaging('pos')" id="sth-pos">POs</th>
-              <th onclick="sortStaging('pcs')" id="sth-pcs">Pcs</th>
-              <th onclick="sortStaging('seats')" id="sth-seats">Seats</th>
-              <th onclick="sortStaging('ready')" id="sth-ready">Ready</th>
+              <th class="nc" style="width:16px"></th>
+              <th onclick="sortStaging('tlNum')" id="sth-tlNum" style="cursor:pointer">TL # / LD #</th>
+              <th onclick="sortStaging('vendors')" id="sth-vendors" style="cursor:pointer">Vendor(s)</th>
+              <th onclick="sortStaging('pos')" id="sth-pos" style="cursor:pointer">POs</th>
+              <th onclick="sortStaging('pcs')" id="sth-pcs" style="cursor:pointer">Pcs</th>
+              <th onclick="sortStaging('seats')" id="sth-seats" style="cursor:pointer">Seats</th>
+              <th onclick="sortStaging('ready')" id="sth-ready" style="cursor:pointer">Ready</th>
               <th class="nc">Best Quote</th>
               <th class="nc">Notes</th>
               <th class="nc">Actions</th>
@@ -1297,6 +1314,34 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
     <div class="mfooter">
       <button class="btn" onclick="closeM('m-paste-orders');document.getElementById('paste-orders-txt').value=''">Cancel</button>
       <button class="btn p" onclick="parsePasteOrders()">Import Orders</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASTE ORDERS CONFIRM MODAL -->
+<div class="overlay" id="m-paste-confirm">
+  <div class="mbox w" style="max-width:720px">
+    <div class="mh">Confirm Import</div>
+    <div id="paste-confirm-summary" style="font-size:12px;color:var(--tx2);margin-bottom:10px"></div>
+    <div style="max-height:340px;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r)">
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="paste-confirm-table">
+        <thead style="position:sticky;top:0;background:var(--sur2);z-index:1">
+          <tr>
+            <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">PO #</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Pcs</th>
+            <th style="padding:7px 10px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Seats</th>
+            <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Ready</th>
+            <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Vendor <span style="font-weight:400;color:var(--tx3)">(from line)</span></th>
+            <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Dealer / Location <span style="font-weight:400;color:var(--tx3)">(matched)</span></th>
+            <th style="padding:7px 6px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Status</th>
+          </tr>
+        </thead>
+        <tbody id="paste-confirm-body"></tbody>
+      </table>
+    </div>
+    <div class="mfooter" style="margin-top:12px">
+      <button class="btn" onclick="closeM('m-paste-confirm')">Back</button>
+      <button class="btn p" id="paste-confirm-btn" onclick="commitPasteOrders()">Confirm Import</button>
     </div>
   </div>
 </div>
@@ -3449,6 +3494,26 @@ function pickEquip(code){
   document.getElementById('lf-equip').value=code;
   document.getElementById('ac-equip').style.display='none';
 }
+function toggleDealerCSVInfo(){
+  var el=document.getElementById('dealer-csv-info'); if(!el) return;
+  var open=el.style.display!=='none';
+  document.querySelectorAll('#dealer-csv-info,#paste-orders-info').forEach(function(x){x.style.display='none';});
+  if(!open) el.style.display='block';
+}
+function togglePasteInfo(){
+  var el=document.getElementById('paste-orders-info'); if(!el) return;
+  var open=el.style.display!=='none';
+  document.querySelectorAll('#dealer-csv-info,#paste-orders-info').forEach(function(x){x.style.display='none';});
+  if(!open) el.style.display='block';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#dealer-csv-info')&&!e.target.getAttribute('onclick')?.includes('toggleDealerCSVInfo')){
+    var el=document.getElementById('dealer-csv-info'); if(el) el.style.display='none';
+  }
+  if(!e.target.closest('#paste-orders-info')&&!e.target.getAttribute('onclick')?.includes('togglePasteInfo')){
+    var el=document.getElementById('paste-orders-info'); if(el) el.style.display='none';
+  }
+});
 function toggleZip(){
   var cur=localStorage.getItem('bdf_showZip');
   var next=cur==='0'?'1':'0';
@@ -5158,7 +5223,7 @@ function renderStaging() {
     var readyDates = tl.pos.map(function(p){return p.ready||'';}).filter(Boolean);
     var latestReady = '';
     if(readyDates.length) {
-      var parsed = readyDates.map(function(d){var pt=d.split('/');return {disp:d,ts:pt.length===3?new Date(parseInt(pt[2]),parseInt(pt[0])-1,parseInt(pt[1])).getTime():0};}).sort(function(a,b){return b.ts-a.ts;});
+      var parsed = readyDates.map(function(d){var pt=d.split('/');var yr=pt.length===3?parseInt(pt[2]):new Date().getFullYear();if(pt.length>=2){var ts=new Date(yr<100?2000+yr:yr,parseInt(pt[0])-1,parseInt(pt[1])).getTime();return{disp:d,ts:isNaN(ts)?0:ts};}return{disp:d,ts:0};}).sort(function(a,b){return b.ts-a.ts;});
       latestReady = parsed[0].disp;
     }
     var hay = (tl.tlNum+' '+(tl.ticket||'')+' '+vendors+' '+tl.pos.map(function(p){return (p.po||'')+' '+(p.dealer||'');}).join(' ')).toLowerCase();
@@ -5305,7 +5370,7 @@ function renderStgDetail() {
     obj.pos.forEach(function(p){if(p.ready)readyDates.push(p.ready);});
   }
   var latestReady='';
-  if(readyDates.length){var parsed=readyDates.map(function(d){var pt=d.split('/');return{disp:d,ts:pt.length===3?new Date(parseInt(pt[2]),parseInt(pt[0])-1,parseInt(pt[1])).getTime():0};}).sort(function(a,b){return b.ts-a.ts;});latestReady=parsed[0].disp;}
+  if(readyDates.length){var parsed=readyDates.map(function(d){var pt=d.split('/');var yr=pt.length===3?parseInt(pt[2]):new Date().getFullYear();if(pt.length>=2){var ts=new Date(yr<100?2000+yr:yr,parseInt(pt[0])-1,parseInt(pt[1])).getTime();return{disp:d,ts:isNaN(ts)?0:ts};}return{disp:d,ts:0};}).sort(function(a,b){return b.ts-a.ts;});latestReady=parsed[0].disp;}
 
   var poRows='';
   if(!isLoad&&obj.pos&&obj.pos.length){
@@ -9168,8 +9233,8 @@ function parseFreeTextOrder(line) {
 
 function resolveNextPasteOrder() {
   if(_pasteQueueIdx >= _pasteQueue.length) {
-    // All resolved — commit
-    commitPasteOrders();
+    // All resolved — show confirmation
+    showPasteConfirm();
     return;
   }
 
@@ -9240,7 +9305,72 @@ function skipLocPicker() {
   resolveNextPasteOrder();
 }
 
+function showPasteConfirm() {
+  var added=0, updated=0;
+  var rows = _pasteQueue.map(function(d, i) {
+    var isUpdate = d.po && dealers.findIndex(function(x){return x.po===d.po;}) >= 0;
+    if(isUpdate) updated++; else added++;
+    var vendorKnown = locations.some(function(l){return l.name && d.vendor && l.name.toLowerCase()===d.vendor.toLowerCase();});
+    var dealerMatched = !!d.dealer;
+    var rowBg = i%2===0 ? 'var(--sur)' : 'var(--sur2)';
+    return '<tr style="border-bottom:1px solid var(--bd);background:'+rowBg+'">'
+      +'<td style="padding:6px 10px;font-weight:700;color:var(--navy)">'+esc(d.po||'—')+'</td>'
+      +'<td style="padding:6px 10px;text-align:center">'+esc(String(d.pieces||0))+'</td>'
+      +'<td style="padding:6px 10px;text-align:center">'+esc(String(d.seats||0))+'</td>'
+      +'<td style="padding:6px 10px;color:var(--tx2);font-size:11px">'+esc(d.ready||'—')+'</td>'
+      +'<td style="padding:6px 10px">'
+        +'<div class="acw" style="position:relative">'
+          +'<input id="pcv-vendor-'+i+'" value="'+esc(d.vendor||'')+'" placeholder="Vendor..." oninput="pcVendorAC(this.value,'+i+')" autocomplete="off" style="width:140px;height:26px;font-size:11px;padding:0 7px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);background:var(--sur);color:var(--tx)">'
+          +'<div class="acl" id="ac-pcv-'+i+'" style="min-width:180px"></div>'
+        +'</div>'
+      +'</td>'
+      +'<td style="padding:6px 10px;font-size:11px;color:'+(dealerMatched?'var(--tx)':'var(--tx3)')+'">'+esc(d.dealer||(d.city?(d.city+(d.state?', '+d.state:'')):'—'))+'</td>'
+      +'<td style="padding:6px 8px;text-align:center">'
+        +(isUpdate
+          ? '<span style="background:#fef9c3;color:#854d0e;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">Update</span>'
+          : '<span style="background:#dcfce7;color:#14532d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px">New</span>'
+        )
+      +'</td>'
+    +'</tr>';
+  });
+
+  document.getElementById('paste-confirm-summary').innerHTML =
+    '<strong style="color:var(--navy)">'+_pasteQueue.length+' order'+(_pasteQueue.length!==1?'s':'')+' ready to import</strong>'
+    +' &nbsp;·&nbsp; <span style="color:#14532d">'+added+' new</span>'
+    +(updated?' &nbsp;·&nbsp; <span style="color:#854d0e">'+updated+' update'+(updated!==1?'s':'')+'</span>':'')
+    +'<span style="font-size:11px;color:var(--tx3);margin-left:10px">Edit vendor names below if needed, then confirm.</span>';
+  document.getElementById('paste-confirm-body').innerHTML = rows.join('');
+  document.getElementById('paste-confirm-btn').textContent = 'Confirm Import ('+added+' new'+(updated?', '+updated+' update'+(updated!==1?'s':''):'')+')';
+  openM('m-paste-confirm');
+}
+
+function pcVendorAC(q, idx) {
+  var list = document.getElementById('ac-pcv-'+idx); if(!list) return;
+  if(!q) { list.style.display='none'; return; }
+  var m = locations.filter(function(l){return (l.name||'').toLowerCase().includes(q.toLowerCase());}).slice(0,8);
+  if(!m.length) { list.style.display='none'; return; }
+  list.innerHTML = m.map(function(loc){
+    return '<div class="aci" onclick="pcVendorPick(\''+esc(loc.name||'')+'\','+idx+')">'
+      +'<div>'+esc(loc.name||'')+'</div>'
+      +(loc.city?'<div class="acs">'+esc(loc.city||'')+'</div>':'')
+    +'</div>';
+  }).join('');
+  list.style.display = 'block';
+}
+
+function pcVendorPick(name, idx) {
+  var el = document.getElementById('pcv-vendor-'+idx); if(el) el.value = name;
+  var list = document.getElementById('ac-pcv-'+idx); if(list) list.style.display='none';
+  if(_pasteQueue[idx]) _pasteQueue[idx].vendor = name;
+}
+
 function commitPasteOrders() {
+  // Collect any vendor edits from the confirm table
+  _pasteQueue.forEach(function(d, i) {
+    var el = document.getElementById('pcv-vendor-'+i);
+    if(el) d.vendor = el.value.trim();
+  });
+
   try {
   var added=0, updated=0;
   _pasteQueue.forEach(function(d) {
@@ -9251,7 +9381,7 @@ function commitPasteOrders() {
       dealers.push(d);
       saveRecord('dealers', d);
       added++;
-      // Auto-add to location DB if dealer name found
+      // Auto-add to location DB if dealer name found and not already there
       if(d.dealer && !locations.find(function(l){return l.name.toLowerCase()===d.dealer.toLowerCase();})) {
         var newLoc = {id:nLoc++,name:d.dealer,type:'Receiver',addr:d.addr||'',city:d.city+(d.state?', '+d.state:''),zip:d.zip||'',phone:d.phone||'',email:'',hours:'',dock:'',notes:'',dealerNum:'',coach:'',contacts:[{name:d.dealer,phone1:d.phone||'',phone2:''}],sel:false};
         locations.push(newLoc);
@@ -9260,9 +9390,10 @@ function commitPasteOrders() {
     }
   });
   renderDealer(); updateDKPIs();
+  closeM('m-paste-confirm');
   closeM('m-paste-orders');
   document.getElementById('paste-orders-txt').value = '';
-  showMsg('dealer-msg', 'Pasted: '+added+' new, '+updated+' updated.', 'ok');
+  showMsg('dealer-msg', 'Imported: '+added+' new, '+updated+' updated.', 'ok');
   } catch(e) { console.error('commitPasteOrders error:', e); alert('Import error: ' + e.message); }
 }
 
