@@ -630,10 +630,6 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         <div>
           <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Quick Actions</div>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <button onclick="openTodaysLoads()" class="dash-la-btn" style="background:rgba(46,204,64,.15);border-color:rgba(46,204,64,.3);color:#2ECC40">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Today's Loads
-            </button>
             <button onclick="openNewStagingModal()" class="dash-la-btn">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
               New Temp Load <span id="dact-tl" class="dash-la-ct"></span>
@@ -2486,9 +2482,20 @@ function popoutQuotes(lid) {
 
 
 function setBF(f,el) {
+  // Save current filters back to group before leaving it
+  if(boardFilter.indexOf('group_')===0) {
+    var gid = boardFilter.slice(6);
+    var groups = getLoadGroups();
+    var g = groups.find(function(x){return String(x.id)===String(gid);});
+    if(g) { g.filters = captureBoardFilters(); saveLoadGroups(groups); }
+  }
   boardFilter=f;
+  // Clear filters when switching to a built-in tab
+  applyBoardFilters({});
   document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
   el.classList.add('on');
+  var sfBtn = document.getElementById('lg-save-filters-btn');
+  if(sfBtn) sfBtn.style.display = 'none';
   renderBoard();
 }
 
@@ -2542,11 +2549,20 @@ function renderLoadGroupTabs() {
 }
 
 function setBFGroup(gid, el) {
+  // Save current group's filters before switching
+  if(boardFilter.indexOf('group_')===0) {
+    var prevGid = boardFilter.slice(6);
+    if(String(prevGid) !== String(gid)) {
+      var allGroups = getLoadGroups();
+      var prevG = allGroups.find(function(x){return String(x.id)===String(prevGid);});
+      if(prevG) { prevG.filters = captureBoardFilters(); saveLoadGroups(allGroups); }
+    }
+  }
   boardFilter = 'group_'+gid;
   document.querySelectorAll('#page-board .stab').forEach(function(x){x.classList.remove('on');});
-  el.classList.add('on');
+  if(el) el.classList.add('on');
   var groups = getLoadGroups();
-  var g = groups.find(function(x){return x.id===gid;});
+  var g = groups.find(function(x){return String(x.id)===String(gid);});
   if(g && g.filters) applyBoardFilters(g.filters);
   else applyBoardFilters({});
   renderLoadGroupTabs();
@@ -2925,6 +2941,13 @@ function clearBoardFilters(){
   renderBoard();
 }
 function renderBoard() {
+  // Auto-save filters back to the active group so each board remembers its own state
+  if(boardFilter.indexOf('group_')===0) {
+    var _agid = boardFilter.slice(6);
+    var _ags = getLoadGroups();
+    var _ag = _ags.find(function(x){return String(x.id)===String(_agid);});
+    if(_ag) { _ag.filters = captureBoardFilters(); saveLoadGroups(_ags); renderLoadGroupTabs(); }
+  }
   var q=(document.getElementById('b-search').value||'').toLowerCase();
   var sf=document.getElementById('b-status').value;
   var cf=document.getElementById('b-carrier').value;
