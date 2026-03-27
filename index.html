@@ -916,36 +916,49 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 
   <!-- LOCATION DB -->
   <div class="page" id="page-locdb">
-    <div class="csvdrop" onclick="document.getElementById('loc-tsv').click()">
-      <div class="csvico"><svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg></div>
-      <div class="csvtxt"><strong>Bulk Upload Locations (CSV or Tab-separated)</strong><br>Columns: Name | Type | Address | City | State | ZIP | Contact Name | Phone 1 | Phone 2 | Email | Hours | Dock Info | Notes | Dealer # | Coach &mdash; header row auto-detected &mdash; duplicate Name updates in place &mdash; Dealer # and Coach stored in detail panel only</div>
-      <input type="file" id="loc-tsv" accept=".tsv,.txt,.csv,.xls,.xlsx" onchange="importLocTSV(this)">
+    <div class="stabs" style="padding:0 16px">
+      <div class="stab on" id="loctab-dash" onclick="setLocTab('dash',this)">Dashboard</div>
+      <div class="stab" id="loctab-db" onclick="setLocTab('db',this)">Location Database</div>
     </div>
-    <div class="csvmsg" id="loc-msg"></div>
-    <div class="tbar">
-      <input type="text" id="loc-search" placeholder="Search name, city, dealer#..." oninput="renderLocDB()">
-      <select id="loc-type" onchange="renderLocDB()"><option value="">All Types</option><option>Shipper</option><option>Receiver</option><option>Both</option></select>
-      <button class="btn p" onclick="openLocModal(null)">+ Add Location</button>
-      <button class="btn" onclick="exportLocationsReceiver()">Export Receivers CSV</button><button class="btn" onclick="exportLocationsShipper()" style="margin-left:4px">Export Shippers CSV</button>
-      <button class="btn d" onclick="delSelLocs()">Delete</button>
+
+    <!-- Location Dashboard -->
+    <div id="loc-view-dash" style="flex:1;overflow-y:auto;padding:16px">
+      <div id="loc-dashboard-content"><div class="dempty">Loading...</div></div>
     </div>
-    <div class="split">
-      <div class="split-top" id="loc-split-top" style="height:260px">
-        <div class="tw"><table id="loc-table">
-          <thead><tr>
-            <th class="nc" style="width:28px"></th>
-            <th onclick="sortLocDB('name')" id="lth-name" style="cursor:pointer">Name</th>
-            <th onclick="sortLocDB('type')" id="lth-type" style="cursor:pointer">Type</th>
-            <th>Address</th>
-            <th onclick="sortLocDB('city')" id="lth-city" style="cursor:pointer">City/State</th>
-            <th onclick="sortLocDB('zip')" id="lth-zip" style="cursor:pointer">ZIP</th>
-            <th>Contact</th><th>Phone 1</th><th>Phone 2</th><th>Email</th><th>Hours</th><th>Dock Info</th><th>Notes</th><th class="nc">Actions</th>
-          </tr></thead>
-          <tbody id="loc-body"></tbody>
-        </table></div>
+
+    <!-- Location Database -->
+    <div id="loc-view-db" style="flex:1;display:none;flex-direction:column;overflow:hidden">
+      <div class="csvdrop" onclick="document.getElementById('loc-tsv').click()">
+        <div class="csvico"><svg width="14" height="14" viewBox="0 0 20 20" fill="#fff"><path d="M10 2a1 1 0 01.707.293l4 4A1 1 0 0113 8h-2v6a1 1 0 01-2 0V8H7a1 1 0 01-.707-1.707l4-4A1 1 0 0110 2zm-6 14a1 1 0 000 2h12a1 1 0 000-2H4z"/></svg></div>
+        <div class="csvtxt"><strong>Bulk Upload Locations (CSV or Tab-separated)</strong><br>Columns: Name | Type | Address | City | State | ZIP | Contact Name | Phone 1 | Phone 2 | Email | Hours | Dock Info | Notes | Dealer # | Coach &mdash; header row auto-detected &mdash; duplicate Name updates in place</div>
+        <input type="file" id="loc-tsv" accept=".tsv,.txt,.csv,.xls,.xlsx" onchange="importLocTSV(this)">
       </div>
-      <div class="split-handle" id="loc-handle"></div>
-      <div class="split-bot"><div id="loc-profile-panel"><div class="dempty">Click a location to view load history</div></div></div>
+      <div class="csvmsg" id="loc-msg"></div>
+      <div class="tbar">
+        <input type="text" id="loc-search" placeholder="Search name, city, dealer#..." oninput="renderLocDB()">
+        <select id="loc-type" onchange="renderLocDB()"><option value="">All Types</option><option>Shipper</option><option>Receiver</option><option>Both</option></select>
+        <button class="btn p" onclick="openLocModal(null)">+ Add Location</button>
+        <button class="btn" onclick="exportLocationsReceiver()">Export Receivers CSV</button><button class="btn" onclick="exportLocationsShipper()" style="margin-left:4px">Export Shippers CSV</button>
+        <button class="btn d" onclick="delSelLocs()">Delete</button>
+      </div>
+      <div class="split" style="flex:1;overflow:hidden">
+        <div class="split-top" id="loc-split-top" style="height:260px">
+          <div class="tw"><table id="loc-table">
+            <thead><tr>
+              <th class="nc" style="width:28px"></th>
+              <th onclick="sortLocDB('name')" id="lth-name" style="cursor:pointer">Name</th>
+              <th onclick="sortLocDB('type')" id="lth-type" style="cursor:pointer">Type</th>
+              <th>Address</th>
+              <th onclick="sortLocDB('city')" id="lth-city" style="cursor:pointer">City/State</th>
+              <th onclick="sortLocDB('zip')" id="lth-zip" style="cursor:pointer">ZIP</th>
+              <th>Contact</th><th>Phone 1</th><th>Phone 2</th><th>Email</th><th>Hours</th><th>Dock Info</th><th>Notes</th><th class="nc">Actions</th>
+            </tr></thead>
+            <tbody id="loc-body"></tbody>
+          </table></div>
+        </div>
+        <div class="split-handle" id="loc-handle"></div>
+        <div class="split-bot"><div id="loc-profile-panel"><div class="dempty">Click a location to view load history</div></div></div>
+      </div>
     </div>
   </div>
 
@@ -1022,6 +1035,23 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         </tr></thead>
         <tbody id="rate-body"></tbody>
       </table></div>
+    </div>
+
+    <!-- Shippers & Receivers -->
+    <div id="rate-view-shiprec" style="flex:1;overflow-y:auto;display:none;padding:16px">
+      <div class="tbar" style="padding:0;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+        <button class="btn xs" onclick="setRateTab('rdash',null)">&#8592; Dashboard</button>
+        <span style="font-size:14px;font-weight:700;color:var(--navy);margin-left:4px">Shippers &amp; Receivers</span>
+        <label style="font-size:12px;font-weight:600;color:var(--tx2);margin-left:8px">From</label>
+        <input type="date" id="sr-report-from" onchange="renderShipRecReport()">
+        <label style="font-size:12px;font-weight:600;color:var(--tx2)">To</label>
+        <input type="date" id="sr-report-to" onchange="renderShipRecReport()">
+        <button class="btn xs" onclick="setShipRecRange('month')">This Month</button>
+        <button class="btn xs" onclick="setShipRecRange('quarter')">This Quarter</button>
+        <button class="btn xs" onclick="setShipRecRange('year')">This Year</button>
+        <button class="btn xs" onclick="setShipRecRange('all')">All Time</button>
+      </div>
+      <div id="sr-report-content"><div class="dempty">Loading...</div></div>
     </div>
   </div>
 
@@ -1345,7 +1375,14 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
             <th style="padding:7px 10px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Pcs</th>
             <th style="padding:7px 10px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Seats</th>
             <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Ready</th>
-            <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Vendor <span style="font-weight:400;color:var(--tx3)">(from line)</span></th>
+            <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">
+              Vendor
+              <div style="display:flex;align-items:center;gap:4px;margin-top:4px" class="acw">
+                <input id="pcv-apply-all-input" placeholder="Set all vendors..." oninput="pcVendorACAll(this.value)" autocomplete="off" style="width:130px;height:22px;font-size:10px;padding:0 6px;border:1px solid var(--bd2);border-radius:var(--r);font-family:var(--F);font-weight:400;background:var(--sur);color:var(--tx)">
+                <button onclick="pcApplyVendorToAll()" style="height:22px;padding:0 7px;font-size:10px;font-weight:700;background:var(--navy);color:#2ECC40;border:none;border-radius:var(--r);cursor:pointer;font-family:var(--F);white-space:nowrap">↓ All</button>
+                <div class="acl" id="ac-pcv-all" style="min-width:180px;top:22px"></div>
+              </div>
+            </th>
             <th style="padding:7px 10px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Dealer / Location <span style="font-weight:400;color:var(--tx3)">(matched)</span></th>
             <th style="padding:7px 6px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Status</th>
           </tr>
@@ -1663,9 +1700,7 @@ function logout() { sessionStorage.removeItem('bdf_u'); location.reload(); }
     document.querySelectorAll('.ntab').forEach(function(x){x.classList.remove('on');});
     var dashTab = document.getElementById('ntab-dashboard');
     if(dashTab) dashTab.classList.add('on');
-    // Firebase listener handles data load — show connecting overlay
-    var ov = document.getElementById('fb-connecting');
-    if(ov) ov.style.display = 'flex';
+    // Data loads via Supabase script below
   }
 })();
 
@@ -1971,7 +2006,7 @@ function reRenderCurrent() {
     else if(pid==='page-dealer'){renderDealer();updateDKPIs();}
     else if(pid==='page-board'){renderBoard();updateBKPIs();}
     else if(pid==='page-scorecard'){setSCTab(scTab,document.getElementById('sctab-'+scTab));}
-    else if(pid==='page-locdb'){renderLocDB();}
+    else if(pid==='page-locdb'){setLocTab(locTab,document.getElementById('loctab-'+locTab));}
     else if(pid==='page-rates'){setRateTab(rateTab,null);}
     else if(pid==='page-accounting'){renderAccounting();updateAcctKPIs();}
     else if(pid==='page-staging'){renderStaging();}
@@ -2168,7 +2203,7 @@ function goPage(p, el) {
     }
   }
   if(p==='scorecard'){setSCTab(scTab,document.getElementById('sctab-'+scTab));}
-  if(p==='locdb'){selLoc=null;renderLocDB();}
+  if(p==='locdb'){selLoc=null;setLocTab(locTab,document.getElementById('loctab-'+locTab));}
   if(p==='rates'){
     setRateTab(rateTab, null);
   }
@@ -6698,106 +6733,101 @@ function renderSCDashboard() {
   }
 
 
-  // Carrier performance graph — top carriers by load volume, with on-time overlay
-  var graphCarriers = scored.filter(function(x){return x.s.loadsCount>0;})
-    .slice().sort(function(a,b){return b.s.loadsCount-a.s.loadsCount;}).slice(0,10);
+  // Two side-by-side graphs
+  var byVol    = scored.filter(function(x){return x.s.loadsCount>0;}).slice().sort(function(a,b){return b.s.loadsCount-a.s.loadsCount;}).slice(0,10);
+  var byMarginG = scored.filter(function(x){return x.cLoads.length>0;}).slice().sort(function(a,b){return b.avgMargin-a.avgMargin;}).slice(0,10);
 
-  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:16px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
-      +'<span style="font-size:13px;font-weight:700;color:var(--tx)">Carrier Performance</span>'
-      +'<div style="display:flex;gap:14px;font-size:11px;color:var(--tx2)">'
-        +'<span><span style="display:inline-block;width:10px;height:10px;background:#1B2A4A;border-radius:2px;margin-right:4px"></span>Loads</span>'
-        +'<span><span style="display:inline-block;width:10px;height:3px;background:#2ECC40;margin-right:4px;vertical-align:middle"></span>On-Time %</span>'
-      +'</div>'
-    +'</div>'
-    +(graphCarriers.length
-      ? '<canvas id="sc-perf-chart" style="width:100%;height:200px"></canvas>'
-      : '<div class="dempty" style="padding:30px 0;font-size:12px">Run some loads to see carrier performance</div>'
-    )
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+
+  // Graph 1: Load Volume
+  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:10px">Load Volume by Carrier</div>'
+    +(byVol.length ? '<canvas id="sc-vol-chart" style="width:100%;height:180px"></canvas>' : '<div class="dempty" style="padding:24px 0;font-size:12px">No load data yet</div>')
   +'</div>';
+
+  // Graph 2: Avg Margin per Load
+  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--tx);margin-bottom:10px">Avg Margin / Load by Carrier</div>'
+    +(byMarginG.length ? '<canvas id="sc-margin-chart" style="width:100%;height:180px"></canvas>' : '<div class="dempty" style="padding:24px 0;font-size:12px">No confirmed load data yet</div>')
+  +'</div>';
+
+  html += '</div>';
 
   el.innerHTML = html;
 
-  // Draw chart after DOM update
-  if(graphCarriers.length) {
-    setTimeout(function(){
-      var canvas = document.getElementById('sc-perf-chart');
-      if(!canvas) return;
-      var W = canvas.parentElement.offsetWidth - 32 || 600;
-      var H = 200;
-      canvas.width = W; canvas.height = H;
-      var ctx = canvas.getContext('2d');
-      ctx.clearRect(0,0,W,H);
+  setTimeout(function(){
+    var txColor = 'rgba(0,0,0,.4)';
+    var gridColor = 'rgba(0,0,0,.07)';
 
-      var isDark = document.body.classList.contains('dark');
-      var txColor = isDark ? 'rgba(255,255,255,.45)' : 'rgba(0,0,0,.4)';
-      var gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)';
+    // ── Graph 1: Load Volume (vertical bars) ──
+    if(byVol.length) {
+      var c1 = document.getElementById('sc-vol-chart'); if(!c1) return;
+      var W1 = c1.parentElement.offsetWidth - 28 || 300;
+      var H1 = 180; c1.width = W1; c1.height = H1;
+      var g1 = c1.getContext('2d');
+      var pad1 = {t:16,r:10,b:56,l:32};
+      var cW1 = W1-pad1.l-pad1.r, cH1 = H1-pad1.t-pad1.b;
+      var maxV = Math.max.apply(null, byVol.map(function(x){return x.s.loadsCount;})) || 1;
+      var step1 = cW1/byVol.length;
+      var bw1 = Math.max(6, step1*0.6);
 
-      var n = graphCarriers.length;
-      var pad = {t:12, r:16, b:52, l:40};
-      var cW = W - pad.l - pad.r;
-      var cH = H - pad.t - pad.b;
-      var barW = Math.max(8, (cW / n) * 0.55);
-      var step = cW / n;
-
-      var maxLoads = Math.max.apply(null, graphCarriers.map(function(x){return x.s.loadsCount;})) || 1;
-
-      // Grid lines
-      ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
-      for(var gi=0;gi<=4;gi++){
-        var gy = pad.t + cH - (gi/4)*cH;
-        ctx.beginPath(); ctx.moveTo(pad.l,gy); ctx.lineTo(pad.l+cW,gy); ctx.stroke();
-        ctx.fillStyle = txColor; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
-        ctx.fillText(Math.round(maxLoads*(gi/4)), pad.l-4, gy+3);
+      // Grid
+      g1.strokeStyle=gridColor; g1.lineWidth=1;
+      for(var i=0;i<=4;i++){
+        var gy=pad1.t+cH1-(i/4)*cH1;
+        g1.beginPath(); g1.moveTo(pad1.l,gy); g1.lineTo(pad1.l+cW1,gy); g1.stroke();
+        g1.fillStyle=txColor; g1.font='9px sans-serif'; g1.textAlign='right';
+        g1.fillText(Math.round(maxV*i/4), pad1.l-3, gy+3);
       }
 
-      // Right axis label for %
-      ctx.fillStyle = txColor; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText('100%', W-2, pad.t+3);
-      ctx.fillText('0%', W-2, pad.t+cH+3);
-
-      // Bars
-      graphCarriers.forEach(function(x, i){
-        var cx = pad.l + i*step + step/2;
-        var bH = (x.s.loadsCount/maxLoads)*cH;
-        var by = pad.t + cH - bH;
-        ctx.fillStyle = '#1B2A4A';
-        ctx.fillRect(cx - barW/2, by, barW, bH);
-
-        // Carrier name label
-        ctx.save();
-        ctx.translate(cx, pad.t+cH+6);
-        ctx.rotate(-Math.PI/4);
-        ctx.fillStyle = txColor; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
-        ctx.fillText(x.c.name.length>14 ? x.c.name.slice(0,13)+'…' : x.c.name, 0, 0);
-        ctx.restore();
-
-        // Load count above bar
-        ctx.fillStyle = 'var(--tx2)'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(x.s.loadsCount, cx, by-3);
+      byVol.forEach(function(x,i){
+        var cx = pad1.l + i*step1 + step1/2;
+        var bh = (x.s.loadsCount/maxV)*cH1;
+        var by = pad1.t+cH1-bh;
+        // Bar fill — gradient feel with opacity tiers for ranking
+        g1.fillStyle = i===0?'#1B2A4A':i===1?'#2a3f5f':i===2?'#374f72':'#4a6080';
+        g1.fillRect(cx-bw1/2, by, bw1, bh);
+        // Count label
+        g1.fillStyle=txColor; g1.font='bold 9px sans-serif'; g1.textAlign='center';
+        g1.fillText(x.s.loadsCount, cx, by-3);
+        // Name label rotated
+        g1.save(); g1.translate(cx, pad1.t+cH1+6); g1.rotate(-Math.PI/4);
+        g1.fillStyle=txColor; g1.font='10px sans-serif'; g1.textAlign='right';
+        g1.fillText(x.c.name.length>13?x.c.name.slice(0,12)+'…':x.c.name, 0, 0);
+        g1.restore();
       });
+    }
 
-      // On-time % line (avg of PU + DEL)
-      ctx.beginPath();
-      ctx.strokeStyle = '#2ECC40'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
-      graphCarriers.forEach(function(x, i){
-        var cx = pad.l + i*step + step/2;
-        var onTime = (x.s.puPct + x.s.dlPct) / 2;
-        var cy = pad.t + cH - onTime*cH;
-        i===0 ? ctx.moveTo(cx,cy) : ctx.lineTo(cx,cy);
-      });
-      ctx.stroke();
+    // ── Graph 2: Avg Margin per Load (horizontal bars) ──
+    if(byMarginG.length) {
+      var c2 = document.getElementById('sc-margin-chart'); if(!c2) return;
+      var W2 = c2.parentElement.offsetWidth - 28 || 300;
+      var H2 = 180; c2.width = W2; c2.height = H2;
+      var g2 = c2.getContext('2d');
+      var n2 = Math.min(byMarginG.length, 8);
+      var pad2 = {t:8,r:60,b:8,l:110};
+      var cW2 = W2-pad2.l-pad2.r, cH2 = H2-pad2.t-pad2.b;
+      var rowH = cH2/n2;
+      var maxM = Math.max.apply(null, byMarginG.slice(0,n2).map(function(x){return x.avgMargin;})) || 1;
 
-      // Dots on line
-      ctx.fillStyle = '#2ECC40';
-      graphCarriers.forEach(function(x, i){
-        var cx = pad.l + i*step + step/2;
-        var onTime = (x.s.puPct + x.s.dlPct) / 2;
-        var cy = pad.t + cH - onTime*cH;
-        ctx.beginPath(); ctx.arc(cx,cy,3,0,Math.PI*2); ctx.fill();
+      byMarginG.slice(0,n2).forEach(function(x,i){
+        var y = pad2.t + i*rowH + rowH*0.15;
+        var bh = rowH*0.7;
+        var bw = (x.avgMargin/maxM)*cW2;
+        // Bar
+        var green = x.avgMargin >= 200 ? '#15803d' : x.avgMargin >= 100 ? '#2ECC40' : '#6ee7b7';
+        g2.fillStyle = green;
+        g2.fillRect(pad2.l, y, bw, bh);
+        // Carrier name
+        g2.fillStyle = txColor; g2.font = '10px sans-serif'; g2.textAlign = 'right';
+        var nm = x.c.name.length>16?x.c.name.slice(0,15)+'…':x.c.name;
+        g2.fillText(nm, pad2.l-5, y+bh*0.72);
+        // Value label
+        g2.fillStyle = '#15803d'; g2.font = 'bold 10px sans-serif'; g2.textAlign = 'left';
+        g2.fillText('$'+Math.round(x.avgMargin).toLocaleString(), pad2.l+bw+4, y+bh*0.72);
       });
-    }, 30);
-  }
+    }
+  }, 30);
 }
 
 function renderSC(){
@@ -7258,6 +7288,128 @@ function saveCarrier(){
 // ============================
 // LOCATION DB
 // ============================
+
+var locTab = 'dash';
+function setLocTab(tab, el) {
+  locTab = tab;
+  document.querySelectorAll('#page-locdb .stab').forEach(function(x){x.classList.remove('on');});
+  if(el) el.classList.add('on');
+  var dash = document.getElementById('loc-view-dash');
+  var db   = document.getElementById('loc-view-db');
+  if(dash) dash.style.display = tab==='dash' ? '' : 'none';
+  if(db)   { db.style.display = tab==='db' ? 'flex' : 'none'; db.style.flexDirection='column'; }
+  if(tab==='dash') renderLocDashboard();
+  if(tab==='db') renderLocDB();
+}
+
+function renderLocDashboard() {
+  var el = document.getElementById('loc-dashboard-content'); if(!el) return;
+  if(!locations.length) { el.innerHTML='<div class="dempty" style="padding:60px">No locations yet.</div>'; return; }
+
+  // Count loads per location
+  function loadsFor(name) {
+    var n = name.toLowerCase();
+    return loads.filter(function(l){
+      return l.stops && l.stops.some(function(s){return (s.name||'').toLowerCase()===n;});
+    });
+  }
+
+  var shippers  = locations.filter(function(l){return l.type==='Shipper'||l.type==='Both';});
+  var receivers = locations.filter(function(l){return l.type==='Receiver'||l.type==='Both';});
+
+  function scoredLocs(locs) {
+    return locs.map(function(l){
+      var ls = loadsFor(l.name);
+      return {loc:l, loadCount:ls.length, loads:ls};
+    }).sort(function(a,b){return b.loadCount-a.loadCount;});
+  }
+
+  var scoredShip = scoredLocs(shippers);
+  var scoredRec  = scoredLocs(receivers);
+  var totalShip = shippers.length, totalRec = receivers.length;
+
+  function podiumRow(x, rank) {
+    var medals = ['🥇','🥈','🥉'];
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.07)">'
+      +'<span style="font-size:13px;width:22px;flex-shrink:0">'+medals[rank]+'</span>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(x.loc.name)+'</div>'
+        +'<div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:1px">'+esc(x.loc.city||'')+(x.loc.city&&x.loc.type?' · ':'')+'<span style="color:rgba(255,255,255,.3)">'+x.loc.type+'</span></div>'
+      +'</div>'
+      +'<span style="font-size:12px;font-weight:700;color:#2ECC40;white-space:nowrap">'+x.loadCount+' load'+(x.loadCount!==1?'s':'')+'</span>'
+      +'<button onclick="setLocTab(\'db\',document.getElementById(\'loctab-db\'));setTimeout(function(){var s=document.getElementById(\'loc-search\');if(s){s.value=\''+esc(x.loc.name.replace(/'/g,"\\'"))+'\';renderLocDB();}},80)" style="background:rgba(46,204,64,.15);border:1px solid rgba(46,204,64,.3);color:#2ECC40;font-size:10px;font-weight:700;padding:3px 9px;border-radius:var(--r);cursor:pointer;font-family:var(--F);white-space:nowrap;flex-shrink:0">View →</button>'
+    +'</div>';
+  }
+
+  function locCard(title, icon, scored, total) {
+    var top3 = scored.filter(function(x){return x.loadCount>0;}).slice(0,3);
+    return '<div style="background:#1B2A4A;border-radius:var(--r);overflow:hidden">'
+      +'<div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between">'
+        +'<span style="font-size:12px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.08em">'+icon+' '+title+'</span>'
+        +'<span style="font-size:11px;color:rgba(255,255,255,.35)">'+total+' total</span>'
+      +'</div>'
+      +(top3.length
+        ? top3.map(function(x,i){return podiumRow(x,i);}).join('')
+        : '<div style="padding:20px 14px;font-size:12px;color:rgba(255,255,255,.3);text-align:center">No load data yet</div>'
+      )
+    +'</div>';
+  }
+
+  // Full table — all locations with load counts, sortable view
+  function buildTable(scored, type) {
+    if(!scored.length) return '<div class="dempty" style="padding:20px;font-size:12px">No '+type.toLowerCase()+' locations.</div>';
+    return '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<thead><tr style="border-bottom:2px solid var(--bd)">'
+        +'<th style="padding:7px 12px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Name</th>'
+        +'<th style="padding:7px 12px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">City/State</th>'
+        +'<th style="padding:7px 12px;text-align:left;color:var(--tx2);font-weight:600;font-size:11px">Type</th>'
+        +'<th style="padding:7px 12px;text-align:center;color:var(--tx2);font-weight:600;font-size:11px">Loads</th>'
+        +'<th style="padding:7px 12px;font-size:11px"></th>'
+      +'</tr></thead><tbody>'
+      +scored.map(function(x,i){
+        var bg = i%2===0?'var(--sur)':'var(--sur2)';
+        return '<tr style="border-bottom:1px solid var(--bd);background:'+bg+'">'
+          +'<td style="padding:7px 12px;font-weight:700;color:var(--navy)">'+esc(x.loc.name)+'</td>'
+          +'<td style="padding:7px 12px;color:var(--tx2)">'+esc(x.loc.city||'—')+'</td>'
+          +'<td style="padding:7px 12px"><span class="ltype lt'+(x.loc.type==='Shipper'?'s':x.loc.type==='Receiver'?'r':'b')+'">'+x.loc.type+'</span></td>'
+          +'<td style="padding:7px 12px;text-align:center;font-weight:700;color:'+(x.loadCount>0?'var(--navy)':'var(--tx3)')+'">'+x.loadCount+'</td>'
+          +'<td style="padding:7px 12px"><button class="btn xs" onclick="setLocTab(\'db\',document.getElementById(\'loctab-db\'));setTimeout(function(){var s=document.getElementById(\'loc-search\');if(s){s.value=\''+esc(x.loc.name.replace(/'/g,"\\'"))+'\';renderLocDB();}},80)">View →</button></td>'
+        +'</tr>';
+      }).join('')
+      +'</tbody></table>';
+  }
+
+  var html = '';
+
+  // KPI row
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">'
+    +kpiCard('Shippers',''+totalShip,'')
+    +kpiCard('Receivers',''+totalRec,'')
+    +kpiCard('Active Shippers',''+scoredShip.filter(function(x){return x.loadCount>0;}).length,'g')
+    +kpiCard('Active Receivers',''+scoredRec.filter(function(x){return x.loadCount>0;}).length,'g')
+  +'</div>';
+
+  // Top 3 podium cards
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">'
+    + locCard('Top Shippers by Volume','📤', scoredShip, totalShip)
+    + locCard('Top Receivers by Volume','📥', scoredRec, totalRec)
+  +'</div>';
+
+  // Full breakdown tables
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden">'
+    +'<div style="padding:10px 14px;border-bottom:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--tx)">All Shippers</div>'
+    +(buildTable(scoredShip,'Shipper'))
+  +'</div>';
+  html += '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden">'
+    +'<div style="padding:10px 14px;border-bottom:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--tx)">All Receivers</div>'
+    +(buildTable(scoredRec,'Receiver'))
+  +'</div>';
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+
 function renderLocDB(){
   var q=(document.getElementById('loc-search').value||'').toLowerCase();
   var tf=document.getElementById('loc-type').value;
@@ -7654,7 +7806,7 @@ var rateTab = 'rdash';
 
 function setRateTab(tab, el) {
   rateTab = tab;
-  ['rdash','lanes','team','my','manual'].forEach(function(t){
+  ['rdash','lanes','team','my','manual','shiprec'].forEach(function(t){
     var v = document.getElementById('rate-view-'+t);
     if(v) v.style.display = t===tab ? '' : 'none';
   });
@@ -7663,6 +7815,7 @@ function setRateTab(tab, el) {
   if(tab==='team') renderTeamReport();
   if(tab==='my') { initMyReportDates(); renderMyReport(); }
   if(tab==='manual') { renderRates(); updateRatesKPIs(); }
+  if(tab==='shiprec') { initShipRecDates(); renderShipRecReport(); }
 }
 
 function initMyReportDates() {
@@ -7731,6 +7884,7 @@ function renderRateDashboard() {
     +'<span style="font-size:16px;font-weight:800;color:var(--navy)">Dashboard</span>'
     +'<div style="display:flex;gap:6px">'
       +'<button class="btn xs" onclick="setRateTab(\'lanes\',null)" style="font-size:11px;font-weight:600">&#128202; Rate Tracker</button>'
+      +'<button class="btn xs" onclick="setRateTab(\'shiprec\',null)" style="font-size:11px;font-weight:600">&#128230; Shippers &amp; Receivers</button>'
       +'<button class="btn xs" onclick="setRateTab(\'team\',null)" style="font-size:11px;font-weight:600">&#128101; Team Report</button>'
       +'<button class="btn xs" onclick="setRateTab(\'my\',null)" style="font-size:11px;font-weight:600">&#128100; My Report</button>'
       +'<button class="btn xs" onclick="setRateTab(\'manual\',null)" style="font-size:11px;font-weight:600;color:var(--tx3)">&#9998; Manual Log</button>'
@@ -9199,8 +9353,9 @@ if(document.getElementById('app').style.display==='flex') initApp();
   );
   window._SB = SB;
 
-  var overlay = document.getElementById('fb-connecting');
-  if(overlay) overlay.style.display = 'flex';
+  // Show inline loading state in dashboard instead of blocking overlay
+  var dashContent = document.getElementById('dash-my-kpis');
+  if(dashContent) dashContent.innerHTML = '<div style="font-size:12px;color:var(--tx3);padding:8px 0">Loading...</div>';
 
   try {
     // Load all data in parallel
@@ -9248,13 +9403,10 @@ if(document.getElementById('app').style.display==='flex') initApp();
 
   } catch(err) {
     console.error('Supabase load error', err);
-    if(overlay) overlay.style.display = 'none';
     var msg = err && err.message ? err.message : (err && err.details ? err.details : JSON.stringify(err));
     alert('Could not load data from database: ' + msg);
     return;
   }
-
-  if(overlay) overlay.style.display = 'none';
 
   if(document.getElementById('app').style.display === 'flex') {
     // Render dashboard immediately so user sees content right away
@@ -9267,7 +9419,7 @@ if(document.getElementById('app').style.display==='flex') initApp();
     }, 0);
     setTimeout(function(){
       try { renderSC(); updateSCKPIs(); renderSCDashboard(); } catch(e) { console.error('renderSC',e); }
-      try { renderLocDB(); } catch(e) { console.error('renderLocDB',e); }
+      try { renderLocDB(); renderLocDashboard(); } catch(e) { console.error('renderLocDB',e); }
     }, 0);
     setTimeout(function(){
       try { renderRates(); updateRatesKPIs(); } catch(e) { console.error('renderRates',e); }
@@ -9589,6 +9741,7 @@ function showPasteConfirm() {
     +(updated?' &nbsp;·&nbsp; <span style="color:#854d0e">'+updated+' update'+(updated!==1?'s':'')+'</span>':'')
     +'<span style="font-size:11px;color:var(--tx3);margin-left:10px">Edit vendor names below if needed, then confirm.</span>';
   document.getElementById('paste-confirm-body').innerHTML = rows.join('');
+  var applyAll = document.getElementById('pcv-apply-all-input'); if(applyAll) applyAll.value='';
   document.getElementById('paste-confirm-btn').textContent = 'Confirm Import ('+added+' new'+(updated?', '+updated+' update'+(updated!==1?'s':''):'')+')';
   openM('m-paste-confirm');
 }
@@ -9605,6 +9758,36 @@ function pcVendorAC(q, idx) {
     +'</div>';
   }).join('');
   list.style.display = 'block';
+}
+
+function pcVendorACAll(q) {
+  var list = document.getElementById('ac-pcv-all'); if(!list) return;
+  if(!q) { list.style.display='none'; return; }
+  var m = locations.filter(function(l){return (l.name||'').toLowerCase().includes(q.toLowerCase());}).slice(0,8);
+  if(!m.length) { list.style.display='none'; return; }
+  list.innerHTML = m.map(function(loc){
+    return '<div class="aci" onclick="pcVendorPickAll(\''+esc(loc.name||'')+'\')">'
+      +'<div>'+esc(loc.name||'')+'</div>'
+      +(loc.city?'<div class="acs">'+esc(loc.city||'')+'</div>':'')
+    +'</div>';
+  }).join('');
+  list.style.display = 'block';
+}
+
+function pcVendorPickAll(name) {
+  var inp = document.getElementById('pcv-apply-all-input'); if(inp) inp.value = name;
+  var list = document.getElementById('ac-pcv-all'); if(list) list.style.display='none';
+  pcApplyVendorToAll();
+}
+
+function pcApplyVendorToAll() {
+  var inp = document.getElementById('pcv-apply-all-input'); if(!inp) return;
+  var name = inp.value.trim(); if(!name) return;
+  _pasteQueue.forEach(function(d, i) {
+    d.vendor = name;
+    var el = document.getElementById('pcv-vendor-'+i); if(el) el.value = name;
+    var list = document.getElementById('ac-pcv-'+i); if(list) list.style.display='none';
+  });
 }
 
 function pcVendorPick(name, idx) {
