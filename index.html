@@ -1157,7 +1157,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <div class="fi"><label>Vendor (Shipper)</label><div class="acw"><input id="lf-vendor" placeholder="Search locations..." oninput="vendorAC(this.value)" autocomplete="off"><div class="acl" id="ac-vendor"></div></div></div>
       <div class="fi"><label>Carrier</label><div class="acw"><input id="lf-carrier" placeholder="Search scorecard..." oninput="carrierAC(this.value)" autocomplete="off"><div class="acl" id="ac-carrier"></div></div></div>
       <div class="fi"><label>Dispatcher</label><input id="lf-disp" placeholder="Dispatcher name"></div>
-      <div class="fi"><label>Equipment Type</label><div style="display:flex;gap:4px;align-items:center"><div class="acw" style="flex:1"><input id="lf-equip" placeholder="V, R, F, SD..." oninput="equipAC(this.value,'lf-equip')" onfocus="equipAC(this.value,'lf-equip')" autocomplete="off"><div class="acl" id="ac-equip"></div></div><button type="button" onclick="openEquipRef('lf-equip')" title="Equipment code reference" style="height:32px;width:32px;flex-shrink:0;background:var(--sur2);border:1px solid var(--bd2);border-radius:var(--r);cursor:pointer;font-size:14px">🔍</button></div></div>
+      <div class="fi"><label>Equipment Type</label><div style="display:flex;gap:4px;align-items:center"><div class="acw" style="flex:1"><input id="lf-equip" placeholder="V, R, F, SD..." oninput="equipAC(this.value,'lf-equip')" onfocus="equipAC(this.value,'lf-equip')" autocomplete="off"><div class="acl" id="ac-equip"></div></div><button type="button" onclick="openEquipRef('lf-equip')" title="Equipment code reference" style="height:32px;width:32px;flex-shrink:0;background:var(--sur2);border:1px solid var(--bd2);border-radius:var(--r);cursor:pointer;font-size:14px">🔍</button></div><label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;font-weight:600;color:var(--tx2);margin-top:5px"><input type="checkbox" id="lf-tanker" style="width:14px;height:14px;accent-color:var(--navy)"> Tanker Endorsement Required</label></div>
       <div class="fi"><label>Carrier Rate ($)</label><input type="number" id="lf-cr" placeholder="0"></div>
       <div class="fi"><label>Customer Rate ($) <span style="font-weight:400;color:var(--tx3);font-size:10px">— or split per receiver below</span></label><input type="number" id="lf-custR"><div id="lf-custR-total" style="font-size:10px;color:var(--green);font-weight:600;margin-top:3px"></div></div>
       <div class="fi"><label>Miles (manual)</label><input type="number" id="lf-miles" placeholder="Enter miles"></div>
@@ -1571,8 +1571,19 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
 
 <!-- Keyboard Shortcuts Modal -->
 <div class="overlay" id="m-shortcuts">
-  <div class="mbox" style="max-width:500px">
-    <div class="mh">Keyboard Shortcuts</div>
+  <div class="mbox" style="max-width:660px">
+    <div class="mh" style="display:flex;align-items:center;justify-content:space-between;padding-bottom:0">
+      <span>Reference</span>
+      <div style="display:flex;gap:0;border:1.5px solid var(--bd2);border-radius:20px;overflow:hidden;margin-bottom:-1px">
+        <button onclick="document.getElementById('sref-shortcuts').style.display='';document.getElementById('sref-equip').style.display='none';this.style.background='#1B2A4A';this.style.color='#2ECC40';this.nextElementSibling.style.background='';this.nextElementSibling.style.color='';" id="sref-btn-shortcuts" style="height:28px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:#1B2A4A;color:#2ECC40;font-family:var(--F)">Shortcuts</button>
+        <button onclick="document.getElementById('sref-equip').style.display='';document.getElementById('sref-shortcuts').style.display='none';this.style.background='#1B2A4A';this.style.color='#2ECC40';this.previousElementSibling.style.background='';this.previousElementSibling.style.color='';" id="sref-btn-equip" style="height:28px;padding:0 14px;font-size:11px;font-weight:700;cursor:pointer;border:none;background:var(--sur);color:var(--tx2);font-family:var(--F)">Equipment Codes</button>
+      </div>
+    </div>
+    <div id="sref-equip" style="display:none;margin-top:10px">
+      <iframe src="data:application/pdf;base64,JVBERi0xLjQKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUiAvRjMgNCAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YxIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKMyAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMiAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjQgMCBvYmoKPDwKL0Jhc2VGb250IC9IZWx2ZXRpY2EtT2JsaXF1ZSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjMgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iago1IDAgb2JqCjw8Ci9Db250ZW50cyA5IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgOCAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNiAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDggMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MDMyNzE4MjkwNSswMCcwMCcpIC9DcmVhdG9yIChhbm9ueW1vdXMpIC9LZXl3b3JkcyAoKSAvTW9kRGF0ZSAoRDoyMDI2MDMyNzE4MjkwNSswMCcwMCcpIC9Qcm9kdWNlciAoUmVwb3J0TGFiIFBERiBMaWJyYXJ5IC0gXChvcGVuc291cmNlXCkpIAogIC9TdWJqZWN0ICh1bnNwZWNpZmllZCkgL1RpdGxlIChCb3hEcm9wIEZyZWlnaHQgLSBFcXVpcG1lbnQgQ29kZXMpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKOCAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDUgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago5IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDExNzEKPj4Kc3RyZWFtCkdhdG4nOTY4UTkmQkY4PCdSS3NwJkQjO2MycWtXbVI4QjloRThvayg4ZVhhc2k0KG5gNFktPiprPFtTLFJgcVJyQXA6WlpsKiRCKCdJKkhPcyNqS2NTPllsPU0/N0BOY0A/NkcrPEE9MUhBO0k6Ok46VEVIVyxWJkVQZUEmMFJJcTNCSSd1dDVjPjw4VWsjWnBVNTxYL0BsLz89M2JuJilgNmsmZjFtTHE0PktdUWE5MlFaKUNgImp1JTkqL1dURTIvcl5fPEZiKCgvSildSyFCTSMpLT90S18uQCVZRk5lUDNCUVluQHNCVFojWmxeX2dzKyM7S0VfbllCSzBGQzEuOV1VJ24wKGRJRVxXaGFoZFVPaWUoVjtdTy5hQS04ND5wOig8MCtiUzJDclIvUFxONT9XWUI9LUliTjhnXUFGJkcrUHByMFM0XzNPIj09IiQmazg5VWk6Wzw1cTFWJ00zdEc5NiNLPGNXSy83cU1iJG8nTiEnYTlPLFRIQW5jYjQrdGtOWXEtU0FLY1lSJFU7dT9bXSpJc1MnZyJNPFJqQU83JiwqOD5SV2skdVBfQ2dtOjhzJWheTGtTWSZpbVpoKylwI3BXXSpUQ2ZYIlZANmdxPE86MigiMFExcl1ZM1dPMVtbMmVHVV5Sal5tTS1XLVVYL1o8MFInb1JjNi1VXG1bKGdXbjdpLTNkbyJZc1s8QyxdSjlwal9KJFtIRGxyLi8saEwpVXIhZ0okc11XR2RbK0cjUD48S3IlVGBsVGJ1Pl8rTEQ8VyYkdVk0amRqMlhxVmRiY25ZbCpfazwnXSZEWD4uQlRIVE5hZ2xLZSFpYjc/MkglPDkzVERVWj8/UDlEOjpKQyEqQGAlWGlJNiFlJHFOPWBYNnBDbydnO0k4NSRYXTBaLWswPlA3IzMwQTY2KGJZKU4wIkJVVkwhI1lmPktHLWBJTTFtWVQjMTJNZy9gUioocG49SSJhPksiOzpeWk9PT2piJC1aTTZza1E/XWBPXjokXWhWanFAXU1QXnVJXmcsWWQoQlhDNUwzWENPSFg+T1wxcks/OSs2QyE+NjVlbFlvJW47RWRPNyU6XEUyay83UEFXT29rYkojb2RvNSs0bydoVyhDPEZ0dCgzJVU6UFh0PSdFXCloPFJVT0EnNm81I2pRSTlePnMnMzhcNzxzPHNfcHRXO3RtSlpHI15lUzdEWCMkWE1oP0QzMittP3BzRk4wS0QmcycwdFQ+ITRmPWtSL002WlssM2BvTyR1MkNBOSwhNyVucy1CQGcjYzZmWFRFJS5CcDBIQ0BQSFNGcUZcQnNXOC8pVUtQKTckMmBgaDFaQV0jTlJmSFhmXz8oPUZjNkpJZSc1cTokMCFpdT9hOF8mZyc+Zlw6OWRLOGojSDc5M2tWNEBjcztpajY+Q0k8Vz8yZmJBJiw9TVpyOUBgWy1kamhiZzZxckZxZyRRK0cvPjMuLFVgNkovcFZUSUU3O3BdRWlhaHRoV2tzWWE4Ul5oIltZSWFWNlYhNkEwPzM+Um8mKFokNzRTV1htY01kaWcxXFk7fj5lbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCAxMAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNjEgMDAwMDAgbiAKMDAwMDAwMDExMiAwMDAwMCBuIAowMDAwMDAwMjE5IDAwMDAwIG4gCjAwMDAwMDAzMzEgMDAwMDAgbiAKMDAwMDAwMDQ0NiAwMDAwMCBuIAowMDAwMDAwNjM5IDAwMDAwIG4gCjAwMDAwMDA3MDcgMDAwMDAgbiAKMDAwMDAwMDk5MyAwMDAwMCBuIAowMDAwMDAxMDUyIDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPGE5NWM1NGU5NjQ0YTY2MzdiYTZlZTk1M2M1YTRlMDQ3PjxhOTVjNTRlOTY0NGE2NjM3YmE2ZWU5NTNjNWE0ZTA0Nz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNyAwIFIKL1Jvb3QgNiAwIFIKL1NpemUgMTAKPj4Kc3RhcnR4cmVmCjIzMTQKJSVFT0YK" style="width:100%;height:520px;border:1px solid var(--bd);border-radius:var(--r)"></iframe>
+      <div style="margin-top:8px;text-align:right"><a href="data:application/pdf;base64,JVBERi0xLjQKJZOMi54gUmVwb3J0TGFiIEdlbmVyYXRlZCBQREYgZG9jdW1lbnQgKG9wZW5zb3VyY2UpCjEgMCBvYmoKPDwKL0YxIDIgMCBSIC9GMiAzIDAgUiAvRjMgNCAwIFIKPj4KZW5kb2JqCjIgMCBvYmoKPDwKL0Jhc2VGb250IC9IZWx2ZXRpY2EgL0VuY29kaW5nIC9XaW5BbnNpRW5jb2RpbmcgL05hbWUgL0YxIC9TdWJ0eXBlIC9UeXBlMSAvVHlwZSAvRm9udAo+PgplbmRvYmoKMyAwIG9iago8PAovQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nIC9OYW1lIC9GMiAvU3VidHlwZSAvVHlwZTEgL1R5cGUgL0ZvbnQKPj4KZW5kb2JqCjQgMCBvYmoKPDwKL0Jhc2VGb250IC9IZWx2ZXRpY2EtT2JsaXF1ZSAvRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZyAvTmFtZSAvRjMgL1N1YnR5cGUgL1R5cGUxIC9UeXBlIC9Gb250Cj4+CmVuZG9iago1IDAgb2JqCjw8Ci9Db250ZW50cyA5IDAgUiAvTWVkaWFCb3ggWyAwIDAgNjEyIDc5MiBdIC9QYXJlbnQgOCAwIFIgL1Jlc291cmNlcyA8PAovRm9udCAxIDAgUiAvUHJvY1NldCBbIC9QREYgL1RleHQgL0ltYWdlQiAvSW1hZ2VDIC9JbWFnZUkgXQo+PiAvUm90YXRlIDAgL1RyYW5zIDw8Cgo+PiAKICAvVHlwZSAvUGFnZQo+PgplbmRvYmoKNiAwIG9iago8PAovUGFnZU1vZGUgL1VzZU5vbmUgL1BhZ2VzIDggMCBSIC9UeXBlIC9DYXRhbG9nCj4+CmVuZG9iago3IDAgb2JqCjw8Ci9BdXRob3IgKGFub255bW91cykgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MDMyNzE4MjkwNSswMCcwMCcpIC9DcmVhdG9yIChhbm9ueW1vdXMpIC9LZXl3b3JkcyAoKSAvTW9kRGF0ZSAoRDoyMDI2MDMyNzE4MjkwNSswMCcwMCcpIC9Qcm9kdWNlciAoUmVwb3J0TGFiIFBERiBMaWJyYXJ5IC0gXChvcGVuc291cmNlXCkpIAogIC9TdWJqZWN0ICh1bnNwZWNpZmllZCkgL1RpdGxlIChCb3hEcm9wIEZyZWlnaHQgLSBFcXVpcG1lbnQgQ29kZXMpIC9UcmFwcGVkIC9GYWxzZQo+PgplbmRvYmoKOCAwIG9iago8PAovQ291bnQgMSAvS2lkcyBbIDUgMCBSIF0gL1R5cGUgL1BhZ2VzCj4+CmVuZG9iago5IDAgb2JqCjw8Ci9GaWx0ZXIgWyAvQVNDSUk4NURlY29kZSAvRmxhdGVEZWNvZGUgXSAvTGVuZ3RoIDExNzEKPj4Kc3RyZWFtCkdhdG4nOTY4UTkmQkY4PCdSS3NwJkQjO2MycWtXbVI4QjloRThvayg4ZVhhc2k0KG5gNFktPiprPFtTLFJgcVJyQXA6WlpsKiRCKCdJKkhPcyNqS2NTPllsPU0/N0BOY0A/NkcrPEE9MUhBO0k6Ok46VEVIVyxWJkVQZUEmMFJJcTNCSSd1dDVjPjw4VWsjWnBVNTxYL0BsLz89M2JuJilgNmsmZjFtTHE0PktdUWE5MlFaKUNgImp1JTkqL1dURTIvcl5fPEZiKCgvSildSyFCTSMpLT90S18uQCVZRk5lUDNCUVluQHNCVFojWmxeX2dzKyM7S0VfbllCSzBGQzEuOV1VJ24wKGRJRVxXaGFoZFVPaWUoVjtdTy5hQS04ND5wOig8MCtiUzJDclIvUFxONT9XWUI9LUliTjhnXUFGJkcrUHByMFM0XzNPIj09IiQmazg5VWk6Wzw1cTFWJ00zdEc5NiNLPGNXSy83cU1iJG8nTiEnYTlPLFRIQW5jYjQrdGtOWXEtU0FLY1lSJFU7dT9bXSpJc1MnZyJNPFJqQU83JiwqOD5SV2skdVBfQ2dtOjhzJWheTGtTWSZpbVpoKylwI3BXXSpUQ2ZYIlZANmdxPE86MigiMFExcl1ZM1dPMVtbMmVHVV5Sal5tTS1XLVVYL1o8MFInb1JjNi1VXG1bKGdXbjdpLTNkbyJZc1s8QyxdSjlwal9KJFtIRGxyLi8saEwpVXIhZ0okc11XR2RbK0cjUD48S3IlVGBsVGJ1Pl8rTEQ8VyYkdVk0amRqMlhxVmRiY25ZbCpfazwnXSZEWD4uQlRIVE5hZ2xLZSFpYjc/MkglPDkzVERVWj8/UDlEOjpKQyEqQGAlWGlJNiFlJHFOPWBYNnBDbydnO0k4NSRYXTBaLWswPlA3IzMwQTY2KGJZKU4wIkJVVkwhI1lmPktHLWBJTTFtWVQjMTJNZy9gUioocG49SSJhPksiOzpeWk9PT2piJC1aTTZza1E/XWBPXjokXWhWanFAXU1QXnVJXmcsWWQoQlhDNUwzWENPSFg+T1wxcks/OSs2QyE+NjVlbFlvJW47RWRPNyU6XEUyay83UEFXT29rYkojb2RvNSs0bydoVyhDPEZ0dCgzJVU6UFh0PSdFXCloPFJVT0EnNm81I2pRSTlePnMnMzhcNzxzPHNfcHRXO3RtSlpHI15lUzdEWCMkWE1oP0QzMittP3BzRk4wS0QmcycwdFQ+ITRmPWtSL002WlssM2BvTyR1MkNBOSwhNyVucy1CQGcjYzZmWFRFJS5CcDBIQ0BQSFNGcUZcQnNXOC8pVUtQKTckMmBgaDFaQV0jTlJmSFhmXz8oPUZjNkpJZSc1cTokMCFpdT9hOF8mZyc+Zlw6OWRLOGojSDc5M2tWNEBjcztpajY+Q0k8Vz8yZmJBJiw9TVpyOUBgWy1kamhiZzZxckZxZyRRK0cvPjMuLFVgNkovcFZUSUU3O3BdRWlhaHRoV2tzWWE4Ul5oIltZSWFWNlYhNkEwPzM+Um8mKFokNzRTV1htY01kaWcxXFk7fj5lbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCAxMAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwNjEgMDAwMDAgbiAKMDAwMDAwMDExMiAwMDAwMCBuIAowMDAwMDAwMjE5IDAwMDAwIG4gCjAwMDAwMDAzMzEgMDAwMDAgbiAKMDAwMDAwMDQ0NiAwMDAwMCBuIAowMDAwMDAwNjM5IDAwMDAwIG4gCjAwMDAwMDA3MDcgMDAwMDAgbiAKMDAwMDAwMDk5MyAwMDAwMCBuIAowMDAwMDAxMDUyIDAwMDAwIG4gCnRyYWlsZXIKPDwKL0lEIApbPGE5NWM1NGU5NjQ0YTY2MzdiYTZlZTk1M2M1YTRlMDQ3PjxhOTVjNTRlOTY0NGE2NjM3YmE2ZWU5NTNjNWE0ZTA0Nz5dCiUgUmVwb3J0TGFiIGdlbmVyYXRlZCBQREYgZG9jdW1lbnQgLS0gZGlnZXN0IChvcGVuc291cmNlKQoKL0luZm8gNyAwIFIKL1Jvb3QgNiAwIFIKL1NpemUgMTAKPj4Kc3RhcnR4cmVmCjIzMTQKJSVFT0YK" download="BoxDrop_Equipment_Codes.pdf" style="font-size:11px;color:var(--navy);font-weight:600">⬇ Download PDF</a></div>
+    </div>
+    <div id="sref-shortcuts">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 28px;padding:4px 0 12px">
 
       <div>
@@ -1644,6 +1655,7 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
         </div>
       </div>
 
+    </div>
     </div>
     <div class="mfooter"><button class="btn p" onclick="closeM('m-shortcuts')">Close</button></div>
   </div>
@@ -1858,7 +1870,7 @@ function sbToLoad(r) {
     deleted: r.deleted||false, deletedAt: r.deleted_at||null,
     deletedBy: r.deleted_by||null, deliveredAt: r.delivered_at||null,
     preIssueStatus: r.pre_issue_status||null, claimInfo: r.claim_info||null,
-    lastLoc: r.last_loc||'', isLTL: !!r.is_ltl, quotes: r.quotes||[], sel: false
+    lastLoc: r.last_loc||'', isLTL: !!r.is_ltl, quotes: r.quotes||[], tankerEndorsement: !!r.tanker_endorsement, sel: false
   };
 }
 function sbToCarrier(r) {
@@ -1917,7 +1929,7 @@ function loadToSb(l) {
     deleted: o.deleted||false, deleted_at: o.deletedAt||null,
     deleted_by: o.deletedBy||null, delivered_at: o.deliveredAt||null,
     pre_issue_status: o.preIssueStatus||null, claim_info: o.claimInfo||null,
-    last_loc: o.lastLoc||'', is_ltl: !!o.isLTL, quotes: o.quotes||[]
+    last_loc: o.lastLoc||'', is_ltl: !!o.isLTL, quotes: o.quotes||[], tanker_endorsement: !!o.tankerEndorsement
   };
 }
 function carrierToSb(c) {
@@ -2583,7 +2595,7 @@ function renameLGPrompt(gid) {
 
 function deleteLG(gid) {
   if(!confirm('Delete this board? Loads will not be deleted.')) return;
-  var groups = getLoadGroups().filter(function(g){return g.id!==gid;});
+  var groups = getLoadGroups().filter(function(g){ return String(g.id) !== String(gid); });
   saveLoadGroups(groups);
   if(boardFilter==='group_'+gid) {
     boardFilter='all';
@@ -2741,30 +2753,29 @@ function statusBtnStyle(status) {
 // EQUIPMENT LOOKUP
 // ============================
 var EQUIP_MAP = {
-  'V':'Van',
-  'R':'Reefer',
-  'F':'Flatbed',
-  'SD':'Step Deck',
-  'DD':'Double Drop',
-  'RGN':'Removable Gooseneck',
-  'CON':'Conestoga',
-  'SB':'Box Truck',
-  'SPR':'Sprinter Van',
-  'HS':'Hot Shot',
-  'TK':'Tanker',
-  'BULK':'Bulk',
-  'AUTO':'Auto Carrier',
-  'LTL':'LTL',
+  'V':   'Van',
+  'SB':  'Box Truck',
+  'SP':  'Sprinter Van',
+  'R':   'Reefer',
+  'F':   'Flatbed',
+  'SD':  'Step Deck',
+  'CN':  'Conestoga',
+  'HS':  'Hot Shot',
+  'DD':  'Double Drop',
+  'RGN': 'Removable Gooseneck',
+  'LTL': 'LTL',
   // Legacy aliases — resolve display only, not shown in picker
-  'FV':'Flatbed','SB26':'Box Truck','SB16':'Box Truck',
+  'CON':'Conestoga','CONESTOGA':'Conestoga',
+  'SPR':'Sprinter Van','FV':'Flatbed',
+  'SB26':'Box Truck','SB16':'Box Truck',
   'VAN':'Van','REEFER':'Reefer','RF':'Reefer','FLAT':'Flatbed','FB':'Flatbed',
   'STEP':'Step Deck','BT':'Box Truck','BOX':'Box Truck',
   'HB':'Hot Shot','HOTSHOT':'Hot Shot','SPRINTER':'Sprinter Van',
-  'CONESTOGA':'Conestoga','TANK':'Tanker'
+  'TK':'Tanker','TANK':'Tanker','BULK':'Bulk','AUTO':'Auto Carrier'
 };
-// Canonical codes shown in picker
+// Canonical codes shown in picker — in display order
 var EQUIP_CODES = [
-  'V','R','F','SD','DD','RGN','CON','SB','SPR','HS','TK','BULK','AUTO','LTL'
+  'V','SB','SP','R','F','SD','CN','HS','DD','RGN','LTL'
 ];
 function resolveEquipCode(raw){
   if(!raw) return '';
@@ -3004,7 +3015,7 @@ function renderBoard() {
       +'<td style="color:var(--tx2)">'+esc(s.lState||'-')+(showZip2&&s.lZip?' '+esc(s.lZip):'')+'</td>'
       +'<td style="font-size:11px">'+(s.lAppt?dtToDisplay(s.lAppt):'-')+'</td>'
       +'<td style="color:var(--tx2);font-size:11px">'+s.pu+'PU/'+s.dl+'DEL'+(l.stops.some(function(x){return x.liftgate;})?'<span style="font-size:9px;font-weight:700;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 4px;margin-left:4px">LG</span>':'')+(l.stops.some(function(x){return x.driverAssist;})?'<span style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;margin-left:4px">DA</span>':'')+'</td>'
-      +'<td style="font-size:11px;font-weight:600;color:var(--navy)">'+(equipCode?esc(equipCode):'-')+'</td>'
+      +'<td style="font-size:11px;font-weight:600;color:var(--navy)">'+(equipCode?esc(equipCode):'-')+(l.tankerEndorsement?'<span style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;margin-left:3px">TANKER</span>':'')+'</td>'
       +'<td>'+esc(l.carrier||'-')+'</td>'
       +'<td style="color:var(--tx2);max-width:180px;overflow:hidden">'+vendorDisplay(l.vendor,true)+'</td>'
       +'<td>$'+(l.cr||0).toLocaleString()+'</td>'
@@ -5025,10 +5036,12 @@ function openLoadModal(load, mode) {
     fv('lf-dphone').value = load.driverPhone||'';
     fv('lf-truck').value  = load.truck||'';
     fv('lf-equip').value  = load.equip||'';
+    var tk = document.getElementById('lf-tanker'); if(tk) tk.checked = !!load.tankerEndorsement;
   } else {
     fv('lf-num').value    = peekNextLoadNum();
     fv('lf-status').value = 'Schedule';
     ['lf-vendor','lf-carrier','lf-cr','lf-custR','lf-miles','lf-notes','lf-tracking','lf-dname','lf-dphone','lf-truck','lf-equip'].forEach(function(id){fv(id).value='';});
+    var tk2 = document.getElementById('lf-tanker'); if(tk2) tk2.checked = false;
   }
   var _sl=document.getElementById('stop-list');
   stopRows=[];if(_sl)_sl.innerHTML='';
@@ -5096,6 +5109,7 @@ function saveLoad(){
     dispatcher:fv('lf-disp'), cr:parseFloat(fv('lf-cr'))||0, custR:effectiveCustR,
     miles:parseFloat(fv('lf-miles'))||0, notes:fv('lf-notes'), equip:fv('lf-equip'),
     tracking:fv('lf-tracking'), driverName:fv('lf-dname'), driverPhone:fv('lf-dphone'), truck:fv('lf-truck'),
+    tankerEndorsement: !!(document.getElementById('lf-tanker')&&document.getElementById('lf-tanker').checked),
     stops:fs,
     callins:editingLoad?editingLoad.callins:[{status:'Load Created',time:nowStr(),note:'Created by '+cap(currentUser),req:false,type:'created'}],
     docs:editingLoad?editingLoad.docs:{bol:null,bolUrl:null,pod:null,podUrl:null,rc:null,rcUrl:null},
@@ -5940,6 +5954,7 @@ function sendRFQFromLoad(lid) {
   var accessorials = [];
   if(l.stops.some(function(s){return s.driverAssist;})) accessorials.push('Driver Assist');
   if(l.stops.some(function(s){return s.liftgate;})) accessorials.push('Liftgate Required');
+  if(l.tankerEndorsement) accessorials.push('Tanker Endorsement Required');
 
   var equip = l.equip ? resolveEquipCode(l.equip)+' ('+l.equip+')' : '';
   var equip = l.equip ? resolveEquipCode(l.equip) : '';
@@ -8979,22 +8994,28 @@ function openTodaysLoads() {
   var mm = String(today.getMonth()+1).padStart(2,'0');
   var dd = String(today.getDate()).padStart(2,'0');
   var label = mm+'/'+dd;
+  var dateVal = today.toISOString().slice(0,10); // YYYY-MM-DD for date input
   var groups = getLoadGroups();
   var existing = groups.find(function(g){return g.name===label;});
+  var gid;
   if(!existing) {
-    var newGroup = {id:Date.now(), name:label, filters:{startCity:'',endCity:'',status:'',carrier:'',vendor:'',pickupDate:today.toISOString().slice(0,10)}};
+    gid = Date.now();
+    var newGroup = {id:gid, name:label, filters:{search:'',status:'',carrier:'',dispatcher:'',dateFrom:dateVal,dateTo:dateVal}};
     groups.push(newGroup);
-    localStorage.setItem(lgKey(), JSON.stringify(groups));
+    saveLoadGroups(groups);
+  } else {
+    gid = existing.id;
+    // Always refresh the date filter to today
+    existing.filters = existing.filters || {};
+    existing.filters.dateFrom = dateVal;
+    existing.filters.dateTo = dateVal;
+    saveLoadGroups(groups);
   }
   goPage('board', document.getElementById('ntab-board'));
   setTimeout(function(){
     renderLoadGroupTabs();
-    setTimeout(function(){
-      document.querySelectorAll('#board-lg-tabs .stab').forEach(function(t){
-        if(t.textContent.trim()===label) t.click();
-      });
-    }, 80);
-  }, 60);
+    setBFGroup(gid, document.getElementById('lg-tab-'+gid) || document.createElement('div'));
+  }, 80);
 }
 
 function getDashMonth() {
