@@ -593,8 +593,6 @@ th.resizable .col-resizer:hover,th.resizable .col-resizer.dragging{background:va
       <button class="tbtn" id="install-btn" style="display:none" onclick="installApp()">&#8681; Install App</button>
       <button class="tbtn" onclick="openM('m-shortcuts')" title="Keyboard Shortcuts (/)">/ Shortcuts</button>
       <button class="tbtn admin" id="admin-btn" style="display:none" onclick="openM('m-users');renderUsers()">&#9881; Users</button>
-      <button class="tbtn" id="backup-btn" onclick="manualBackup()" title="Download JSON backup" style="display:none">Backup</button>
-      <button class="tbtn" id="restore-btn" onclick="restoreFromBackup()" title="Restore from JSON backup" style="display:none;color:var(--amber)">Restore</button>
       <button class="tbtn" id="tb-zip-state" onclick="toggleZip()" title="Toggle ZIP" style="display:none">ZIP: <span id="zip-state-lbl">ON</span></button>
       <button class="tbtn" id="tb-margin-state" onclick="toggleMarginMode()" title="Toggle Margin" style="display:none">Margin: <span id="margin-state-lbl">$</span></button>
       <button class="tbtn" onclick="openMyProfile()" id="my-profile-btn" title="Edit your profile">&#9998; <span id="cur-user-display">Profile</span></button>
@@ -2190,11 +2188,6 @@ document.querySelectorAll('.overlay').forEach(function(m) {
 // ============================
 function initApp() {
   var zl=document.getElementById('zip-state-lbl');
-  // Show backup button for admins
-  var bb=document.getElementById('backup-btn');
-  if(bb) bb.style.display=isAdmin()?'':'none';
-  var rb=document.getElementById('restore-btn');
-  if(rb) rb.style.display=isAdmin()?'':'none';
   if(zl)zl.textContent=localStorage.getItem('bdf_showZip')==='0'?'OFF':'ON';
   var ml=document.getElementById('margin-state-lbl');
   if(ml)ml.textContent=localStorage.getItem('bdf_marginPct')==='1'?'%':'$';
